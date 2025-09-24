@@ -1,0 +1,362 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Arimo:ital,wght@0,400..700;1,400..700&family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fredoka:wght@300..700&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+
+body {
+  margin: 0;
+  font-family: 'Arimo';
+}
+
+
+
+/* .navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+
+.logo-img {
+  height: 60px;
+  width: auto;
+}
+
+.nav-links {
+  list-style: none;
+  display: flex;
+  gap: 25px;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-links li {
+  cursor: pointer;
+  color: #333;
+  font-weight: 800;
+  transition: color 0.3s;
+}
+
+.nav-links li:hover {
+  color: #ff0002;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.nav-icon {
+  font-size: 24px;
+  color: #333;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.nav-icon:hover {
+  color: #ff0002;
+}
+
+.login-btn {
+  padding: 10px 18px;
+  font-size: 14px;
+  background-color: #fe1a1a;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.login-btn:hover {
+  background-color: #c70202;
+}
+
+.full-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  padding: 0 30px;
+  text-align: center;
+}
+@media (max-width: 768px) {
+  .navbar-left,
+  .navbar-right {
+    flex: 1 1 100%;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+@media (max-width: 768px) {
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+    height: auto;
+    padding-bottom: 10px;
+  }
+
+  .navbar-left, .navbar-right {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+
+  .nav-links {
+    gap: 15px;
+  }
+} */
+
+  .full-hero {
+  position: relative;
+  height: 100vh;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* so hero text doesn't sit behind navbar */
+}
+
+
+.full-hero-content {
+  max-width: 800px;
+}
+
+.full-hero-content h1 {
+  font-size: 40px;
+  font-weight: 800;
+  color: #b30000;
+  margin-bottom: 20px;
+}
+
+.full-hero-content p {
+  font-size: 18px;
+  color: #444;
+  margin-bottom: 30px;
+  line-height: 1.6;
+}
+
+.hero-content button {
+  padding: 12px 28px;
+  background-color: #b30000;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 30px;
+  transition: background 0.3s;
+}
+
+.full-hero-content button:hover {
+  background-color: #b30000;
+}
+
+/* Keep this as is */
+.test-choose {
+  text-align: center;
+  padding: 60px 20px;
+  background: white;
+}
+
+.choose-heading {
+  font-size: 32px;
+  margin-bottom: 30px;
+  color: #b30000;
+}
+
+.test-box {
+  background: white;
+  width: 300px;
+  margin: 0 auto;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.test-box h3 {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.test-box button {
+  background-color: #ff2323;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-weight: bold;
+  border-radius: 6px;
+  margin-top: 15px ;
+  cursor: pointer;
+}
+
+.test-box button:hover {
+  background-color: #b30000;
+}
+.full-hero {
+  height: 100vh;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-overlay {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-content {
+  max-width: 800px;
+  text-align: center;
+  padding: 0 30px;
+}
+
+.hero-content h1 {
+  font-size: 40px;
+  font-weight: 800;
+  color: #b30000;
+  margin-bottom: 20px;
+}
+
+.hero-content p {
+  font-size: 18px;
+  color: #444;
+  margin-bottom: 30px;
+  line-height: 1.6;
+}
+
+.hero-features {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 30px;
+}
+
+.feature-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 14px;
+  color: #333;
+  width: 120px;
+}
+
+.feature-icon {
+  font-size: 30px;
+  margin-bottom: 8px;
+  color: #b30000;
+}
+
+.hero-content button {
+  padding: 12px 28px;
+  background-color: #ff2323;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.hero-content button:hover {
+  background-color: #b30000;
+}
+
+
+/* Grid container for test cards */
+.test-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 25px;
+  justify-items: center;
+}
+
+/* Test box styling */
+.test-box {
+  background: white;
+  width: 100%;
+  max-width: 300px;
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.test-box:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+.test-box h3 {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.test-box p {
+  font-size: 14px;
+  color: #555;
+  min-height: 40px;
+}
+
+.test-box button {
+  background-color: #ff2323;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-weight: bold;
+  border-radius: 6px;
+  margin-top: 15px;
+  cursor: pointer;
+}
+
+.test-box button:hover {
+  background-color: #b30000;
+}
+.test-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* Always 3 columns */
+  gap: 25px;
+  justify-items: center;
+}
+
+@media (max-width: 900px) {
+  .test-list {
+    grid-template-columns: repeat(2, 1fr); /* 2 columns on tablets */
+  }
+}
+
+@media (max-width: 600px) {
+  .test-list {
+    grid-template-columns: 1fr; /* 1 column on mobile */
+  }
+}
+
+.test-content-container {
+  position: relative;
+}
+
+.test-content-container div[style*="cursor: col-resize"] {
+  transition: background 0.2s;
+}
+
+.test-content-container div[style*="cursor: col-resize"]:hover {
+  background: #999;
+}
