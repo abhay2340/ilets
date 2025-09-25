@@ -160,6 +160,20 @@ function TestLandingPage() {
             >
               Start Test 6
             </button>
+          </div>   <div className="test-box">
+            <h3>Test 7</h3>
+            <p>Listening practice with audio.</p>
+            <button
+              onClick={() => {
+                if (user) {
+                  navigate('/security?testId=test7');
+                } else {
+                  navigate('/login');
+                }
+              }}
+            >
+              Start Test 7
+            </button>
           </div>
         </div>
       </section>

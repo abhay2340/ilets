@@ -2,10 +2,9 @@ const test6 = {
     parts: [
         {
             title: 'PASSAGE 1',
-            passage: `Silk, a natural fibre produced by a particular worm called a silkworm, has been used in
-clothing for many centuries
+            passage: `Silk, a natural fibre produced by a particular worm called a silkworm, has been used in clothing for many centuries
 Silk became a precious commodity,
-            When silk was first discovered in China over
+When silk was first discovered in China over
 highly sought after by other countries from an
 4, 500 years ago, it was reserved exclusively
 early date, and it is believed that the silk trade
@@ -133,43 +132,7 @@ cent of world production each year.After the
 late 1970s, however, China dramatically
 increased its silk production, and once again
 became the world's leading producer.
-Test 1
-Questions 1 - 7
-Complete the notes below.
-Choose ONE WORD ONLY from the passage for each answer.
-Write your answers in boxes 7 - 13 on your answer sheet.
-Chinese silk
-Early Uses
-Clothing
-• at first, silk only available to Chinese of high rank
-• emperor wore 1 ....................... silk indoors
-In industry
-• silk items included parts of musical instruments, fishing strings and 2 ……………………
-Currency
-• silk was used as payment of 3 ....................... as well as for wages and rewards
-• silk replaced 4 ....................... as a unit of value
-• silk soon used as payment in 5 .......................trade
-Evidence of silk trade
-1070 BC, Egypt
-• hair of a 6 ....................... contained silk
-2nd century BC, Persia and Mesopotamia:
-• gifts of silk were presented by Chinese ambassadors
-1015 AD, north - west China:
-• silk objects were hidden inside 7 ……………………
-Questions 8 - 13
-Do the following statements agree with the information given in Reading Passage 17
-In boxes 8 - 13 on your answer sheet, write
-TRUE FALSE NOT GIVEN if the statement agrees with the information
-if the statement contradicts the information
-if there is no information on this
-8 Their first sight of silk created fear among Roman soldiers.
-9 The quality of Chinese silk imported by the early Romans varied widely.
-10 11 12 13 The Byzantine emperor first acquired silkworm eggs from the Chinese emperor.
-The price of high - grade Chinese silk fell due to competition from Middle - Eastern
-producers.
-Silk was produced in the Middle East several centuries before it was produced in
-    Europe.
-Global silk production has declined in recent years.`,
+`,
             questions: [
                 // TRUE / FALSE / NOT GIVEN
                 {

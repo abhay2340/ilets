@@ -13,8 +13,9 @@ import { db, auth } from '../firebaseConfig.jsx';
 import test4 from '../data/test4.jsx';
 import test5 from '../data/test5.jsx';
 import test6 from '../data/test6.jsx';
+import test7 from '../data/test7.jsx';
 
-const TEST_MAP = { test1, test2, test3, test4, test5, test6 };
+const TEST_MAP = { test1, test2, test3, test4, test5, test6, test7 };
 
 const TestPage = () => {
   const location = useLocation();
