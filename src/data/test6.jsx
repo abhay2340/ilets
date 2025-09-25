@@ -301,12 +301,14 @@ Global silk production has declined in recent years.`,
                     options: ['A', 'B', 'C', 'D', 'E', 'F']
                 },
 
-                // Matching people to statements (19-23)
+                // Matching people to statements (19-23) — converted to matchinggroup
                 {
                     id: 19,
-                    type: 'mcq',
-                    question: 'Match the statement: "The indications are that mammoths died as a result of climate change." Who said this?',
-                    options: [
+                    type: 'matchinggroup',
+                    subIds: [19, 20, 21, 22, 23],
+                    displayId: '19–23',
+                    question: 'Questions 19–23: Match the statements (rows) with the people (columns). Choose ONE option per row.',
+                    columns: [
                         'A Yuri Khudi',
                         'B Kirill Serotetto',
                         'C Adrian Lister',
@@ -314,62 +316,13 @@ Global silk production has declined in recent years.`,
                         'E Dan Fisher',
                         'F Bernard Buigues',
                         'G Naoki Suzuki'
-                    ]
-                },
-                {
-                    id: 20,
-                    type: 'mcq',
-                    question: 'Match the statement: "Teeth analysis is important in discovering why mammoths died out." Who said this?',
-                    options: [
-                        'A Yuri Khudi',
-                        'B Kirill Serotetto',
-                        'C Adrian Lister',
-                        'D Alexei Tikhonov',
-                        'E Dan Fisher',
-                        'F Bernard Buigues',
-                        'G Naoki Suzuki'
-                    ]
-                },
-                {
-                    id: 21,
-                    type: 'mcq',
-                    question: 'Match the statement: "The corpse of the baby mammoth is in better condition than any other that has been discovered." Who said this?',
-                    options: [
-                        'A Yuri Khudi',
-                        'B Kirill Serotetto',
-                        'C Adrian Lister',
-                        'D Alexei Tikhonov',
-                        'E Dan Fisher',
-                        'F Bernard Buigues',
-                        'G Naoki Suzuki'
-                    ]
-                },
-                {
-                    id: 22,
-                    type: 'mcq',
-                    question: 'Match the statement: "It would be a mistake to ignore the baby mammoth’s discovery, because of its potential importance." Who is implied to have felt this?',
-                    options: [
-                        'A Yuri Khudi',
-                        'B Kirill Serotetto',
-                        'C Adrian Lister',
-                        'D Alexei Tikhonov',
-                        'E Dan Fisher',
-                        'F Bernard Buigues',
-                        'G Naoki Suzuki'
-                    ]
-                },
-                {
-                    id: 23,
-                    type: 'mcq',
-                    question: 'Match the statement: "Mammoths often died at a time of year when they should have been in good physical condition." Who observed this?',
-                    options: [
-                        'A Yuri Khudi',
-                        'B Kirill Serotetto',
-                        'C Adrian Lister',
-                        'D Alexei Tikhonov',
-                        'E Dan Fisher',
-                        'F Bernard Buigues',
-                        'G Naoki Suzuki'
+                    ],
+                    rows: [
+                        'The indications are that mammoths died as a result of climate change.',
+                        'Teeth analysis is important in discovering why mammoths died out.',
+                        'The corpse of the baby mammoth is in better condition than any other that has been discovered.',
+                        'It would be a mistake to ignore the baby mammoth’s discovery, because of its potential importance.',
+                        'Mammoths often died at a time of year when they should have been in good physical condition.'
                     ]
                 },
 
