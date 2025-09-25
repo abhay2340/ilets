@@ -21,11 +21,11 @@ const Account = () => {
 
   return (
     <>
-    <Navbar />
-    <div className="account-container">
-      <AccountSidebar selectedTab={selectedTab} setSelectedTab={setSelectedTab} />
-      <AccountContent selectedTab={selectedTab} user={user} onLogout={handleLogout} />
-    </div>
+      <Navbar />
+      <div className="account-container">
+        <AccountSidebar selectedTab={selectedTab} setSelectedTab={setSelectedTab} />
+        <AccountContent selectedTab={selectedTab} user={user} onLogout={handleLogout} />
+      </div>
     </>
   );
 };

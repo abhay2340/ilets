@@ -1,9 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import './TestLandingPage.css';
-import logo from './assets/logo.png';
 import backgroundImg from './assets/student-hero.jpg';
-import { FaBookReader, FaClock, FaHeadphones, FaUserCircle, FaShoppingCart } from 'react-icons/fa';
+import { FaBookReader, FaClock, FaHeadphones } from 'react-icons/fa';
 import { useAuth } from './AuthContext';
 import { signOut } from 'firebase/auth';
 import { auth } from './firebaseConfig';
@@ -23,7 +22,7 @@ function TestLandingPage() {
     <div className="test-landing-container">
 
       {/* Navbar */}
-    <Navbar transparent />
+      <Navbar transparent />
 
       {/* Hero Section with Background */}
       <section
@@ -65,91 +64,106 @@ function TestLandingPage() {
       </section>
 
       {/* Test List Section */}
-    <section className="test-choose">
-  <h2 className="choose-heading">Available Tests</h2>
-  <div className="test-list">
-    <div className="test-box">
-      <h3>Test 1</h3>
-      <p>Includes reading, listening, and writing sections.</p>
-      <button
-  onClick={() => {
-    if (user) {
-      navigate('/security');
-    } else {
-      navigate('/login'); // redirect to login page
-    }
-  }}
->
-  Start Test 1
-</button>
+      <section className="test-choose">
+        <h2 className="choose-heading">Available Tests</h2>
+        <div className="test-list">
+          <div className="test-box">
+            <h3>Test 1</h3>
+            <p>Includes reading, listening, and writing sections.</p>
+            <button
+              onClick={() => {
+                if (user) {
+                  navigate('/security');
+                } else {
+                  navigate('/login'); // redirect to login page
+                }
+              }}
+            >
+              Start Test 1
+            </button>
 
-    </div>
+          </div>
 
-    <div className="test-box">
-      <h3>Test 2</h3>
-      <p>Includes reading, listening, and writing sections.</p>
-      <button
-  onClick={() => {
-    if (user) {
-      navigate('/security?testId=test2');
-    } else {
-      navigate('/login');
-    }
-  }}
->
-  Start Test 2
-</button>
-    </div>
-    <div className="test-box">
-      <h3>Test 3</h3>
-      <p>New listening test with audio.</p>
-      <button
-  onClick={() => {
-    if (user) {
-      navigate('/security?testId=test3');
-    } else {
-      navigate('/login');
-    }
-  }}
->
-  Start Test 3
-</button>
-    </div>
+          <div className="test-box">
+            <h3>Test 2</h3>
+            <p>Includes reading, listening, and writing sections.</p>
+            <button
+              onClick={() => {
+                if (user) {
+                  navigate('/security?testId=test2');
+                } else {
+                  navigate('/login');
+                }
+              }}
+            >
+              Start Test 2
+            </button>
+          </div>
+          <div className="test-box">
+            <h3>Test 3</h3>
+            <p>New listening test with audio.</p>
+            <button
+              onClick={() => {
+                if (user) {
+                  navigate('/security?testId=test3');
+                } else {
+                  navigate('/login');
+                }
+              }}
+            >
+              Start Test 3
+            </button>
+          </div>
 
-    <div className="test-box">
-      <h3>Test 4</h3>
-      <p>Listening practice with audio.</p>
-      <button
-  onClick={() => {
-    if (user) {
-      navigate('/security?testId=test4');
-    } else {
-      navigate('/login');
-    }
-  }}
->
-  Start Test 3
-</button>
-    </div>
+          <div className="test-box">
+            <h3>Test 4</h3>
+            <p>Listening practice with audio.</p>
+            <button
+              onClick={() => {
+                if (user) {
+                  navigate('/security?testId=test4');
+                } else {
+                  navigate('/login');
+                }
+              }}
+            >
+              Start Test 4
+            </button>
+          </div>
 
-    <div className="test-box">
-      <h3>Test 5</h3>
-      <p>Listening practice with audio.</p>
-     <button
-  onClick={() => {
-    if (user) {
-      navigate('/security?testId=test5');
-    } else {
-      navigate('/login');
-    }
-  }}
->
-  Start Test 3
-</button>
-    </div>
-  </div>
-</section>
-<ContactSection />
+          <div className="test-box">
+            <h3>Test 5</h3>
+            <p>Listening practice with audio.</p>
+            <button
+              onClick={() => {
+                if (user) {
+                  navigate('/security?testId=test5');
+                } else {
+                  navigate('/login');
+                }
+              }}
+            >
+              Start Test 5
+            </button>
+          </div>
+          <div className="test-box">
+            <h3>Test 6</h3>
+            <p>Listening practice with audio.</p>
+            <button
+              onClick={() => {
+                if (user) {
+                  navigate('/security?testId=test6');
+                } else {
+                  navigate('/login');
+                }
+              }}
+            >
+              Start Test 6
+            </button>
+          </div>
+        </div>
+      </section>
+      <ContactSection />
     </div>
   );
 }

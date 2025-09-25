@@ -39,7 +39,7 @@ const OverviewSection = ({ user }) => {
         data: accuracyData,
         backgroundColor: '#3F51B5',
       },
-     
+
       {
         label: 'Score',
         data: scoreData,
@@ -64,9 +64,9 @@ const OverviewSection = ({ user }) => {
         <p>No test results found yet.</p>
       ) : (
         <>
-         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-  <Bar options={options} data={chartData} />
-</div>
+          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <Bar options={options} data={chartData} />
+          </div>
 
 
           <div style={{ display: 'grid', gap: '15px' }}>

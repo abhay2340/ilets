@@ -11,24 +11,24 @@ function SignupPage() {
   const navigate = useNavigate();
 
   const handleSignup = async (e) => {
-  e.preventDefault();
-  const name = e.target[0].value;         // First input (name)
-  const email = e.target[1].value;        // Second input
-  const password = e.target[3].value;     // Fourth input (skip phone)
+    e.preventDefault();
+    const name = e.target[0].value;         // First input (name)
+    const email = e.target[1].value;        // Second input
+    const password = e.target[3].value;     // Fourth input (skip phone)
 
-  try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
-    // ✅ Set the displayName here
-    await updateProfile(userCredential.user, {
-      displayName: name
-    });
+      // ✅ Set the displayName here
+      await updateProfile(userCredential.user, {
+        displayName: name
+      });
 
-    navigate('/');
-  } catch (error) {
-    alert(error.message);
-  }
-};
+      navigate('/');
+    } catch (error) {
+      alert(error.message);
+    }
+  };
 
   return (
     <div className="signup-wrapper">

@@ -1,0 +1,589 @@
+const test6 = {
+    parts: [
+        {
+            title: 'PASSAGE 1',
+            passage: `Silk, a natural fibre produced by a particular worm called a silkworm, has been used in
+clothing for many centuries
+Silk became a precious commodity,
+            When silk was first discovered in China over
+highly sought after by other countries from an
+4, 500 years ago, it was reserved exclusively
+early date, and it is believed that the silk trade
+for the use of the emperor, his close relations
+actually existed before the Silk Road2 was
+and the very highest of his dignitaries.Within
+officially opened in the second century BC.An
+the palace, the emperor is believed to have
+Egyptian mummy with a silk thread in her
+worn a rope of white silk; outside, he, his
+hair, dating from 1070 BC, has been
+principal wife, and the heir to the throne wore
+discovered in the village of Deir el Medina
+yellow, the colour of the earth.
+near the Valley of the Kings, and is probably
+the earliest evidence of the silk trade.During
+Gradually silk came into more general
+the second century BC, the Chinese emperor
+use, and the various classes of Chinese society
+Han Wu Di’s ambassadors travelled as far
+began wearing tunics of silk.As well as being
+west as Persia and Mesopotamia, bearing gifts
+used for clothing and decoration, silk was
+including silks.A range of important finds of
+quite quickly put to industrial use and rapidly
+Chinese silks have also been made along the
+became one of the principal elements of the
+Silk Road.One of the most dramatic of these
+Chinese economy.It was used in the
+finds was some Tang silk discovered in 1900.
+production of musical instruments, as string
+It is believed that around 1015 AD Buddhist
+for fishing, and even as the world’s first luxury
+monks possibly alarmed by the threat of
+paper.Eventually even the common people
+invasion by Tibetan people, had sealed more
+were able to wear garments of silk.
+than ten thousand manuscripts and silk
+During the Han dynasty(206 BC- 220
+paintings, silk banners and textiles in caves
+AD), silk ceased to be a mere fabric and
+near Dunhuang, a trading station on the Silk
+became a form of currency.Farmers paid
+Road in north - west China.
+taxes in grain and silk, and silk was used to
+pay civil servants and to reward subjects for
+outstanding services.Values were calculated
+in lengths of silk as they had previously been
+calculated in weight of gold.Before long, silk
+became a currency used in trade with foreign
+countries, which continued into the Tang
+dynasty(616- 907 AD).It is possible that this
+added importance was the result of a major
+increase in production.Silk also found its way
+so thoroughly into the Chinese language that
+230 of the 5,000 most common characters of
+Mandarin1 have ‘silk’ as their key component.
+Some historians believe that the first
+Europeans to set eyes upon the fabulous
+fabric were the Roman legions of Marcus
+Licinius Crassus, Governor of Syria.According
+to certain accounts of the period, at an
+important battle near the Euphrates River in
+    53 BC, the Roman soldiers were so startled by
+the bright silken banners of the enemy that
+they fled in panic.Yet, within decades Chinese
+silks were widely worn by the rich and noble
+families of Rome.The Roman Emperor
+Heliogabalus(218 - 222 AD) wore nothing but
+silk.By 380 AD, the Roman historian
+Marcellinus Ammianus reported that, ‘The
+    .
+    Test 1
+use of silk, which was once confined to the
+nobility has now spread to all classes without
+Byzantine church and state created imperial
+workshops, monopolising production and
+distinction – even to the lowest.’ The desire
+for silk continued to increase over the
+centuries.Despite this demand, the price of
+silk remained very high.
+In spite of their secrecy about
+production methods, the Chinese eventually
+lost their monopoly on silk production.
+Knowledge of silk production methods
+reached Korea around 200 BC, when waves of
+Chinese immigrants arrived there.Shortly
+after 300 AD, it travelled westward, and the
+cultivation of the silkworm was established in
+    India.
+keeping the secret to themselves.This
+allowed a silk industry to be established,
+    undercutting the market for ordinary - grade
+Chinese silk.However, high quality silk
+textiles, woven in China especially for the
+Middle Eastern market, continued to achieve
+high prices in the West, and trade along the
+Silk Road continued as before.By the sixth
+century the Persians, too, had mastered the
+art of silk weaving, developing their own rich
+patterns and techniques.But it wasn't until
+the 13th century that Italy began silk
+production, with the introduction of 2,000
+skilled silk weavers from Constantinople.
+    Eventually, silk production became
+widespread throughout Europe.
+    Around 550 AD silk production
+reached the Middle East.Records indicate
+that two monks from Constantinople
+    (modern - day Istanbul), capital of the
+Byzantine Empire, appeared at their
+emperor's court with silkworm eggs which
+they had obtained secretly, and hidden in
+    their hollow bamboo walking sticks.Under
+their supervision the eggs hatched into
+worms, and the worms spun silk threads.
+Byzantine was in the silk business at last.The
+World silk production has
+approximately doubled during the last 30
+years in spite of man - made fibres replacing
+certain uses of silk.Before this period, China
+and Japan were the two main producers,
+    together manufacturing more than 50 per
+cent of world production each year.After the
+late 1970s, however, China dramatically
+increased its silk production, and once again
+became the world's leading producer.
+Test 1
+Questions 1 - 7
+Complete the notes below.
+Choose ONE WORD ONLY from the passage for each answer.
+Write your answers in boxes 7 - 13 on your answer sheet.
+Chinese silk
+Early Uses
+Clothing
+• at first, silk only available to Chinese of high rank
+• emperor wore 1 ....................... silk indoors
+In industry
+• silk items included parts of musical instruments, fishing strings and 2 ……………………
+Currency
+• silk was used as payment of 3 ....................... as well as for wages and rewards
+• silk replaced 4 ....................... as a unit of value
+• silk soon used as payment in 5 .......................trade
+Evidence of silk trade
+1070 BC, Egypt
+• hair of a 6 ....................... contained silk
+2nd century BC, Persia and Mesopotamia:
+• gifts of silk were presented by Chinese ambassadors
+1015 AD, north - west China:
+• silk objects were hidden inside 7 ……………………
+Questions 8 - 13
+Do the following statements agree with the information given in Reading Passage 17
+In boxes 8 - 13 on your answer sheet, write
+TRUE FALSE NOT GIVEN if the statement agrees with the information
+if the statement contradicts the information
+if there is no information on this
+8 Their first sight of silk created fear among Roman soldiers.
+9 The quality of Chinese silk imported by the early Romans varied widely.
+10 11 12 13 The Byzantine emperor first acquired silkworm eggs from the Chinese emperor.
+The price of high - grade Chinese silk fell due to competition from Middle - Eastern
+producers.
+Silk was produced in the Middle East several centuries before it was produced in
+    Europe.
+Global silk production has declined in recent years.`,
+            questions: [
+                // TRUE / FALSE / NOT GIVEN
+                {
+                    id: 1,
+                    type: 'mcq',
+                    question: 'Aries points out that children did different types of work to adults during the Middle Ages.',
+                    options: ['TRUE', 'FALSE', 'NOT GIVEN']
+                },
+                {
+                    id: 2,
+                    type: 'mcq',
+                    question: 'Working children during the Middle Ages were generally unloved.',
+                    options: ['TRUE', 'FALSE', 'NOT GIVEN']
+                },
+                {
+                    id: 3,
+                    type: 'mcq',
+                    question: 'Some scientists thought that overwork might damage the health of young children.',
+                    options: ['TRUE', 'FALSE', 'NOT GIVEN']
+                },
+                {
+                    id: 4,
+                    type: 'mcq',
+                    question: 'The rise of trade unions largely contributed to the protection of children from exploitation in the 19th century.',
+                    options: ['TRUE', 'FALSE', 'NOT GIVEN']
+                },
+                {
+                    id: 5,
+                    type: 'mcq',
+                    question: 'By the aid of half-time schools, most children went to school in the mid-19th century.',
+                    options: ['TRUE', 'FALSE', 'NOT GIVEN']
+                },
+                {
+                    id: 6,
+                    type: 'mcq',
+                    question: 'In the 20th century, almost all children needed to go to school with a full-time schedule.',
+                    options: ['TRUE', 'FALSE', 'NOT GIVEN']
+                },
+                {
+                    id: 7,
+                    type: 'mcq',
+                    question: "Nowadays, children's needs are much differentiated and classified based on how old they are.",
+                    options: ['TRUE', 'FALSE', 'NOT GIVEN']
+                },
+
+                // WRITTEN (short answer)
+                {
+                    id: 8,
+                    type: 'written',
+                    question: 'What had not become a hot topic until the French historian Philippe Aries\' book caused great attention?'
+                },
+                {
+                    id: 9,
+                    type: 'written',
+                    question: 'According to Aries, what was the typical image of children in Western Europe during the Middle Ages?'
+                },
+                {
+                    id: 10,
+                    type: 'written',
+                    question: 'What historical event generated the need for a large number of children to work for a long time in the 18th and 19th centuries?'
+                },
+                {
+                    id: 11,
+                    type: 'written',
+                    question: 'What bill was enacted to protect children from exploitation in Britain in the 1800s?'
+                },
+                {
+                    id: 12,
+                    type: 'written',
+                    question: 'Which activities were becoming regarded as preferable for almost all children in the 19th century?'
+                },
+                {
+                    id: 13,
+                    type: 'written',
+                    question: 'In what place did children spend the majority of time during their day in school?'
+                }
+            ]
+
+        },
+        {
+            title: 'PASSAGE 2',
+            passage: `A
+          On a May morning in 2007, on the Yamal Peninsula in northwestern Siberia, a Nenets reindeer herder named Yuri Khudi stood on a sandbar on the Yuribey River, looking carefully at a diminutive corpse. Although he'd never seen such an animal before, Khudi had seen many mammoth tusks, the thick corkscrew shafts that his people found each summer, and this persuaded him the corpse was a baby mammoth. It was eerily well preserved. Apart from its missing hair and toenails, it was perfectly intact. Khudi realised the find might be significant and he knew he couldn't just return home and forget all about it. He therefore decided to travel to the small town of Yar Sale to consult an old friend named Kirill Serotetto. His friend took him to meet the director of the local museum, who persuaded the local authorities to fly Khudi and Serotetto back to the Yuribey River to collect the baby mammoth.
+          
+          B
+          Mammoths became extinct between 14,000 and 10,000 years ago and since the extinctions coincided with the end of the most recent Ice age, many researchers believe that the primary cause of the great die-off was the sharp rise in temperature, which dramatically altered the vegetation. ‘We have strong evidence that the temperature rise played a significant part in their extinction.’ says Adrian Lister, a palaeontologist and mammoth expert at London's Natural History Museum. 'In Eurasia, the timing of the two events matches closely.' The extinctions also coincided, however, with the arrival of modern humans. In addition to exploiting mammoths for food, they used their bones and tusks to make weapons, tools, and even dwellings. Some scientists believe humans were as much to blame as the temperature rise for the great die-off. Some say they caused it.
+          
+          C
+          The body of the baby mammoth was eventually sent to the St Petersburg Zoological Museum in Russia. Alexei Tikhonov, the museum's director, was one of the first scientists to view the baby, a female. According to Tikhonov, Khudi had rescued 'the best preserved mammoth to come down to us from the Ice Age', and he gratefully named her Lyuba, after Khudi's wife. Tikhonov knew that no-one would be more excited by the find than Dan Fisher, an American colleague at the University of Michigan who had spent 30 years researching the lives of mammoths. Tikhonov invited Fisher, along with Bernard Buigues, a French mammoth hunter, to come and view the baby mammoth. Fisher and Buigues had examined other specimens together, including infants, but these had been in a relatively poor state. Lyuba was another story entirely. Other than the missing hair and toenails, the only flaw in her pristine appearance was a curious dent above the trunk.
+          
+          D
+          Fisher was particularly excited about one specific part of Lyuba's anatomy: her milk tusks. Through his career, Fisher has taken hundreds of tusk samples. Most of these came from the Great Lakes region of North America, and his research showed that these animals continued to thrive, despite the late Pleistocene* temperature change. On the other hand, to Fisher the tusks often revealed telltale evidence of human hunting. His samples frequently came from animals that had died in the autumn, when they should have been at their peak after summer grazing, and less likely to die of natural causes, but also when humans would have been most eager to stockpile meat for the coming winter. He has done limited work in Siberia, but his analysis of tusks from Wrangel Island, off the coast of Siberia, suggests the same conclusion.
+          
+          E
+          In December 2007, Buigues arranged for the specimen to be transported to Japan to undergo a CT scan by Naoki Suzuki of the Jikei University School of Medicine. The test confirmed her skeleton was undamaged, and her internal organs seemed largely intact. It also showed that the end of her trunk, and her throat, mouth, and windpipe were filled with dense sediment. Six months later, in a laboratory in St Petersburg, Fisher, Buigues, Suzuki, Tikhonov and other colleagues began a three-day series of tests on Lyuba. During these, Fisher noted a dense mix of clay and sand in her trunk, mouth and throat, which had been indicated earlier by the scan. In fact, the sediment in Lyuba's trunk was packed so tightly that Fisher saw it as a possible explanation for the dent above her trunk. If she was frantically fighting for breath and inhaled convulsively, perhaps a partial vacuum was created in the base of her trunk, which would have flattened surrounding soft tissue. To Fisher, the circumstances of Lyuba’s death were clear: she had asphyxiated. Suzuki, however, proposed a different interpretation, seeing more evidence for drowning than asphyxiation.
+          
+          F
+          Studies are ongoing, but Lyuba has begun to shed the secrets of her short life and some clues to the fate of her kind. Her good general health was shown in the record of her dental development, a confirmation for Fisher that dental research is useful for evaluating health and thus key to investigating the causes of mammoth extinction. Analysis of her well-preserved DNA has revealed that she belonged to a distinct population of Mammuthus primigenius and that, soon after her time, another population migrating to Siberia from North America would take their place. Finally, Lyuba's premolars and tusks revealed that she had been born in late spring and was only a month old when she died.`,
+            questions: [
+                // Paragraph-identification (options A-F)
+                {
+                    id: 14,
+                    type: 'mcq',
+                    question: 'Which paragraph contains information about similarities between studies of mammoth remains from different parts of the world?',
+                    options: ['A', 'B', 'C', 'D', 'E', 'F']
+                },
+                {
+                    id: 15,
+                    type: 'mcq',
+                    question: 'Which paragraph contains details of the uses to which mammoth body parts were put?',
+                    options: ['A', 'B', 'C', 'D', 'E', 'F']
+                },
+                {
+                    id: 16,
+                    type: 'mcq',
+                    question: 'Which paragraph contains a theory that accounts for the damage to Lyuba’s face?',
+                    options: ['A', 'B', 'C', 'D', 'E', 'F']
+                },
+                {
+                    id: 17,
+                    type: 'mcq',
+                    question: 'Which paragraph contains an explanation of how an individual was able to identify a small corpse?',
+                    options: ['A', 'B', 'C', 'D', 'E', 'F']
+                },
+                {
+                    id: 18,
+                    type: 'mcq',
+                    question: 'Which paragraph contains a comparison between Lyuba and other young mammoth corpses?',
+                    options: ['A', 'B', 'C', 'D', 'E', 'F']
+                },
+
+                // Matching people to statements (19-23)
+                {
+                    id: 19,
+                    type: 'mcq',
+                    question: 'Match the statement: "The indications are that mammoths died as a result of climate change." Who said this?',
+                    options: [
+                        'A Yuri Khudi',
+                        'B Kirill Serotetto',
+                        'C Adrian Lister',
+                        'D Alexei Tikhonov',
+                        'E Dan Fisher',
+                        'F Bernard Buigues',
+                        'G Naoki Suzuki'
+                    ]
+                },
+                {
+                    id: 20,
+                    type: 'mcq',
+                    question: 'Match the statement: "Teeth analysis is important in discovering why mammoths died out." Who said this?',
+                    options: [
+                        'A Yuri Khudi',
+                        'B Kirill Serotetto',
+                        'C Adrian Lister',
+                        'D Alexei Tikhonov',
+                        'E Dan Fisher',
+                        'F Bernard Buigues',
+                        'G Naoki Suzuki'
+                    ]
+                },
+                {
+                    id: 21,
+                    type: 'mcq',
+                    question: 'Match the statement: "The corpse of the baby mammoth is in better condition than any other that has been discovered." Who said this?',
+                    options: [
+                        'A Yuri Khudi',
+                        'B Kirill Serotetto',
+                        'C Adrian Lister',
+                        'D Alexei Tikhonov',
+                        'E Dan Fisher',
+                        'F Bernard Buigues',
+                        'G Naoki Suzuki'
+                    ]
+                },
+                {
+                    id: 22,
+                    type: 'mcq',
+                    question: 'Match the statement: "It would be a mistake to ignore the baby mammoth’s discovery, because of its potential importance." Who is implied to have felt this?',
+                    options: [
+                        'A Yuri Khudi',
+                        'B Kirill Serotetto',
+                        'C Adrian Lister',
+                        'D Alexei Tikhonov',
+                        'E Dan Fisher',
+                        'F Bernard Buigues',
+                        'G Naoki Suzuki'
+                    ]
+                },
+                {
+                    id: 23,
+                    type: 'mcq',
+                    question: 'Match the statement: "Mammoths often died at a time of year when they should have been in good physical condition." Who observed this?',
+                    options: [
+                        'A Yuri Khudi',
+                        'B Kirill Serotetto',
+                        'C Adrian Lister',
+                        'D Alexei Tikhonov',
+                        'E Dan Fisher',
+                        'F Bernard Buigues',
+                        'G Naoki Suzuki'
+                    ]
+                },
+
+                // Short answer (24-26) — NO MORE THAN TWO WORDS
+                {
+                    id: 24,
+                    type: 'written',
+                    question: 'Some researchers say that a marked rise in temperature impacted on mammoths by changing the type of ______ available.',
+                    maxWords: 2
+                },
+                {
+                    id: 25,
+                    type: 'written',
+                    question: 'Fisher concluded that many of the mammoth tusks he looked at displayed signs of ______.',
+                    maxWords: 2
+                },
+                {
+                    id: 26,
+                    type: 'written',
+                    question: 'Not long after Lyuba’s death, the Mammuthus primigenius group she belonged to was replaced by another group that came from ______.',
+                    maxWords: 2
+                }
+            ]
+        }
+
+        ,
+        {
+            title: 'PASSAGE 3',
+            passage: `READING PASSAGE 3
+You should spend about 20 minutes on Question 27-40, which are based on Reading Passage 3 on
+pages 10 and 11
+What makes a musical expert?
+How does someone become expert in music? And is it really
+possible to have a 'talent' for music?
+Does that class of people acknowledged to be musical experts just have more of the same
+basic skills we are all endowed with, or do they have a set of abilities – or neural structures -
+that are totally different from those of the rest of us? Are high levels of musical
+achievement simply the result of training and practice, or are they based on innate brain
+structure - what we refer to as ‘talent’? Talent can be defined as something that originates
+in genetic structures and that is identifiable by trained people who can recognize it
+existence before a person has achieved exceptional levels of performance. The emphasis on
+early identification means that to investigate it, we study the development of skills in
+children.
+It is evident that some children acquire skills more rapidly than others: the age of onset for
+walking and talking varies widely, even between children in the same household. There may
+be genetic factors at work, but these are closely linked with other factors - with a
+presumably environmental component- such as motivation and family dynamics. Similar
+factors can influence musical development and can mask the contribution of genetics to
+musical ability.
+Brain studies, so far, haven't been of much use in sorting out the issues. Gottfried Schlaug at
+Harvard collected brain scans of individuals with absolute pitch* (AP) and showed that a
+region in the brain called the planum temporale is larger in these people than in others. This
+suggests that the platinum is involved in AP, but it's not clear if it starts out larger in people
+who eventually acquire AP, or if the acquisition of AP makes the planum increase in size.
+Results of research into the areas of the brain involved in skilled motor movement are more
+conclusive. Studies of violin players have shown that the region of the brain responsible for
+controlling the movement of the left hand (the hand that requires greater precision in violin
+playing) increases in size as a result of practice. We do not know yet if the propensity for
+increase pre-exists in some people and not others.
+The evidence against talent comes from research on how much training the experts do. Like
+experts in mathematics, chess, or sports, experts in music require lengthy periods of
+instruction and practice. In several studies, the very best music students were found to have
+practiced more than twice as much as the others. In another study, students were secretly
+divided into two groups based on teachers’ perceptions of their talent. Several years later, it
+was found that the students who achieved the highest performance ratings had practiced
+the most, irrespective of which ‘talent’ group they had been assigned to, suggesting that
+practice does not merely correlate with achievement, but causes it.
+Anders Ericsson, at Florida State University, approaches the topic of musical expertise as a
+general problem in cognitive psychology. He takes as a starting point the assumption that
+there are certain issues involved in becoming an expert at anything; that we can learn about
+musical expertise by studying expert chess players, athletes, artists, mathematicians, as well
+as the musicians themselves. The emerging picture from such studies is that ten thousand
+hours of practice is required to achieve the level of mastery associated with being a world-
+class expert – in anything. In study after study, of composers, ice skaters, concert pianists,
+chess players and master criminals, this number comes up again and again. Someone would
+do this amount of practice if they practiced, for example, roughly 20 hours a week for ten
+years. Of course, this doesn't address why some people don't seem to get anywhere when
+they practice, and why some people get more out of their practice sessions than others. But
+no-one has yet found a case in which true world-class expertise was accomplished in less
+time. It seems that it takes the brain this long to assimilate all that it needs to know to
+achieve true mastery.
+The ten-thousand-hour theory is consistent with what we know about how the the brain
+learns. Learning requires the assimilation and consolidation of information in neural tissue.
+The more experiences we have with something, the stronger the memory/learning trace for
+that experience becomes. Although people differ in how long it takes them to consolidate
+information neurally, it remains true that increased practice leads to a greater number of
+neural traces, which create stronger memory representation.
+The classic rebuttal to this theory goes something like this: ’What about Mozart? I hear that
+he composed his first symphony at the age of four!’ First, there is a factual error here:
+Mozart didn't write it until he was eight. Still, this is unusual, to say the least. However, this
+early work received little acclaim and was not performed very often. In fact the only reason
+we know about it is because the child who wrote it grew up to become Mozart. And Mozart
+had an expert teacher in his father, who was renowned as a teacher of musicians all over
+Europe. We don't know how much Mozart practiced, but if he started at age two and
+worked thirty - two hours a week (quite possible, given that his father was a stern
+taskmaster) he would have made his ten thousand hours by the time he composed his first
+symphony. This does not mean that there are no genetic factors involved in Mozart's
+greatness, but that inborn traits may not be the only cause.`,
+            questions: [
+                // MULTIPLE CHOICE (Choose correct letter A–D)
+                {
+                    id: 27,
+                    type: 'mcq',
+                    question: "In the first paragraph, the writer suggests that a musician who is 'talented' is someone",
+                    options: [
+                        'A who is aware of being set apart from other people.',
+                        'B whose brain structure is unlike that of other people.',
+                        'C who can perform extremely well in early childhood.',
+                        'D whose essential skills are more varied than those of ordinary people.'
+                    ]
+                },
+                {
+                    id: 28,
+                    type: 'mcq',
+                    question: "According to the writer, what is unclear about the findings of Gottfried Schlaug?",
+                    options: [
+                        'A Which part of the brain is linked to a particular musical skill',
+                        'B Which type of musical skill leads to the greatest change in the brain',
+                        'C Whether a feature of the brain is a cause or an effect of a musical skill',
+                        'D Whether the acquisition of a musical skill is easier for some people than others'
+                    ]
+                },
+                {
+                    id: 29,
+                    type: 'mcq',
+                    question: 'According to the writer, what has been established by studies of violin players?',
+                    options: [
+                        'A Changes may occur in the brain following violin practice.',
+                        'B Left-handed violinists have a different brain structure from other people.',
+                        'C A violinist’s hand size is not due to practice but to genetic factors.',
+                        'D Violinists are born with brains that have a particular structure.'
+                    ]
+                },
+                {
+                    id: 30,
+                    type: 'mcq',
+                    question: 'According to the writer, findings on the amount of practice done by expert musicians suggest that',
+                    options: [
+                        'A talent may have little to do with expertise.',
+                        'B practice may actually prevent the development of talent.',
+                        'C talent may not be recognised by teachers.',
+                        'D expertise may be related to quality of instruction.'
+                    ]
+                },
+
+                // YES / NO / NOT GIVEN
+                {
+                    id: 31,
+                    type: 'mcq',
+                    question: "Anders Ericsson's work with cognitive psychology has influenced other researchers.",
+                    options: ['YES', 'NO', 'NOT GIVEN']
+                },
+                {
+                    id: 32,
+                    type: 'mcq',
+                    question: 'Different areas of expertise seem to have one specific thing in common.',
+                    options: ['YES', 'NO', 'NOT GIVEN']
+                },
+                {
+                    id: 33,
+                    type: 'mcq',
+                    question: 'In order to be useful, practice must be carried out regularly every day.',
+                    options: ['YES', 'NO', 'NOT GIVEN']
+                },
+                {
+                    id: 34,
+                    type: 'mcq',
+                    question: 'Anyone who practices for long enough can reach the level of a world-class expert.',
+                    options: ['YES', 'NO', 'NOT GIVEN']
+                },
+                {
+                    id: 35,
+                    type: 'mcq',
+                    question: 'Occasionally, someone can become an expert at global level with fewer than 10,000 hours’ practice.',
+                    options: ['YES', 'NO', 'NOT GIVEN']
+                },
+                {
+                    id: 36,
+                    type: 'mcq',
+                    question: 'Existing knowledge of learning and cognitive skills supports the importance of practice.',
+                    options: ['YES', 'NO', 'NOT GIVEN']
+                },
+
+                // SUMMARY COMPLETION (choose A–J)
+                {
+                    id: 37,
+                    type: 'mcq',
+                    question: 'Complete the summary using the list of words A–J below (part 1)',
+                    options: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+                },
+                {
+                    id: 38,
+                    type: 'mcq',
+                    question: 'Complete the summary using the list of words A–J below (part 2)',
+                    options: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+                },
+                {
+                    id: 39,
+                    type: 'mcq',
+                    question: 'Complete the summary using the list of words A–J below (part 3)',
+                    options: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+                },
+                {
+                    id: 40,
+                    type: 'mcq',
+                    question: 'Complete the summary using the list of words A–J below (part 4)',
+                    options: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']
+                }
+            ]
+
+        }
+
+
+    ]
+};
+
+export default test6;

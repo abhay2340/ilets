@@ -24,7 +24,7 @@ It is no longer a privilege for children to attend school and all children are e
 
 G
 Industrialisation, urbanization and mass schooling pose new challenges for those who are responsible for protecting children's welfare, as well as promoting their learning. An increasing number of children are being treated as a group with unique needs, and are organized into groups in the light of their age. For instance, teachers need to know some information about what to expect of children in their classrooms, what kinds of instruction are appropriate for different age groups, and what is the best way to assess children's progress. Also, they want tools enabling them to sort and select children according to their abilities and potential.`,
-      
+
       questions: [
         // TRUE / FALSE / NOT GIVEN
         {
@@ -104,8 +104,8 @@ Industrialisation, urbanization and mass schooling pose new challenges for those
       ]
     },
     {
-  title: 'PASSAGE 2',
-  passage: `Bestcom – Considerate Computing
+      title: 'PASSAGE 2',
+      passage: `Bestcom – Considerate Computing
 
 
 
@@ -150,88 +150,88 @@ G
 Horvitz is, in fact, a tester himself, and as we have our conversation in his office, Bestcom silently takes care of all the calls. Firstly, it checks if the caller is in his address book, the company directory, or the 'recent call' list. After triangulating all these resources at the same time, it attempts to figure out what their relationship is. The calls that get through are from family, supervisors and people he called earlier that day. Other callers will get a message on their screens that says they cannot answer now because he is in a meeting, and will not be available until 3pm. The system will scan both Horvitz and the caller's calendars to check if it can reschedule a callback at a time that works for both of them. Some callers will take that option, while others simply leave a voicemail. The same happens with emails. When Horvitz is not in his office, Bestcom automatically offers to transfer selected callers to his cellphone, unless his calendar implies that he is in a meeting.
 
 `,
-  
-  questions: [
-    // TRUE/FALSE/NOT GIVEN
-    {
-      id: 14,
-      type: 'mcq',
-      question: 'According to Ted Selker, human reproduction has been disturbed throughout history.',
-      options: ['TRUE', 'FALSE', 'NOT GIVEN']
-    },
-    {
-      id: 15,
-      type: 'mcq',
-      question: 'If people are interrupted by calls or emails, they usually put up with it.',
-      options: ['TRUE', 'FALSE', 'NOT GIVEN']
-    },
-    {
-      id: 16,
-      type: 'mcq',
-      question: 'Microsoft is now investigating a software which is compatible with ordinary offices.',
-      options: ['TRUE', 'FALSE', 'NOT GIVEN']
-    },
-    {
-      id: 17,
-      type: 'mcq',
-      question: 'People usually have a misperception about whether they are busy or not.',
-      options: ['TRUE', 'FALSE', 'NOT GIVEN']
-    },
-    {
-      id: 18,
-      type: 'mcq',
-      question: 'Experts in Carnegie Mellon University conducted a research observing all occupations of IBM.',
-      options: ['TRUE', 'FALSE', 'NOT GIVEN']
-    },
-    {
-      id: 19,
-      type: 'mcq',
-      question: 'Current phone and computer systems have shortcut keys for people receiving information immediately.',
-      options: ['TRUE', 'FALSE', 'NOT GIVEN']
-    },
 
-    // Flowchart fill-ups (ONE WORD answers)
-    {
-      id: 20,
-      type: 'written',
-      question: 'Bestcom system makes further efforts in order to find ______ about what users are doing'
-    },
-    {
-      id: 21,
-      type: 'written',
-      question: 'Check the ______ between the caller and the user, whether the caller has contact info'
-    },
-    {
-      id: 22,
-      type: 'written',
-      question: 'If callers are not in the directory, a(n) ______ will show up on their screen'
-    },
-    {
-      id: 23,
-      type: 'written',
-      question: 'The system will ______ a suitable time for both'
-    },
-    {
-      id: 24,
-      type: 'written',
-      question: 'Callers can choose to leave a(n) ______ to users'
-    },
-    {
-      id: 25,
-      type: 'written',
-      question: 'Bestcom may transfer the call to user’s ______'
-    },
-    {
-      id: 26,
-      type: 'written',
-      question: 'Transfer only if there is no ______ in schedule'
+      questions: [
+        // TRUE/FALSE/NOT GIVEN
+        {
+          id: 14,
+          type: 'mcq',
+          question: 'According to Ted Selker, human reproduction has been disturbed throughout history.',
+          options: ['TRUE', 'FALSE', 'NOT GIVEN']
+        },
+        {
+          id: 15,
+          type: 'mcq',
+          question: 'If people are interrupted by calls or emails, they usually put up with it.',
+          options: ['TRUE', 'FALSE', 'NOT GIVEN']
+        },
+        {
+          id: 16,
+          type: 'mcq',
+          question: 'Microsoft is now investigating a software which is compatible with ordinary offices.',
+          options: ['TRUE', 'FALSE', 'NOT GIVEN']
+        },
+        {
+          id: 17,
+          type: 'mcq',
+          question: 'People usually have a misperception about whether they are busy or not.',
+          options: ['TRUE', 'FALSE', 'NOT GIVEN']
+        },
+        {
+          id: 18,
+          type: 'mcq',
+          question: 'Experts in Carnegie Mellon University conducted a research observing all occupations of IBM.',
+          options: ['TRUE', 'FALSE', 'NOT GIVEN']
+        },
+        {
+          id: 19,
+          type: 'mcq',
+          question: 'Current phone and computer systems have shortcut keys for people receiving information immediately.',
+          options: ['TRUE', 'FALSE', 'NOT GIVEN']
+        },
+
+        // Flowchart fill-ups (ONE WORD answers)
+        {
+          id: 20,
+          type: 'written',
+          question: 'Bestcom system makes further efforts in order to find ______ about what users are doing'
+        },
+        {
+          id: 21,
+          type: 'written',
+          question: 'Check the ______ between the caller and the user, whether the caller has contact info'
+        },
+        {
+          id: 22,
+          type: 'written',
+          question: 'If callers are not in the directory, a(n) ______ will show up on their screen'
+        },
+        {
+          id: 23,
+          type: 'written',
+          question: 'The system will ______ a suitable time for both'
+        },
+        {
+          id: 24,
+          type: 'written',
+          question: 'Callers can choose to leave a(n) ______ to users'
+        },
+        {
+          id: 25,
+          type: 'written',
+          question: 'Bestcom may transfer the call to user’s ______'
+        },
+        {
+          id: 26,
+          type: 'written',
+          question: 'Transfer only if there is no ______ in schedule'
+        }
+      ]
     }
-  ]
-}
-,
-{
-  title: 'PASSAGE 3',
-  passage: `Can Hurricanes be Moderated or Diverted?
+    ,
+    {
+      title: 'PASSAGE 3',
+      passage: `Can Hurricanes be Moderated or Diverted?
 
 
  ﻿
@@ -274,159 +274,160 @@ Future earth-orbiting solar power stations, equipped with large mirrors to focus
 
 Simulations of hurricanes conducted on a computer have implied that by changing the precipitation, evaporation and air temperature, we could make a difference to a storm's route or abate its winds. Intervention can be in many different forms: exquisitely targeted clouds bearing silver iodide or other rainfall-including elements might deprive a hurricane of the water it needs to grow and multiply from its formidable eyewall, which is the essential characteristic of a severe tropic storm.`,
 
-  questions: [
-    {  id: 'instructions-27-33',
-    type: 'info',
-    question: 'Questions 27–33\nReading Passage 3 has seven paragraphs. Choose the correct heading for each section.'
-  },
-    {
-      id: 27,
-      type: 'dropdown',
-      question: 'Paragraph 1',
-      options: [
-        'i Hurricanes in history',
-        'ii How hurricanes form',
-        'iii How a laboratory exercise re-routed a hurricane',
-        'iv Exciting ways to utilize future technologies',
-        'v Are hurricanes unbeatable?',
-        'vi Re-visiting earlier ideas',
-        'vii How lives might have been saved',
-        'viii A range of low-tech methods'
-      ]
-    },
-    {
-      id: 28,
-      type: 'dropdown',
-      question: 'Paragraph 2',
-      options: [  'i Hurricanes in history',
-        'ii How hurricanes form',
-        'iii How a laboratory exercise re-routed a hurricane',
-        'iv Exciting ways to utilize future technologies',
-        'v Are hurricanes unbeatable?',
-        'vi Re-visiting earlier ideas',
-        'vii How lives might have been saved',
-        'viii A range of low-tech methods']
-    },
-    {
-      id: 29,
-      type: 'dropdown',
-      question: 'Paragraph 3',
-      options: [  'i Hurricanes in history',
-        'ii How hurricanes form',
-        'iii How a laboratory exercise re-routed a hurricane',
-        'iv Exciting ways to utilize future technologies',
-        'v Are hurricanes unbeatable?',
-        'vi Re-visiting earlier ideas',
-        'vii How lives might have been saved',
-        'viii A range of low-tech methods']
-    },
-    {
-      id: 30,
-      type: 'dropdown',
-      question: 'Paragraph 4',
-      options: [  'i Hurricanes in history',
-        'ii How hurricanes form',
-        'iii How a laboratory exercise re-routed a hurricane',
-        'iv Exciting ways to utilize future technologies',
-        'v Are hurricanes unbeatable?',
-        'vi Re-visiting earlier ideas',
-        'vii How lives might have been saved',
-        'viii A range of low-tech methods']
-    },
-    {
-      id: 31,
-      type: 'dropdown',
-      question: 'Paragraph 5',
-      options: [  'i Hurricanes in history',
-        'ii How hurricanes form',
-        'iii How a laboratory exercise re-routed a hurricane',
-        'iv Exciting ways to utilize future technologies',
-        'v Are hurricanes unbeatable?',
-        'vi Re-visiting earlier ideas',
-        'vii How lives might have been saved',
-        'viii A range of low-tech methods']
-    },
-    {
-      id: 32,
-      type: 'dropdown',
-      question: 'Paragraph 6',
-      options: [  'i Hurricanes in history',
-        'ii How hurricanes form',
-        'iii How a laboratory exercise re-routed a hurricane',
-        'iv Exciting ways to utilize future technologies',
-        'v Are hurricanes unbeatable?',
-        'vi Re-visiting earlier ideas',
-        'vii How lives might have been saved',
-        'viii A range of low-tech methods']
-    },
-    {
-      id: 33,
-      type: 'dropdown',
-      question: 'Paragraph 7',
-      options: [  'i Hurricanes in history',
-        'ii How hurricanes form',
-        'iii How a laboratory exercise re-routed a hurricane',
-        'iv Exciting ways to utilize future technologies',
-        'v Are hurricanes unbeatable?',
-        'vi Re-visiting earlier ideas',
-        'vii How lives might have been saved',
-        'viii A range of low-tech methods']
-    },
+      questions: [
+        {
+          id: 'instructions-27-33',
+          type: 'info',
+          question: 'Questions 27–33\nReading Passage 3 has seven paragraphs. Choose the correct heading for each section.'
+        },
+        {
+          id: 27,
+          type: 'dropdown',
+          question: 'Paragraph 1',
+          options: [
+            'i Hurricanes in history',
+            'ii How hurricanes form',
+            'iii How a laboratory exercise re-routed a hurricane',
+            'iv Exciting ways to utilize future technologies',
+            'v Are hurricanes unbeatable?',
+            'vi Re-visiting earlier ideas',
+            'vii How lives might have been saved',
+            'viii A range of low-tech methods'
+          ]
+        },
+        {
+          id: 28,
+          type: 'dropdown',
+          question: 'Paragraph 2',
+          options: ['i Hurricanes in history',
+            'ii How hurricanes form',
+            'iii How a laboratory exercise re-routed a hurricane',
+            'iv Exciting ways to utilize future technologies',
+            'v Are hurricanes unbeatable?',
+            'vi Re-visiting earlier ideas',
+            'vii How lives might have been saved',
+            'viii A range of low-tech methods']
+        },
+        {
+          id: 29,
+          type: 'dropdown',
+          question: 'Paragraph 3',
+          options: ['i Hurricanes in history',
+            'ii How hurricanes form',
+            'iii How a laboratory exercise re-routed a hurricane',
+            'iv Exciting ways to utilize future technologies',
+            'v Are hurricanes unbeatable?',
+            'vi Re-visiting earlier ideas',
+            'vii How lives might have been saved',
+            'viii A range of low-tech methods']
+        },
+        {
+          id: 30,
+          type: 'dropdown',
+          question: 'Paragraph 4',
+          options: ['i Hurricanes in history',
+            'ii How hurricanes form',
+            'iii How a laboratory exercise re-routed a hurricane',
+            'iv Exciting ways to utilize future technologies',
+            'v Are hurricanes unbeatable?',
+            'vi Re-visiting earlier ideas',
+            'vii How lives might have been saved',
+            'viii A range of low-tech methods']
+        },
+        {
+          id: 31,
+          type: 'dropdown',
+          question: 'Paragraph 5',
+          options: ['i Hurricanes in history',
+            'ii How hurricanes form',
+            'iii How a laboratory exercise re-routed a hurricane',
+            'iv Exciting ways to utilize future technologies',
+            'v Are hurricanes unbeatable?',
+            'vi Re-visiting earlier ideas',
+            'vii How lives might have been saved',
+            'viii A range of low-tech methods']
+        },
+        {
+          id: 32,
+          type: 'dropdown',
+          question: 'Paragraph 6',
+          options: ['i Hurricanes in history',
+            'ii How hurricanes form',
+            'iii How a laboratory exercise re-routed a hurricane',
+            'iv Exciting ways to utilize future technologies',
+            'v Are hurricanes unbeatable?',
+            'vi Re-visiting earlier ideas',
+            'vii How lives might have been saved',
+            'viii A range of low-tech methods']
+        },
+        {
+          id: 33,
+          type: 'dropdown',
+          question: 'Paragraph 7',
+          options: ['i Hurricanes in history',
+            'ii How hurricanes form',
+            'iii How a laboratory exercise re-routed a hurricane',
+            'iv Exciting ways to utilize future technologies',
+            'v Are hurricanes unbeatable?',
+            'vi Re-visiting earlier ideas',
+            'vii How lives might have been saved',
+            'viii A range of low-tech methods']
+        },
 
-    // Summary fill-in-the-blanks
-    {
-      id: 34,
-      type: 'written',
-      question: 'Hurricanes originated as groups of ______ over the tropical oceans.'
-    },
-    {
-      id: 35,
-      type: 'written',
-      question: '______ releases heat—the solar heat it took to evaporate the water.'
-    },
-    {
-      id: 36,
-      type: 'written',
-      question: 'This so-called latent ______ of condensation makes the air more buoyant.'
-    },
-    {
-      id: 37,
-      type: 'written',
-      question: 'Eventually, it forms the familiar ______—the calm central hub of a hurricane.'
-    },
-    {
-      id: 38,
-      type: 'written',
-      question: 'On passing over ______, the hurricane’s sustaining source is cut off.'
-    },
+        // Summary fill-in-the-blanks
+        {
+          id: 34,
+          type: 'written',
+          question: 'Hurricanes originated as groups of ______ over the tropical oceans.'
+        },
+        {
+          id: 35,
+          type: 'written',
+          question: '______ releases heat—the solar heat it took to evaporate the water.'
+        },
+        {
+          id: 36,
+          type: 'written',
+          question: 'This so-called latent ______ of condensation makes the air more buoyant.'
+        },
+        {
+          id: 37,
+          type: 'written',
+          question: 'Eventually, it forms the familiar ______—the calm central hub of a hurricane.'
+        },
+        {
+          id: 38,
+          type: 'written',
+          question: 'On passing over ______, the hurricane’s sustaining source is cut off.'
+        },
 
-    // Multiple choice (single correct)
-    {
-      id: 39,
-      type: 'mcq',
-      question: 'What encourages the writer to restart research hurricane control?',
-      options: [
-        'the huge damage hurricane trigger',
-        'the developments in computer technologies',
-        'the requirements of some local people',
-        'the chaos theory learn as a student'
-      ]
-    },
-    {
-      id: 40,
-      type: 'mcq',
-      question: 'What was the writer\'s reaction after their first experiment?',
-      options: [
-        'surprised that their intervention had not achieved a lot',
-        'ecstatic with the achievements the first experiment had',
-        'surprised that their intervention had the intended effect',
-        'regretful about the impending success'
+        // Multiple choice (single correct)
+        {
+          id: 39,
+          type: 'mcq',
+          question: 'What encourages the writer to restart research hurricane control?',
+          options: [
+            'the huge damage hurricane trigger',
+            'the developments in computer technologies',
+            'the requirements of some local people',
+            'the chaos theory learn as a student'
+          ]
+        },
+        {
+          id: 40,
+          type: 'mcq',
+          question: 'What was the writer\'s reaction after their first experiment?',
+          options: [
+            'surprised that their intervention had not achieved a lot',
+            'ecstatic with the achievements the first experiment had',
+            'surprised that their intervention had the intended effect',
+            'regretful about the impending success'
+          ]
+        }
       ]
     }
-  ]
-}
 
-    
+
   ]
 };
 
