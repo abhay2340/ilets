@@ -9,8 +9,10 @@ import test4 from '../data/test4.jsx';
 import test5 from '../data/test5.jsx';
 import test6 from '../data/test6.jsx';
 import test7 from '../data/test7.jsx';
+import test8 from '../data/test8.jsx';
+import test9 from '../data/test9.jsx';
 
-const TEST_MAP = { test1, test2, test3, test4, test5, test6, test7 };
+const TEST_MAP = { test1, test2, test3, test4, test5, test6, test7, test8, test9 };
 
 console.log(TEST_MAP);
 const ResultPage = () => {

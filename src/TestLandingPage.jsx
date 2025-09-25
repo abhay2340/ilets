@@ -20,21 +20,17 @@ function TestLandingPage() {
 
   return (
     <div className="test-landing-container">
-
       {/* Navbar */}
       <Navbar transparent />
 
       {/* Hero Section with Background */}
-      <section
-        className="full-hero"
-        style={{ backgroundImage: `url(${backgroundImg})` }}
-      >
+      <section className="full-hero" style={{ backgroundImage: `url(${backgroundImg})` }}>
         <div className="hero-overlay">
           <div className="hero-content">
             <h1>Prepare for Success with Our IELTS Practice Tests</h1>
             <p>
-              Simulate the real IELTS experience with our expertly designed mock tests.
-              Boost your confidence and get exam-ready with professional guidance.
+              Simulate the real IELTS experience with our expertly designed mock tests. Boost your
+              confidence and get exam-ready with professional guidance.
             </p>
 
             <div className="hero-features">
@@ -53,9 +49,7 @@ function TestLandingPage() {
             </div>
 
             <button
-              onClick={() =>
-                window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })
-              }
+              onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
             >
               View Tests
             </button>
@@ -81,9 +75,7 @@ function TestLandingPage() {
             >
               Start Test 1
             </button>
-
           </div>
-
           <div className="test-box">
             <h3>Test 2</h3>
             <p>Includes reading, listening, and writing sections.</p>
@@ -114,7 +106,6 @@ function TestLandingPage() {
               Start Test 3
             </button>
           </div>
-
           <div className="test-box">
             <h3>Test 4</h3>
             <p>Listening practice with audio.</p>
@@ -130,7 +121,6 @@ function TestLandingPage() {
               Start Test 4
             </button>
           </div>
-
           <div className="test-box">
             <h3>Test 5</h3>
             <p>Listening practice with audio.</p>
@@ -160,21 +150,52 @@ function TestLandingPage() {
             >
               Start Test 6
             </button>
-          </div>   <div className="test-box">
-            <h3>Test 7</h3>
-            <p>Listening practice with audio.</p>
-            <button
-              onClick={() => {
-                if (user) {
-                  navigate('/security?testId=test7');
-                } else {
-                  navigate('/login');
-                }
-              }}
-            >
-              Start Test 7
-            </button>
-          </div>
+          </div>{' '}
+            <div className="test-box">
+              <h3>Test 7</h3>
+              <p>Listening practice with audio.</p>
+              <button
+                onClick={() => {
+                  if (user) {
+                    navigate('/security?testId=test7');
+                  } else {
+                    navigate('/login');
+                  }
+                }}
+              >
+                Start Test 7
+              </button>
+            </div>
+            <div className="test-box">
+              <h3>Test 8</h3>
+              <p>Listening practice with audio.</p>
+              <button
+                onClick={() => {
+                  if (user) {
+                    navigate('/security?testId=test8');
+                  } else {
+                    navigate('/login');
+                  }
+                }}
+              >
+                Start Test 8
+              </button>
+            </div>
+            <div className="test-box">
+              <h3>Test 9</h3>
+              <p>Listening practice with audio.</p>
+              <button
+                onClick={() => {
+                  if (user) {
+                    navigate('/security?testId=test9');
+                  } else {
+                    navigate('/login');
+                  }
+                }}
+              >
+                Start Test 9
+              </button>
+            </div>
         </div>
       </section>
       <ContactSection />
