@@ -192,12 +192,199 @@ test5: {
   38:"maturity",
   39:"advisors",
   40:"online"
+},
+
+test6: {
+  // The development of the silk industry
+  1: "white",
+  2: "paper",
+  3: "taxes",
+  4: "gold",
+  5: "foreign",
+  6: "mummy",
+  7: "caves",
+  8: "TRUE",
+  9: "NOT GIVEN",
+  10: "FALSE",
+  11: "FALSE",
+  12: "TRUE",
+  13: "FALSE",
+
+  // The discovery of a baby mammoth
+  14: "D",
+  15: "B",
+  16: "E",
+  17: "A",
+  18: "C",
+  19: "C",
+  20: "E",
+  21: "D",
+  22: "A",
+  23: "E",
+  24: "Vegetable",
+  25: "Human hunting",
+  26: "Nort American",
+
+  // What makes a musical expert?
+  27: "C",
+  28: "C",
+  29: "A",
+  30: "A",
+  31: "NOT GIVEN",
+  32: "YES",
+  33: "NOT GIVEN",
+  34: "NO",
+  35: "NO",
+  36: "YES",
+  37: "E",
+  38: "D",
+  39: "A",
+  40: "G"
+},
+
+test7: {
+  // The Clipper Races: an era of competition between cargo ships
+  1: "FALSE",
+  2: "TRUE",
+  3: "TRUE",
+  4: "NOT GIVEN",
+  5: "FALSE",
+  6: "FALSE",
+  7: "sails",
+  8: "storms",
+  9: "Challenger",
+  10: "ports",
+  11: "paperwork",
+  12: "tugs",
+  13: "money",
+
+  // Orientation of birds
+  14: "visual memory",
+  15: "migration direction",
+  16: "destination",
+  17: "landmarks",
+  18: "(laysan) albatross",
+  19: "C",
+  20: "B",
+  21: "C",
+  22: "G",
+  23: "C",
+  24: "F",
+  25: "A",
+  26: "D",
+
+  // The role of accidents in business
+  27: "YES",
+  28: "NO",
+  29: "NO",
+  30: "YES",
+  31: "NOT GIVEN",
+  32: "F",
+  33: "G",
+  34: "C",
+  35: "A",
+  36: "B",
+  37: "D",
+  38: "A",
+  39: "C",
+  40: "B"
+},
+
+test8: {
+  // An important language development
+  1: "TRUE",
+  2: "FALSE",
+  3: "TRUE",
+  4: "TRUE",
+  5: "NOT GIVEN",
+  6: "stones",
+  7: "cloth",
+  8: "receipt",
+  9: "envelope",
+  10: "sheep",
+  11: "triangles",
+  12: "accounting",
+  13: "paper",
+
+  // Children's comprehension of television advertising
+  14: "C",
+  15: "D",
+  16: "G",
+  17: "D",
+  18: "E",
+  19: "B",
+  20: "D",
+  21: "C",
+  22: "F",
+  23: "scene",
+  24: "separators",
+  25: "host-selling",
+  26: "funnier",
+
+  // A New Voyage Round the World
+  27: "A",
+  28: "C",
+  29: "B",
+  30: "A",
+  31: "C",
+  32: "F",
+  33: "E",
+  34: "C",
+  35: "D",
+  36: "NOT GIVEN",
+  37: "NO",
+  38: "NO",
+  39: "NOT GIVEN",
+  40: "YES"
+},
+
+test9: {
+  // Why good ideas fail
+  1: "TRUE",
+  2: "TRUE",
+  3: "NOT GIVEN",
+  4: "NOT GIVEN",
+  5: "FALSE",
+  6: "surface",
+  7: "weight loss",
+  8: "name",
+  9: "container",
+  10: "behavior",
+  11: "focus groups",
+  12: "(simple) surveys",
+  13: "instincts",
+
+  // Keeping the water away
+  14: "F",
+  15: "C",
+  16: "B",
+  17: "D",
+  18: "E",
+  19: "G",
+  20: "A",
+  21: "D",
+  22: "Europe",
+  23: "Mississippi",
+  24: "London",
+  25: "Soft engineers",
+  26: "Los Angeles",
+
+  // Australia's Megafauna Controversy
+  27: "YES",
+  28: "NOT GIVEN",
+  29: "NO",
+  30: "YES",
+  31: "B",
+  32: "F",
+  33: "D",
+  34: "C",
+  35: "G",
+  36: "A",
+  37: "B",
+  38: "D",
+  39: "B",
+  40: "D"
 }
-
-
-
-
-
 
 };
 
