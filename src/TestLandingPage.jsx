@@ -61,7 +61,7 @@ function TestLandingPage() {
         <h2 className="choose-heading">Available Tests</h2>
         <div className="test-list">
           {
-            Array.from({ length: 7 }).map((_, index) => (
+            Array.from({ length: 9 }).map((_, index) => (
               <div className="test-box">
                 <h3>Test {index + 1}</h3>
                 <p>Listening practice with audio.</p>
