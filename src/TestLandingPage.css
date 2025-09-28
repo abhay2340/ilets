@@ -298,6 +298,8 @@ body {
   box-shadow: 0 0 10px rgba(0,0,0,0.1);
   text-align: center;
   transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
 }
 
 .test-box:hover {
@@ -305,30 +307,203 @@ body {
   box-shadow: 0 8px 20px rgba(0,0,0,0.15);
 }
 
+.test-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
 .test-box h3 {
   font-size: 24px;
-  margin-bottom: 10px;
+  margin: 0;
+  color: #333;
+  font-weight: 700;
+}
+
+.test-badge {
+  display: flex;
+  align-items: center;
+}
+
+.free-badge {
+  background: #28a745;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.premium-badge {
+  background: #b30000;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
 .test-box p {
   font-size: 14px;
   color: #555;
   min-height: 40px;
+  margin-bottom: 15px;
 }
 
-.test-box button {
-  background-color: #ff2323;
+.test-price {
+  margin-bottom: 15px;
+}
+
+.test-price .price {
+  font-size: 20px;
+  font-weight: 700;
+  color: #b30000;
+}
+
+.expiration-info {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.days-remaining {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.expired {
+  color: #dc3545;
+  font-weight: 600;
+}
+
+.test-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.start-btn {
+  background: linear-gradient(135deg, #28a745, #20c997);
   color: white;
   border: none;
-  padding: 10px 20px;
-  font-weight: bold;
-  border-radius: 6px;
-  margin-top: 15px;
+  padding: 12px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
-.test-box button:hover {
-  background-color: #b30000;
+.start-btn:hover {
+  background: linear-gradient(135deg, #218838, #1ea085);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(40, 167, 69, 0.3);
+}
+
+.renew-btn {
+  background: linear-gradient(135deg, #ffc107, #ff8c00);
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.renew-btn:hover {
+  background: linear-gradient(135deg, #e0a800, #e67e00);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(255, 193, 7, 0.3);
+}
+
+.purchase-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.purchase-btn {
+  background: linear-gradient(135deg, #b30000, #ff0002);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 15px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.purchase-btn:hover {
+  background: linear-gradient(135deg, #990000, #e60000);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(179, 0, 0, 0.3);
+}
+
+.quick-purchase-btn {
+  background: linear-gradient(135deg, #6c757d, #495057);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.quick-purchase-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5a6268, #343a40);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(108, 117, 125, 0.3);
+}
+
+.quick-purchase-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-icon {
+  font-size: 14px;
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 .test-list {
   display: grid;

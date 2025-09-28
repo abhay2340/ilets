@@ -15,14 +15,28 @@ import test5 from '../data/test5.jsx';
 import test6 from '../data/test6.jsx';
 import test7 from '../data/test7.jsx';
 import test8 from '../data/test8.jsx';
+import test9 from '../data/test9.jsx';
 
-const TEST_MAP = { test1, test2, test3, test4, test5, test6, test7, test8 };
+// Payment and access control
+import { useAuth } from '../AuthContext';
+import { usePurchases } from '../hooks/usePurchases';
+import { isTestFree } from '../config/pricing';
+
+const TEST_MAP = { test1, test2, test3, test4, test5, test6, test7, test8, test9 };
 
 const TestPage = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { hasAccess } = usePurchases();
+  
   const params = new URLSearchParams(location.search);
   const currentTestId = params.get('testId') || 'test1';
   const testData = TEST_MAP[currentTestId] ?? TEST_MAP['test1'];
+  
+  const [accessChecked, setAccessChecked] = useState(false);
+  const [hasTestAccess, setHasTestAccess] = useState(false);
+  
   console.log(testData);
   // Ensure we always work with a safe parts array
   const parts = testData?.parts ?? [];
@@ -154,9 +168,102 @@ const TestPage = () => {
   // --- Listening lock: once started, user can't pause/seek ---
 
 
-  const navigate = useNavigate();
   const currentPart = parts[partIndex] ?? parts[0] ?? { title: '', passage: '', questions: [] };
   const hasQuestions = Array.isArray(currentPart.questions) && currentPart.questions.length > 0;
+
+  // Check user access to the test
+  useEffect(() => {
+    const checkAccess = async () => {
+      if (!user) {
+        navigate('/login');
+        return;
+      }
+
+      // Free tests are always accessible
+      if (isTestFree(currentTestId)) {
+        setHasTestAccess(true);
+        setAccessChecked(true);
+        return;
+      }
+
+      // Check if user has purchased the test
+      const access = await hasAccess(currentTestId);
+      if (access) {
+        setHasTestAccess(true);
+      } else {
+        // Redirect to payment page
+        navigate(`/payment?testId=${currentTestId}`);
+        return;
+      }
+      
+      setAccessChecked(true);
+    };
+
+    checkAccess();
+  }, [user, currentTestId, hasAccess, navigate]);
+
+  // Show loading while checking access
+  if (!accessChecked) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column',
+        gap: '20px'
+      }}>
+        <div style={{
+          width: '50px',
+          height: '50px',
+          border: '4px solid #f3f3f3',
+          borderTop: '4px solid #b30000',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
+        <p>Verifying access...</p>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // Show access denied if user doesn't have access
+  if (!hasTestAccess) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh',
+        flexDirection: 'column',
+        gap: '20px',
+        textAlign: 'center',
+        padding: '20px'
+      }}>
+        <h2>Access Required</h2>
+        <p>You need to purchase this test to access it.</p>
+        <button 
+          onClick={() => navigate(`/payment?testId=${currentTestId}`)}
+          style={{
+            backgroundColor: '#b30000',
+            color: 'white',
+            border: 'none',
+            padding: '12px 24px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '16px'
+          }}
+        >
+          Purchase Test
+        </button>
+      </div>
+    );
+  }
 
   const handleSetAnswer = (id, val) => {
     setAnswers(prev => ({ ...prev, [id]: val }));

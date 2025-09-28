@@ -13,6 +13,7 @@ import PrivacyPolicy from './PrivacyPolicy';
 import Account from './Account/Account';
 import TestPage from './pages/TestPage.jsx';
 import ResultPage from './pages/ResultPage.jsx';
+import PaymentPage from './pages/PaymentPage.jsx';
 import ContactSection from './ContactSection';
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
  <Route path="/contact" element={<ContactSection />} />
   <Route path="/account" element={<Account />} />
   <Route path="/test" element={<TestPage />} />
+  <Route path="/payment" element={<PaymentPage />} />
 <Route path="/results" element={<ResultPage />} />
 
       </Routes>
