@@ -1,19 +1,32 @@
 import React from 'react';
 
 const QuestionBox = ({ question, answer, setAnswer }) => {
-  // Info-type instructions (like for Q27–33)
+  // Info blocks: headings or bullet lines
   if (question.type === 'info') {
+    const kind = question.infoKind || 'bullet';
+    if (kind === 'heading') {
+      return (
+        <div style={{ margin: '12px 0 6px 0' }}>
+          <div style={{ fontWeight: 800, fontSize: '18px' }}>{question.question}</div>
+        </div>
+      );
+    }
+    // bullet
     return (
-      <div style={{ marginBottom: '20px', fontStyle: 'italic' }}>
-        <strong>{question.question.split('\n')[0]}</strong><br />
-        {question.question.split('\n')[1]}
+      <div style={{ marginBottom: '8px', marginLeft: '10px' }}>
+        <span style={{ fontWeight: 700, marginRight: 6 }}>•</span>
+        <span>{question.question}</span>
       </div>
     );
   }
 
+  const isInlineBlank = question.type === 'written' && /_{3,}/.test(question.question);
+
   return (
     <div id={`q-${question.id}`} style={{ marginBottom: '25px' }}>
-      <p><strong>{(question.displayId ?? question.id)}. {question.question}</strong></p>
+      {!isInlineBlank && (
+        <p><strong>{(question.displayId ?? question.id)}. {question.question}</strong></p>
+      )}
 
       {/* Multiple choice (TRUE/FALSE/NOT GIVEN or 4 options) */}
       {question.type === 'mcq' &&
@@ -30,23 +43,49 @@ const QuestionBox = ({ question, answer, setAnswer }) => {
         ))
       }
 
-      {/* Fill in the blank */}
-      {question.type === 'written' &&
-        <input
-          type="text"
-          value={answer || ''}
-          onChange={(e) => setAnswer(e.target.value)}
-          style={{
-            marginLeft: '20px',
-            marginTop: '10px',
-            padding: '6px 12px',
-            width: '80%',
-            borderRadius: '5px',
-            border: '1px solid #ccc'
-          }}
-          placeholder="Your answer"
-        />
-      }
+      {/* Fill in the blank (supports inline blanks like ______) */}
+      {question.type === 'written' && (() => {
+        const blankRegex = /_{3,}/; // three or more underscores
+        if (blankRegex.test(question.question)) {
+          const parts = question.question.split(/_{3,}/);
+          return (
+            <div style={{ marginTop: '10px', marginLeft: '10px' }}>
+              <span style={{ fontWeight: 700, marginRight: 6 }}>•</span>
+              <span>{parts[0]}</span>
+              <input
+                type="text"
+                value={answer || ''}
+                onChange={(e) => setAnswer(e.target.value)}
+                style={{
+                  padding: '6px 12px',
+                  minWidth: 160,
+                  borderRadius: '5px',
+                  border: '1px solid #ccc',
+                  margin: '0 8px'
+                }}
+                placeholder={`${question.displayId ?? question.id}`}
+              />
+              <span>{parts.slice(1).join('')}</span>
+            </div>
+          );
+        }
+        return (
+          <input
+            type="text"
+            value={answer || ''}
+            onChange={(e) => setAnswer(e.target.value)}
+            style={{
+              marginLeft: '20px',
+              marginTop: '10px',
+              padding: '6px 12px',
+              width: '80%',
+              borderRadius: '5px',
+              border: '1px solid #ccc'
+            }}
+            placeholder={`${question.displayId ?? question.id}`}
+          />
+        );
+      })()}
 
       {/* Matching group (radio matrix) */}
       {question.type === 'matchinggroup' && (() => {

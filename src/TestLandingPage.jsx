@@ -57,10 +57,10 @@ function TestLandingPage() {
         </div>
       </section>
 
-      {/* Test List Section */}
       <section className="test-choose">
         <h2 className="choose-heading">Available Tests</h2>
         <div className="test-list">
+<<<<<<< Updated upstream
           <div className="test-box">
             <h3>Test 1</h3>
             <p>Includes reading, listening, and writing sections.</p>
@@ -196,6 +196,17 @@ function TestLandingPage() {
                 Start Test 9
               </button>
             </div>
+=======
+          {
+            Array.from({ length: 7 }).map((_, index) => (
+              <div className="test-box">
+                <h3>Test {index + 1}</h3>
+                <p>Listening practice with audio.</p>
+                <button onClick={() => navigate(`/security?testId=test${index + 1}`)}>Start Test {index + 1}</button>
+              </div>
+            ))
+          }
+>>>>>>> Stashed changes
         </div>
       </section>
       <ContactSection />
