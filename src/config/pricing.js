@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 // Pricing configuration for IELTS tests
 export const TEST_PRICING = {
   // Free tests (test1, test2)
@@ -29,8 +32,8 @@ export const ACCESS_DURATION = {
 
 // Razorpay configuration
 export const RAZORPAY_CONFIG = {
-  key_id: process.env.REACT_APP_RAZORPAY_KEY_ID || 'rzp_test_your_key_id', // Replace with your actual key
-  key_secret: process.env.REACT_APP_RAZORPAY_KEY_SECRET || 'your_key_secret', // Replace with your actual secret
+  key_id: process.env.REACT_APP_RAZORPAY_KEY_ID,
+  key_secret: process.env.REACT_APP_RAZORPAY_KEY_SECRET,
 };
 
 // Helper functions

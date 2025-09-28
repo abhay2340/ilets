@@ -56,11 +56,11 @@ const ResultPage = () => {
         }}
       >
         <strong>Q{id}:</strong>{' '}
-        Your Answer:{' '}
+        Your Answer:
         <span style={{ fontWeight: 'bold', color: text }}>
           {userAns || 'Unanswered'}
         </span>{' '}
-        | Correct:{' '}
+        | Correct:
         <strong>{correctAns}</strong>
       </div>
     );

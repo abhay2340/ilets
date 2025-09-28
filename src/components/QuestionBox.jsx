@@ -1,52 +1,92 @@
 import React from 'react';
 
 const QuestionBox = ({ question, answer, setAnswer }) => {
-  // Info-type instructions (like for Q27–33)
+  // Info blocks: headings or bullet lines
   if (question.type === 'info') {
+    const kind = question.infoKind || 'bullet';
+    if (kind === 'heading') {
+      return (
+        <div style={{ margin: '12px 0 6px 0' }}>
+          <div style={{ fontWeight: 800, fontSize: '18px' }}>{question.question}</div>
+        </div>
+      );
+    }
+    // bullet
     return (
-      <div style={{ marginBottom: '20px', fontStyle: 'italic' }}>
-        <strong>{question.question.split('\n')[0]}</strong><br />
-        {question.question.split('\n')[1]}
+      <div style={{ marginBottom: '8px', marginLeft: '10px' }}>
+        <span style={{ fontWeight: 700, marginRight: 6 }}>•</span>
+        <span>{question.question}</span>
       </div>
     );
   }
 
+  const isInlineBlank = question.type === 'written' && /_{3,}/.test(question.question);
+
   return (
     <div id={`q-${question.id}`} style={{ marginBottom: '25px' }}>
-      <p><strong>{(question.displayId ?? question.id)}. {question.question}</strong></p>
+      {!isInlineBlank && (
+        <p><strong>{(question.displayId ?? question.id)}. {question.question}</strong></p>
+      )}
 
       {/* Multiple choice (TRUE/FALSE/NOT GIVEN or 4 options) */}
       {question.type === 'mcq' &&
         question.options.map((opt, i) => (
-          <label key={i} style={{ display: 'block', marginLeft: '20px' }}>
+          <label key={i} style={{ display: 'block', marginLeft: '20px', cursor: 'pointer' }}>
             <input
               type="radio"
               name={`q-${question.id}`}  // MUST be unique per question
               value={opt}
               checked={answer === opt}
               onChange={() => setAnswer(opt)}
+              style={{ cursor: 'pointer', marginRight: '8px' }}
             /> {opt}
           </label>
         ))
       }
 
-      {/* Fill in the blank */}
-      {question.type === 'written' &&
-        <input
-          type="text"
-          value={answer || ''}
-          onChange={(e) => setAnswer(e.target.value)}
-          style={{
-            marginLeft: '20px',
-            marginTop: '10px',
-            padding: '6px 12px',
-            width: '80%',
-            borderRadius: '5px',
-            border: '1px solid #ccc'
-          }}
-          placeholder="Your answer"
-        />
-      }
+      {/* Fill in the blank (supports inline blanks like ______) */}
+      {question.type === 'written' && (() => {
+        const blankRegex = /_{3,}/; // three or more underscores
+        if (blankRegex.test(question.question)) {
+          const parts = question.question.split(/_{3,}/);
+          return (
+            <div style={{ marginTop: '10px', marginLeft: '10px' }}>
+              <span style={{ fontWeight: 700, marginRight: 6 }}>•</span>
+              <span>{parts[0]}</span>
+              <input
+                type="text"
+                value={answer || ''}
+                onChange={(e) => setAnswer(e.target.value)}
+                style={{
+                  padding: '6px 12px',
+                  minWidth: 160,
+                  borderRadius: '5px',
+                  border: '1px solid #ccc',
+                  margin: '0 8px'
+                }}
+                placeholder={`${question.displayId ?? question.id}`}
+              />
+              <span>{parts.slice(1).join('')}</span>
+            </div>
+          );
+        }
+        return (
+          <input
+            type="text"
+            value={answer || ''}
+            onChange={(e) => setAnswer(e.target.value)}
+            style={{
+              marginLeft: '20px',
+              marginTop: '10px',
+              padding: '6px 12px',
+              width: '80%',
+              borderRadius: '5px',
+              border: '1px solid #ccc'
+            }}
+            placeholder={`${question.displayId ?? question.id}`}
+          />
+        );
+      })()}
 
       {/* Matching group (radio matrix) */}
       {question.type === 'matchinggroup' && (() => {
@@ -90,30 +130,31 @@ const QuestionBox = ({ question, answer, setAnswer }) => {
         return (
           <div style={{ marginTop: '10px', overflowX: 'auto' }}>
             {/* Matrix with only letter headers */}
-            <table style={{ borderCollapse: 'collapse', minWidth: '520px' }}>
+            <table style={{ borderCollapse: 'collapse', minWidth: '420px' }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: '8px', borderBottom: '2px solid #000' }}></th>
                   {parsedCols.map((c, i) => (
-                    <th key={i} style={{ width: 70, textAlign: 'center', padding: '8px', borderBottom: '2px solid #000' }}>{c.letter}</th>
+                    <th key={i} style={{ width: 36, textAlign: 'center', padding: '6px', borderBottom: '2px solid #000' }}>{c.letter}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((label, rIdx) => (
                   <tr key={rIdx}>
-                    <td style={{ padding: '10px 8px', borderBottom: '1px solid #ccc', fontWeight: 600 }}>
+                    <td style={{ padding: '8px 6px', borderBottom: '1px solid #ccc', fontWeight: 600 }}>
                       {Array.isArray(question.subIds) ? `${question.subIds[rIdx]}. ` : `${rIdx + 1} `}
                       {typeof label === 'string' ? label : (label?.label ?? '')}
                     </td>
                     {parsedCols.map((c, cIdx) => (
-                      <td key={cIdx} style={{ textAlign: 'center', padding: '10px 8px', borderBottom: '1px solid #eee' }}>
+                      <td key={cIdx} style={{ textAlign: 'center', padding: '6px 4px', borderBottom: '1px solid #eee', cursor: 'pointer' }}>
                         <input
                           type="radio"
                           name={`q-${question.id}-row-${rIdx}`}
                           value={c.letter}
                           checked={localSel[rIdx] === c.letter}
                           onChange={() => choose(rIdx, c.letter)}
+                          style={{ transform: 'scale(0.9)', cursor: 'pointer' }}
                         />
                       </td>
                     ))}
@@ -126,12 +167,12 @@ const QuestionBox = ({ question, answer, setAnswer }) => {
             {parsedCols.some(pc => pc.label) && (
               <div style={{ marginTop: '14px' }}>
                 <div style={{ fontWeight: 700, marginBottom: '6px' }}>Options</div>
-                <table style={{ borderCollapse: 'collapse', minWidth: '320px' }}>
+                <table style={{ borderCollapse: 'collapse', minWidth: '280px' }}>
                   <tbody>
                     {parsedCols.map((c, i) => (
                       <tr key={i}>
-                        <td style={{ padding: '6px 8px', border: '1px solid #ddd', fontWeight: 700, width: 40 }}>{c.letter}</td>
-                        <td style={{ padding: '6px 8px', border: '1px solid #ddd' }}>{c.label || ''}</td>
+                        <td style={{ padding: '4px 6px', border: '1px solid #ddd', fontWeight: 700, width: 34 }}>{c.letter}</td>
+                        <td style={{ padding: '4px 6px', border: '1px solid #ddd' }}>{c.label || ''}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -158,7 +199,8 @@ const QuestionBox = ({ question, answer, setAnswer }) => {
             padding: '6px 12px',
             width: '80%',
             borderRadius: '5px',
-            border: '1px solid #aaa'
+            border: '1px solid #aaa',
+            cursor: 'pointer'
           }}
         >
           <option value="">-- Select heading --</option>

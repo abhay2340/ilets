@@ -132,99 +132,18 @@ function TestLandingPage() {
         </div>
       </section>
 
-      {/* Test List Section */}
       <section className="test-choose">
         <h2 className="choose-heading">Available Tests</h2>
         <div className="test-list">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((testNum) => {
-            const testId = `test${testNum}`;
-            const testPricing = TEST_PRICING[testId];
-            const hasTestAccess = accessStatus[testId];
-            const isFree = isTestFree(testId);
-            const isLoading = loading[testId];
-            const expInfo = expirationInfo[testId];
-
-            return (
-              <div key={testId} className="test-box">
-                <div className="test-header">
-                  <h3>Test {testNum}</h3>
-                  <div className="test-badge">
-                    {isFree ? (
-                      <span className="free-badge">FREE</span>
-                    ) : (
-                      <span className="premium-badge">PREMIUM</span>
-                    )}
-                  </div>
-                </div>
-                
-                <p>Includes reading, listening, and writing sections.</p>
-                
-                {!isFree && (
-                  <div className="test-price">
-                    <span className="price">{formatPrice(testPricing.price)}</span>
-                    {expInfo && expInfo.daysRemaining !== null && (
-                      <div className="expiration-info">
-                        {expInfo.isExpired ? (
-                          <span className="expired">Expired</span>
-                        ) : (
-                          <span className="days-remaining">
-                            {expInfo.daysRemaining} days left
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="test-actions">
-                  {isFree || hasTestAccess ? (
-                    <button
-                      onClick={() => handleTestClick(testId)}
-                      className="start-btn"
-                    >
-                      <FaCheck className="btn-icon" />
-                      {hasTestAccess ? 'Start Test' : 'Start Free Test'}
-                    </button>
-                  ) : expInfo && expInfo.isExpired ? (
-                    <button
-                      onClick={() => handleTestClick(testId)}
-                      className="renew-btn"
-                    >
-                      <FaCreditCard className="btn-icon" />
-                      Renew Access
-                    </button>
-                  ) : (
-                    <div className="purchase-actions">
-                      <button
-                        onClick={() => handleTestClick(testId)}
-                        className="purchase-btn"
-                      >
-                        <FaCreditCard className="btn-icon" />
-                        Purchase Access
-                      </button>
-                      <button
-                        onClick={(e) => handleQuickPurchase(testId, e)}
-                        disabled={isLoading}
-                        className="quick-purchase-btn"
-                      >
-                        {isLoading ? (
-                          <>
-                            <div className="spinner"></div>
-                            Processing...
-                          </>
-                        ) : (
-                          <>
-                            <FaLock className="btn-icon" />
-                            Quick Buy
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
-                </div>
+          {
+            Array.from({ length: 9 }).map((_, index) => (
+              <div className="test-box">
+                <h3>Test {index + 1}</h3>
+                <p>Listening practice with audio.</p>
+                <button onClick={() => navigate(`/security?testId=test${index + 1}`)}>Start Test {index + 1}</button>
               </div>
-            );
-          })}
+            ))
+          }
         </div>
       </section>
       <ContactSection />
