@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Arimo:ital,wght@0,400..700;1,400..700&family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fredoka:wght@300..700&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
 
 body {
@@ -113,7 +112,7 @@ body {
   }
 } */
 
-  .full-hero {
+.full-hero {
   position: relative;
   height: 100vh;
   background-position: center;
@@ -121,7 +120,8 @@ body {
   background-repeat: no-repeat;
   display: flex;
   align-items: center;
-  justify-content: center; /* so hero text doesn't sit behind navbar */
+  justify-content: center;
+  /* so hero text doesn't sit behind navbar */
 }
 
 
@@ -179,7 +179,7 @@ body {
   margin: 0 auto;
   padding: 30px;
   border-radius: 10px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
 .test-box h3 {
@@ -194,13 +194,14 @@ body {
   padding: 10px 20px;
   font-weight: bold;
   border-radius: 6px;
-  margin-top: 15px ;
+  margin-top: 15px;
   cursor: pointer;
 }
 
 .test-box button:hover {
   background-color: #b30000;
 }
+
 .full-hero {
   height: 100vh;
   background-position: center;
@@ -295,14 +296,14 @@ body {
   max-width: 300px;
   padding: 30px;
   border-radius: 10px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   text-align: center;
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .test-box:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
 .test-box h3 {
@@ -330,22 +331,26 @@ body {
 .test-box button:hover {
   background-color: #b30000;
 }
+
 .test-list {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* Always 3 columns */
+  grid-template-columns: repeat(3, 1fr);
+  /* Always 3 columns */
   gap: 25px;
   justify-items: center;
 }
 
 @media (max-width: 900px) {
   .test-list {
-    grid-template-columns: repeat(2, 1fr); /* 2 columns on tablets */
+    grid-template-columns: repeat(2, 1fr);
+    /* 2 columns on tablets */
   }
 }
 
 @media (max-width: 600px) {
   .test-list {
-    grid-template-columns: 1fr; /* 1 column on mobile */
+    grid-template-columns: 1fr;
+    /* 1 column on mobile */
   }
 }
 
