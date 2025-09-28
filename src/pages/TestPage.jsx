@@ -15,8 +15,9 @@ import test5 from '../data/test5.jsx';
 import test6 from '../data/test6.jsx';
 import test7 from '../data/test7.jsx';
 import test8 from '../data/test8.jsx';
+import test9 from '../data/test9.jsx';
 
-const TEST_MAP = { test1, test2, test3, test4, test5, test6, test7, test8 };
+const TEST_MAP = { test1, test2, test3, test4, test5, test6, test7, test8, test9   };
 
 const TestPage = () => {
   const location = useLocation();
@@ -47,35 +48,48 @@ const TestPage = () => {
   const audioRef = useRef(null);
   const [listeningStarted, setListeningStarted] = useState(false);
   const lastTimeRef = useRef(0); // last allowed playback time
-  // Resizable passage width
-  const [passageWidth, setPassageWidth] = useState(50); // default 50%
-  const isResizing = useRef(false);
 
-  const handleMouseDown = () => {
-    isResizing.current = true;
-  };
+  // Resizable vertical splitter between passage and questions
+  const [passageWidth, setPassageWidth] = useState(50); // percentage
+  const isResizingRef = useRef(false);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(50);
 
-  const handleMouseMove = (e) => {
-    if (!isResizing.current) return;
-    const containerWidth = document.querySelector(".test-content-container")?.offsetWidth || window.innerWidth;
-    let newWidth = (e.clientX / containerWidth) * 100;
-    if (newWidth < 20) newWidth = 20; // min 20%
-    if (newWidth > 80) newWidth = 80; // max 80%
-    setPassageWidth(newWidth);
-  };
-
-  const handleMouseUp = () => {
-    isResizing.current = false;
+  const onSplitterMouseDown = (e) => {
+    isResizingRef.current = true;
+    startXRef.current = e.clientX;
+    startWidthRef.current = passageWidth;
+    e.preventDefault();
   };
 
   useEffect(() => {
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+    const handleMouseMove = (e) => {
+      if (!isResizingRef.current) return;
+      const container = document.querySelector('.test-content-container');
+      const containerRect = container ? container.getBoundingClientRect() : null;
+      const containerWidth = containerRect ? containerRect.width : window.innerWidth;
+      
+      // Calculate delta from start position
+      const deltaX = e.clientX - startXRef.current;
+      const deltaPercent = (deltaX / containerWidth) * 100;
+      let next = startWidthRef.current + deltaPercent;
+      
+      if (next < 20) next = 20; // min 20%
+      if (next > 80) next = 80; // max 80%
+      setPassageWidth(next);
     };
-  }, []);
+    
+    const handleMouseUp = () => {
+      isResizingRef.current = false;
+    };
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [passageWidth]);
 
   const startListening = async () => {
     if (!audioRef.current) return;
@@ -362,9 +376,8 @@ const TestPage = () => {
 )} */}
 
 
-      {/* Passage & Questions */}
-      {/* Passage & Questions */}
-      <div className="test-content-container" style={{ display: 'flex', width: '100%', height: '80vh' }}>
+      {/* Passage & Questions with resizable splitter */}
+      <div className="test-content-container" style={{ display: 'flex', width: '100%', height: '80vh', userSelect: isResizingRef.current ? 'none' : 'auto' }}>
         {/* Passage panel */}
         <div
           style={{
@@ -372,23 +385,26 @@ const TestPage = () => {
             background: '#f9f9f9',
             padding: '15px',
             borderRadius: '8px',
-            overflowY: 'scroll'
+            overflowY: 'scroll',
+            border: '1px solid #ddd'
           }}
         >
           <h3>{currentPart.title}</h3>
           <p style={{ whiteSpace: 'pre-wrap' }}>{currentPart.passage}</p>
         </div>
 
-        {/* Drag handle */}
+        {/* Vertical splitter */}
         <div
-          onMouseDown={handleMouseDown}
+          onMouseDown={onSplitterMouseDown}
           style={{
-            width: '5px',
+            width: '6px',
             cursor: 'col-resize',
             background: '#ccc',
-            margin: '0 5px'
+            margin: '0 8px',
+            borderRadius: '3px'
           }}
-        ></div>
+          title="Drag to resize"
+        />
 
         {/* Questions panel */}
         {hasQuestions && (
@@ -398,7 +414,8 @@ const TestPage = () => {
               background: '#ffffff',
               padding: '15px',
               borderRadius: '8px',
-              overflowY: 'scroll'
+              overflowY: 'scroll',
+              border: '1px solid #ddd'
             }}
           >
             <p>
