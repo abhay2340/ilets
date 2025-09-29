@@ -11,12 +11,13 @@ import { getFirestore } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyC-KJtSB6asIVMNgsiU3RBbw7cDTCY9Sco",
-  authDomain: "ielts-exam-75652.firebaseapp.com",
-  projectId: "ielts-exam-75652",
-  storageBucket: "ielts-exam-75652.firebasestorage.app",
-  messagingSenderId: "546993933352",
-  appId: "1:546993933352:web:8194f0eff7e905b12db91d"
+  apiKey: "AIzaSyD30kb56JbiE0fH58mCV-V7vMyxiRVf-lc",
+  authDomain: "ilets-e09c6.firebaseapp.com",
+  projectId: "ilets-e09c6",
+  storageBucket: "ilets-e09c6.firebasestorage.app",
+  messagingSenderId: "471230915741",
+  appId: "1:471230915741:web:70c755dc52a2a3b254a074",
+  measurementId: "G-KRXCH67YNP"
 };
 const app = initializeApp(firebaseConfig);
 
