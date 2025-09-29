@@ -11,7 +11,7 @@ const PaymentPage = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { purchaseTest, hasAccess } = usePurchases();
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -30,8 +30,16 @@ const PaymentPage = () => {
     setError('');
 
     try {
-      await purchaseTest(testId);
-      // Navigate to test after successful payment
+      const res = await purchaseTest(testId);
+      // Show lightweight success message in-page
+      // If you have a toast lib, you can replace with toast.success
+      console.log('Payment successful:', res?.razorpay_payment_id || res);
+      // Wait until access is confirmed before navigating
+      const maxWaitMs = 4000;
+      const start = Date.now();
+      while (!(await hasAccess(testId)) && Date.now() - start < maxWaitMs) {
+        await new Promise(r => setTimeout(r, 200));
+      }
       navigate(`/test?testId=${testId}`);
     } catch (error) {
       console.error('Purchase error:', error);
@@ -40,6 +48,20 @@ const PaymentPage = () => {
       setLoading(false);
     }
   };
+
+  // If user already has access, do not show purchase UI
+  React.useEffect(() => {
+    let isMounted = true;
+    const check = async () => {
+      if (!user) return;
+      const access = await hasAccess(testId);
+      if (isMounted && access) {
+        navigate(`/test?testId=${testId}`);
+      }
+    };
+    check();
+    return () => { isMounted = false; };
+  }, [user, testId]);
 
   const handleBack = () => {
     navigate('/test-start');
@@ -82,7 +104,7 @@ const PaymentPage = () => {
                   )}
                 </div>
               </div>
-              
+
               <div className="test-features">
                 <div className="feature-item">
                   <FaCheck className="feature-icon" />
@@ -154,14 +176,14 @@ const PaymentPage = () => {
 
               <div className="payment-actions">
                 {testPricing.isFree ? (
-                  <button 
+                  <button
                     onClick={() => navigate(`/test?testId=${testId}`)}
                     className="start-test-btn"
                   >
                     Start Free Test
                   </button>
                 ) : (
-                  <button 
+                  <button
                     onClick={handlePurchase}
                     disabled={loading}
                     className="purchase-btn"

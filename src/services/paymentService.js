@@ -126,9 +126,6 @@ export const handlePaymentSuccess = async (paymentResponse, testId, userId) => {
     const purchaseData = {
       userId,
       testId,
-      paymentId: paymentResponse.razorpay_payment_id,
-      orderId: paymentResponse.razorpay_order_id,
-      signature: paymentResponse.razorpay_signature,
       amount: TEST_PRICING[testId].price,
       currency: TEST_PRICING[testId].currency,
       status: 'completed',
@@ -136,6 +133,17 @@ export const handlePaymentSuccess = async (paymentResponse, testId, userId) => {
       expiresAt,
       accessDuration: ACCESS_DURATION.PAID_TEST_ACCESS_DAYS,
     };
+
+    // Only include Razorpay identifiers if present (direct payments may not have order/signature)
+    if (paymentResponse?.razorpay_payment_id) {
+      purchaseData.paymentId = paymentResponse.razorpay_payment_id;
+    }
+    if (paymentResponse?.razorpay_order_id) {
+      purchaseData.orderId = paymentResponse.razorpay_order_id;
+    }
+    if (paymentResponse?.razorpay_signature) {
+      purchaseData.signature = paymentResponse.razorpay_signature;
+    }
 
     const purchaseId = `${userId}_${testId}_${Date.now()}`;
     await setDoc(doc(db, 'purchases', purchaseId), purchaseData);
@@ -235,6 +243,32 @@ export const hasUserPurchasedTest = async (userId, testId) => {
           return false;
         }
       }
+    }
+
+    // Fallback: check purchases collection for active purchase
+    const purchasesRef = collection(db, 'purchases');
+    const qPurchases = query(purchasesRef, where('userId', '==', userId), where('testId', '==', testId));
+    const snapshot = await getDocs(qPurchases);
+    let active = false;
+    let latestExpiresAt = null;
+    snapshot.forEach((d) => {
+      const data = d.data();
+      const now = new Date();
+      const expiresAt = data.expiresAt?.toDate ? data.expiresAt.toDate() : new Date(data.expiresAt);
+      if (expiresAt && now < expiresAt) {
+        active = true;
+        if (!latestExpiresAt || expiresAt > latestExpiresAt) {
+          latestExpiresAt = expiresAt;
+        }
+      }
+    });
+
+    // If active purchase found, backfill user's purchasedTests to keep UI consistent
+    if (active && latestExpiresAt) {
+      try {
+        await updateUserPurchasedTests(userId, testId, latestExpiresAt);
+      } catch (_) { /* ignore backfill errors */ }
+      return true;
     }
 
     return false;

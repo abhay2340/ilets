@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import test1 from '../data/test1.jsx';
 import test2 from '../data/test2.jsx';
 import test3 from '../data/test3.jsx';
@@ -27,21 +27,21 @@ const TEST_MAP = { test1, test2, test3, test4, test5, test6, test7, test8, test9
 const TestPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { hasAccess } = usePurchases();
-  
+
   const params = new URLSearchParams(location.search);
   const currentTestId = params.get('testId') || 'test1';
   const testData = TEST_MAP[currentTestId] ?? TEST_MAP['test1'];
-  
+
   const [accessChecked, setAccessChecked] = useState(false);
   const [hasTestAccess, setHasTestAccess] = useState(false);
-  
+
   console.log(testData);
   // Ensure we always work with a safe parts array
   const parts = testData?.parts ?? [];
   // pick the first available audio from any part
-  const persistentAudioSrc = React.useMemo(() => {
+  const persistentAudioSrc = useMemo(() => {
     const withAudio = parts.find(p => p.audioSrc);
     return withAudio ? withAudio.audioSrc : null;
   }, [parts]);
@@ -81,21 +81,21 @@ const TestPage = () => {
       const container = document.querySelector('.test-content-container');
       const containerRect = container ? container.getBoundingClientRect() : null;
       const containerWidth = containerRect ? containerRect.width : window.innerWidth;
-      
+
       // Calculate delta from start position
       const deltaX = e.clientX - startXRef.current;
       const deltaPercent = (deltaX / containerWidth) * 100;
       let next = startWidthRef.current + deltaPercent;
-      
+
       if (next < 20) next = 20; // min 20%
       if (next > 80) next = 80; // max 80%
       setPassageWidth(next);
     };
-    
+
     const handleMouseUp = () => {
       isResizingRef.current = false;
     };
-    
+
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
     return () => {
@@ -187,6 +187,7 @@ const TestPage = () => {
   // Check user access to the test
   useEffect(() => {
     const checkAccess = async () => {
+      if (authLoading) return; // wait until auth state is resolved
       if (!user) {
         navigate('/login');
         return;
@@ -208,80 +209,14 @@ const TestPage = () => {
         navigate(`/payment?testId=${currentTestId}`);
         return;
       }
-      
+
       setAccessChecked(true);
     };
 
     checkAccess();
-  }, [user, currentTestId, hasAccess, navigate]);
+  }, [authLoading, user, currentTestId, hasAccess, navigate]);
 
-  // Show loading while checking access
-  if (!accessChecked) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        flexDirection: 'column',
-        gap: '20px'
-      }}>
-        <div style={{
-          width: '50px',
-          height: '50px',
-          border: '4px solid #f3f3f3',
-          borderTop: '4px solid #b30000',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }}></div>
-        <p>Verifying access...</p>
-        <style>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
-    );
-  }
-
-  // Show access denied if user doesn't have access
-  if (!hasTestAccess) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        flexDirection: 'column',
-        gap: '20px',
-        textAlign: 'center',
-        padding: '20px'
-      }}>
-        <h2>Access Required</h2>
-        <p>You need to purchase this test to access it.</p>
-        <button 
-          onClick={() => navigate(`/payment?testId=${currentTestId}`)}
-          style={{
-            backgroundColor: '#b30000',
-            color: 'white',
-            border: 'none',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '16px'
-          }}
-        >
-          Purchase Test
-        </button>
-      </div>
-    );
-  }
-
-  const handleSetAnswer = (id, val) => {
-    setAnswers(prev => ({ ...prev, [id]: val }));
-  };
-
+  // Submit handler defined before any conditional returns to keep hooks stable
   const handleSubmit = async () => {
     if (submitted) return;
     setSubmitted(true);
@@ -347,8 +282,9 @@ const TestPage = () => {
 
   };
 
-  // Timer
+  // Timer effect must be declared unconditionally; gate logic inside
   useEffect(() => {
+    if (!hasTestAccess) return;
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
         const next = prev - 1;
@@ -367,7 +303,74 @@ const TestPage = () => {
     }, 1000);
 
     return () => clearInterval(timerRef.current);
-  }, [currentTestId]);
+  }, [currentTestId, hasTestAccess]);
+
+  // Show loading while checking access
+  if (!accessChecked) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        flexDirection: 'column',
+        gap: '20px'
+      }}>
+        <div style={{
+          width: '50px',
+          height: '50px',
+          border: '4px solid #f3f3f3',
+          borderTop: '4px solid #b30000',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite'
+        }}></div>
+        <p>Verifying access...</p>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  // Show access denied if user doesn't have access
+  if (!hasTestAccess) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        flexDirection: 'column',
+        gap: '20px',
+        textAlign: 'center',
+        padding: '20px'
+      }}>
+        <h2>Access Required</h2>
+        <p>You need to purchase this test to access it.</p>
+        <button
+          onClick={() => navigate(`/payment?testId=${currentTestId}`)}
+          style={{
+            backgroundColor: '#b30000',
+            color: 'white',
+            border: 'none',
+            padding: '12px 24px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '16px'
+          }}
+        >
+          Purchase Test
+        </button>
+      </div>
+    );
+  }
+
+  const handleSetAnswer = (id, val) => {
+    setAnswers(prev => ({ ...prev, [id]: val }));
+  };
 
   return (
     <div style={{ padding: '30px', marginTop: '-20px', maxHeight: '100vh', paddingBottom: '0px' }}>

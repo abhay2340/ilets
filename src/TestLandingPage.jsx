@@ -10,6 +10,7 @@ import { signOut } from 'firebase/auth';
 import { auth } from './firebaseConfig';
 import Navbar from './Navbar';
 import ContactSection from './ContactSection';
+import FreeTests from './FreeTests';
 
 function TestLandingPage() {
   const navigate = useNavigate();
@@ -80,7 +81,11 @@ function TestLandingPage() {
               if (access) navigate(`/security?testId=${testId}`);
               else navigate(`/payment?testId=${testId}`);
             };
-
+            // if (index < 2) {
+            //   return (
+            //     <FreeTests index={index} />
+            //   )
+            // }
             return (
               <div key={testId} className="test-box">
                 <h3>Test {index + 1}</h3>
