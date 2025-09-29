@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import './TestLandingPage.css';
 import backgroundImg from './assets/student-hero.jpg';
-import { FaBookReader, FaClock, FaHeadphones, FaLock, FaCheck, FaCreditCard } from 'react-icons/fa';
+import { FaBookReader, FaClock, FaHeadphones } from 'react-icons/fa';
 import { useAuth } from './AuthContext';
 import { usePurchases } from './hooks/usePurchases';
-import { TEST_PRICING, formatPrice, isTestFree } from './config/pricing';
+import { TEST_PRICING, formatPrice } from './config/pricing';
 import { signOut } from 'firebase/auth';
 import { auth } from './firebaseConfig';
 import Navbar from './Navbar';
@@ -14,84 +14,14 @@ import ContactSection from './ContactSection';
 function TestLandingPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { purchasedTests, hasAccess, getExpirationInfo, purchaseTest } = usePurchases();
-  const [loading, setLoading] = useState({});
-  const [accessStatus, setAccessStatus] = useState({});
-  const [expirationInfo, setExpirationInfo] = useState({});
+  const { purchasedTests, loading, hasAccess } = usePurchases();
 
   const handleLogout = async () => {
     await signOut(auth);
     navigate('/login');
   };
 
-  // Check access status and expiration info for all tests
-  useEffect(() => {
-    const checkAccess = async () => {
-      if (!user) return;
-      
-      const status = {};
-      const expInfo = {};
-      
-      for (let i = 1; i <= 9; i++) {
-        const testId = `test${i}`;
-        status[testId] = await hasAccess(testId);
-        expInfo[testId] = await getExpirationInfo(testId);
-      }
-      
-      setAccessStatus(status);
-      setExpirationInfo(expInfo);
-    };
-
-    checkAccess();
-  }, [user, purchasedTests, hasAccess, getExpirationInfo]);
-
-  const handleTestClick = async (testId) => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-
-    // Check if test is free
-    if (isTestFree(testId)) {
-      navigate(`/security?testId=${testId}`);
-      return;
-    }
-
-    // Check if user has access
-    const hasTestAccess = await hasAccess(testId);
-    if (hasTestAccess) {
-      navigate(`/security?testId=${testId}`);
-      return;
-    }
-
-    // Redirect to payment page
-    navigate(`/payment?testId=${testId}`);
-  };
-
-  const handleQuickPurchase = async (testId, e) => {
-    e.stopPropagation();
-    
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-
-    setLoading(prev => ({ ...prev, [testId]: true }));
-
-    try {
-      await purchaseTest(testId);
-      // Refresh access status and expiration info
-      const hasTestAccess = await hasAccess(testId);
-      const expInfo = await getExpirationInfo(testId);
-      setAccessStatus(prev => ({ ...prev, [testId]: hasTestAccess }));
-      setExpirationInfo(prev => ({ ...prev, [testId]: expInfo }));
-    } catch (error) {
-      console.error('Purchase error:', error);
-      // You can add a toast notification here
-    } finally {
-      setLoading(prev => ({ ...prev, [testId]: false }));
-    }
-  };
+  // (Old access-check and quick purchase helpers removed; simplified buttons below use hasAccess directly.)
 
   return (
     <div className="test-landing-container">
@@ -135,15 +65,42 @@ function TestLandingPage() {
       <section className="test-choose">
         <h2 className="choose-heading">Available Tests</h2>
         <div className="test-list">
-          {
-            Array.from({ length: 9 }).map((_, index) => (
-              <div className="test-box">
+          {Array.from({ length: 9 }).map((_, index) => {
+            const testId = `test${index + 1}`;
+            const pricing = TEST_PRICING[testId] || { price: 0, currency: 'INR', isFree: true };
+            const isFree = !!pricing.isFree;
+            const isPurchased = purchasedTests?.some?.(t => t.testId === testId);
+
+            const handleStart = async () => {
+              if (isFree) {
+                navigate(`/security?testId=${testId}`);
+                return;
+              }
+              const access = await hasAccess(testId);
+              if (access) navigate(`/security?testId=${testId}`);
+              else navigate(`/payment?testId=${testId}`);
+            };
+
+            return (
+              <div key={testId} className="test-box">
                 <h3>Test {index + 1}</h3>
-                <p>Listening practice with audio.</p>
-                <button onClick={() => navigate(`/security?testId=test${index + 1}`)}>Start Test {index + 1}</button>
+                <p>Reading and Listening practice.</p>
+                <div style={{ margin: '6px 0', fontWeight: 700 }}>
+                  {isFree ? (
+                    <span style={{ color: '#2e7d32' }}>FREE</span>
+                  ) : (
+                    <span style={{ color: '#b30000' }}>{formatPrice(pricing.price, pricing.currency)}</span>
+                  )}
+                </div>
+                {(!isFree && isPurchased) && (
+                  <div style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>Purchased - 30 days access</div>
+                )}
+                <button onClick={handleStart} disabled={loading}>
+                  {isFree ? `Start Test ${index + 1}` : (isPurchased ? 'Continue' : 'Purchase / Start')}
+                </button>
               </div>
-            ))
-          }
+            );
+          })}
         </div>
       </section>
       <ContactSection />

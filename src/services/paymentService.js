@@ -2,6 +2,15 @@ import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase
 import { db, auth } from '../firebaseConfig';
 import { TEST_PRICING, RAZORPAY_CONFIG, ACCESS_DURATION } from '../config/pricing';
 
+// Ensure Razorpay key is configured before opening checkout
+const ensureRazorpayKeyConfigured = () => {
+  const keyId = RAZORPAY_CONFIG?.key_id;
+  if (!keyId) {
+    throw new Error('Razorpay key missing. Set VITE_RAZORPAY_KEY_ID in your .env and restart the dev server.');
+  }
+  return keyId;
+};
+
 // Load Razorpay script dynamically
 const loadRazorpayScript = () => {
   return new Promise((resolve) => {
@@ -65,16 +74,17 @@ export const initializePayment = async (testId, userId, onSuccess, onError) => {
       throw new Error('Failed to load Razorpay');
     }
 
-    const order = await createPaymentOrder(testId, userId);
     const testPricing = TEST_PRICING[testId];
+    const keyId = ensureRazorpayKeyConfigured();
 
     const options = {
-      key: RAZORPAY_CONFIG.key_id,
-      amount: order.amount,
-      currency: order.currency,
+      key: keyId,
+      // Direct payment: do not set order_id when you don't have a backend order
+      amount: testPricing.price * 100,
+      currency: testPricing.currency,
       name: 'Gurjant IELTS',
       description: `Payment for ${testPricing.testName || `IELTS Test ${testId.charAt(testId.length - 1)}`}`,
-      order_id: order.id,
+      // order_id: backendOrder.id, // <-- only when using your own backend Orders API
       prefill: {
         name: auth.currentUser?.displayName || '',
         email: auth.currentUser?.email || '',
@@ -149,10 +159,10 @@ export const updateUserPurchasedTests = async (userId, testId, expiresAt) => {
     if (userDoc.exists()) {
       const userData = userDoc.data();
       const purchasedTests = userData.purchasedTests || [];
-      
+
       // Check if test is already purchased and update expiration
       const existingTestIndex = purchasedTests.findIndex(test => test.testId === testId);
-      
+
       if (existingTestIndex >= 0) {
         // Update existing test expiration
         purchasedTests[existingTestIndex] = {
@@ -170,7 +180,7 @@ export const updateUserPurchasedTests = async (userId, testId, expiresAt) => {
           accessDuration: ACCESS_DURATION.PAID_TEST_ACCESS_DAYS
         });
       }
-      
+
       await setDoc(userDocRef, {
         ...userData,
         purchasedTests,
@@ -208,15 +218,15 @@ export const hasUserPurchasedTest = async (userId, testId) => {
     if (userDoc.exists()) {
       const userData = userDoc.data();
       const purchasedTests = userData.purchasedTests || [];
-      
+
       // Find the test in purchased tests
       const testPurchase = purchasedTests.find(test => test.testId === testId);
-      
+
       if (testPurchase) {
         // Check if the test access has expired
         const now = new Date();
         const expiresAt = testPurchase.expiresAt?.toDate ? testPurchase.expiresAt.toDate() : new Date(testPurchase.expiresAt);
-        
+
         if (now < expiresAt) {
           return true; // Test is purchased and not expired
         } else {
@@ -243,10 +253,10 @@ export const removeExpiredTest = async (userId, testId) => {
     if (userDoc.exists()) {
       const userData = userDoc.data();
       const purchasedTests = userData.purchasedTests || [];
-      
+
       // Filter out the expired test
       const updatedTests = purchasedTests.filter(test => test.testId !== testId);
-      
+
       await setDoc(userDocRef, {
         ...userData,
         purchasedTests: updatedTests,
@@ -267,14 +277,14 @@ export const getUserPurchasedTests = async (userId) => {
     if (userDoc.exists()) {
       const userData = userDoc.data();
       const purchasedTests = userData.purchasedTests || [];
-      
+
       // Filter out expired tests and return active ones
       const now = new Date();
       const activeTests = purchasedTests.filter(test => {
         const expiresAt = test.expiresAt?.toDate ? test.expiresAt.toDate() : new Date(test.expiresAt);
         return now < expiresAt;
       });
-      
+
       return activeTests;
     }
 
@@ -294,15 +304,15 @@ export const getTestExpirationInfo = async (userId, testId) => {
     if (userDoc.exists()) {
       const userData = userDoc.data();
       const purchasedTests = userData.purchasedTests || [];
-      
+
       const testPurchase = purchasedTests.find(test => test.testId === testId);
-      
+
       if (testPurchase) {
         const now = new Date();
         const expiresAt = testPurchase.expiresAt?.toDate ? testPurchase.expiresAt.toDate() : new Date(testPurchase.expiresAt);
         const isExpired = now >= expiresAt;
         const daysRemaining = Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
-        
+
         return {
           isExpired,
           expiresAt,
@@ -325,7 +335,7 @@ export const getUserPurchaseHistory = async (userId) => {
     const purchasesRef = collection(db, 'purchases');
     const q = query(purchasesRef, where('userId', '==', userId));
     const querySnapshot = await getDocs(q);
-    
+
     const purchases = [];
     querySnapshot.forEach((doc) => {
       purchases.push({

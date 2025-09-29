@@ -23,19 +23,19 @@ The payment system allows you to:
 
 ### 2. Environment Variables
 
-Create a `.env` file in your project root:
+For Vite, environment variables must be prefixed with `VITE_`. Create a `.env.local` file in your project root:
 
 ```env
-# Razorpay Configuration
-REACT_APP_RAZORPAY_KEY_ID=rzp_test_your_key_id_here
-REACT_APP_RAZORPAY_KEY_SECRET=your_key_secret_here
+# Razorpay Configuration (Vite)
+VITE_RAZORPAY_KEY_ID=rzp_test_your_key_id_here
+# Optional: not used client-side, do not expose in production
+VITE_RAZORPAY_KEY_SECRET=your_key_secret_here
 ```
 
-**Important:**
-- Use test keys for development
-- Use live keys for production
-- Never commit your actual keys to version control
-- Add `.env` to your `.gitignore` file
+Important:
+- Use test keys for development; use live keys for production
+- Never commit real keys to version control
+- After changing env vars, restart the dev server
 
 ### 3. Firebase Firestore Setup
 
@@ -188,6 +188,7 @@ For production use, implement a backend to:
    - Check if Razorpay script is loaded
    - Verify API key is correct
    - Check browser console for errors
+   - If you see "No key passed", set `VITE_RAZORPAY_KEY_ID` and restart the dev server
 
 2. **Access denied for purchased tests**
    - Check Firestore permissions
