@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import { usePurchases } from '../hooks/usePurchases';
-import { TEST_PRICING, formatPrice } from '../config/pricing';
+import { TEST_PRICING, BUNDLE_PRICING, BUNDLE_ID, formatPrice } from '../config/pricing';
 import { FaLock, FaCheck, FaArrowLeft, FaCreditCard } from 'react-icons/fa';
 import './PaymentPage.css';
 
@@ -18,7 +18,8 @@ const PaymentPage = () => {
   // Get test ID from URL params
   const params = new URLSearchParams(location.search);
   const testId = params.get('testId') || 'test4';
-  const testPricing = TEST_PRICING[testId];
+  const isBundle = testId === BUNDLE_ID;
+  const testPricing = isBundle ? BUNDLE_PRICING[BUNDLE_ID] : TEST_PRICING[testId];
 
   const handlePurchase = async () => {
     if (!user) {
@@ -53,11 +54,9 @@ const PaymentPage = () => {
   React.useEffect(() => {
     let isMounted = true;
     const check = async () => {
-      if (!user) return;
+      if (!user || isBundle) return;
       const access = await hasAccess(testId);
-      if (isMounted && access) {
-        navigate(`/test?testId=${testId}`);
-      }
+      if (isMounted && access) navigate(`/test?testId=${testId}`);
     };
     check();
     return () => { isMounted = false; };
@@ -71,8 +70,8 @@ const PaymentPage = () => {
     return (
       <div className="payment-page">
         <div className="payment-container">
-          <h2>Test Not Found</h2>
-          <p>The requested test could not be found.</p>
+          <h2>Item Not Found</h2>
+          <p>The requested item could not be found.</p>
           <button onClick={handleBack} className="back-btn">
             <FaArrowLeft /> Back to Tests
           </button>
@@ -88,16 +87,16 @@ const PaymentPage = () => {
           <button onClick={handleBack} className="back-btn">
             <FaArrowLeft /> Back to Tests
           </button>
-          <h1>Purchase Test Access</h1>
+          <h1>{isBundle ? 'Buy Subscription' : 'Purchase Test Access'}</h1>
         </div>
 
         <div className="payment-content">
           <div className="test-info">
             <div className="test-card">
               <div className="test-header">
-                <h2>IELTS Test {testId.charAt(testId.length - 1)}</h2>
+                <h2>{isBundle ? 'All Paid Tests (3 months)' : `IELTS Test ${testId.charAt(testId.length - 1)}`}</h2>
                 <div className="test-badge">
-                  {testPricing.isFree ? (
+                  {!isBundle && testPricing.isFree ? (
                     <span className="free-badge">FREE</span>
                   ) : (
                     <span className="premium-badge">PREMIUM</span>
@@ -139,7 +138,7 @@ const PaymentPage = () => {
               <div className="price-header">
                 <h3>Test Access</h3>
                 <div className="price">
-                  {testPricing.isFree ? (
+                  {!isBundle && testPricing.isFree ? (
                     <span className="free-price">FREE</span>
                   ) : (
                     <span className="paid-price">{formatPrice(testPricing.price)}</span>
@@ -147,7 +146,7 @@ const PaymentPage = () => {
                 </div>
               </div>
 
-              {!testPricing.isFree && (
+              {(!isBundle && !testPricing.isFree) && (
                 <div className="payment-methods">
                   <div className="payment-method">
                     <FaCreditCard className="payment-icon" />
@@ -175,7 +174,7 @@ const PaymentPage = () => {
               )}
 
               <div className="payment-actions">
-                {testPricing.isFree ? (
+                {!isBundle && testPricing.isFree ? (
                   <button
                     onClick={() => navigate(`/test?testId=${testId}`)}
                     className="start-test-btn"
@@ -196,7 +195,7 @@ const PaymentPage = () => {
                     ) : (
                       <>
                         <FaLock className="lock-icon" />
-                        Purchase for {formatPrice(testPricing.price)}
+                        {isBundle ? `Buy Subscriptionn for ${formatPrice(testPricing.price)}` : `Purchase for ${formatPrice(testPricing.price)}`}
                       </>
                     )}
                   </button>

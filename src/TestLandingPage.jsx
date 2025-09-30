@@ -11,6 +11,7 @@ import { auth } from './firebaseConfig';
 import Navbar from './Navbar';
 import ContactSection from './ContactSection';
 import FreeTests from './FreeTests';
+import PaidTests from './PaidTests';
 
 function TestLandingPage() {
   const navigate = useNavigate();
@@ -31,6 +32,11 @@ function TestLandingPage() {
 
       {/* Hero Section with Background */}
       <section className="full-hero" style={{ backgroundImage: `url(${backgroundImg})` }}>
+        <div className="hero-anim-layer" aria-hidden="true">
+          <div className="blob red"></div>
+          <div className="blob orange"></div>
+          <div className="blob pink"></div>
+        </div>
         <div className="hero-overlay">
           <div className="hero-content">
             <h1>Prepare for Success with Our IELTS Practice Tests</h1>
@@ -42,15 +48,15 @@ function TestLandingPage() {
             <div className="hero-features">
               <div className="feature-item">
                 <FaBookReader className="feature-icon" />
-                <span>Realistic Reading</span>
+                <span className="feature-text">Realistic Reading</span>
               </div>
               <div className="feature-item">
                 <FaClock className="feature-icon" />
-                <span>Timed Practice</span>
+                <span className="feature-text">Timed Practice</span>
               </div>
               <div className="feature-item">
                 <FaHeadphones className="feature-icon" />
-                <span>Listening Audio</span>
+                <span className="feature-text">Listening Audio</span>
               </div>
             </div>
 
@@ -64,48 +70,10 @@ function TestLandingPage() {
       </section>
 
       <section className="test-choose">
-        <h2 className="choose-heading">Available Tests</h2>
-        <div className="test-list">
-          {Array.from({ length: 9 }).map((_, index) => {
-            const testId = `test${index + 1}`;
-            const pricing = TEST_PRICING[testId] || { price: 0, currency: 'INR', isFree: true };
-            const isFree = !!pricing.isFree;
-            const isPurchased = purchasedTests?.some?.(t => t.testId === testId);
-
-            const handleStart = async () => {
-              if (isFree) {
-                navigate(`/security?testId=${testId}`);
-                return;
-              }
-              const access = await hasAccess(testId);
-              if (access) navigate(`/security?testId=${testId}`);
-              else navigate(`/payment?testId=${testId}`);
-            };
-            // if (index < 2) {
-            //   return (
-            //     <FreeTests index={index} />
-            //   )
-            // }
-            return (
-              <div key={testId} className="test-box">
-                <h3>Test {index + 1}</h3>
-                <p>Reading and Listening practice.</p>
-                <div style={{ margin: '6px 0', fontWeight: 700 }}>
-                  {isFree ? (
-                    <span style={{ color: '#2e7d32' }}>FREE</span>
-                  ) : (
-                    <span style={{ color: '#b30000' }}>{formatPrice(pricing.price, pricing.currency)}</span>
-                  )}
-                </div>
-                {(!isFree && isPurchased) && (
-                  <div style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>Purchased - 30 days access</div>
-                )}
-                <button onClick={handleStart} disabled={loading}>
-                  {isFree ? `Start Test ${index + 1}` : (isPurchased ? 'Continue' : 'Purchase / Start')}
-                </button>
-              </div>
-            );
-          })}
+        <div className="tests-container">
+          <h2 className="choose-heading">Available Tests</h2>
+          <FreeTests purchasedTests={purchasedTests} loading={loading} navigate={navigate} />
+          <PaidTests purchasedTests={purchasedTests} loading={loading} navigate={navigate} hasAccess={hasAccess} />
         </div>
       </section>
       <ContactSection />

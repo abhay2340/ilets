@@ -9,7 +9,7 @@ import ContactSection from './ContactSection';
 function Introduction() {
   return (
     <>
-    <Navbar transparent />
+      <Navbar transparent />
       <div className="intro-top-bg" />
       <div className="intro-card">
         <div className="intro-left">
@@ -27,7 +27,7 @@ function Introduction() {
           </p>
         </div>
       </div>
-    <h1 className="benefit-head">Take the Test. Feel the Difference.</h1>
+      <h1 className="benefit-head">Take the Test. Feel the Difference.</h1>
       {/* Benefits Section Below Intro */}
       <div className="benefit-section">
         <div className="benefit-grid">
@@ -59,21 +59,20 @@ function Introduction() {
           <img src={benefitImage} alt="Student with folder" />
         </div>
       </div>
-    <ContactSection />
-<footer className="site-footer">
-  <div className="footer-top">
-    <div className="footer-logo">Gurjant IELTS</div>
-    <ul className="footer-nav">
-      <li><a href="/">Home</a></li>
-      <li><a href="/introduction">Introduction</a></li>
-      <li><a href="/news">News</a></li>
-      <li><a href="/contact">Contact</a></li>
-    </ul>
-  </div>
-  <div className="footer-bottom">
-    <p>© {new Date().getFullYear()} Gurjant IELTS. All rights reserved.</p>
-  </div>
-</footer>
+      <ContactSection />
+      <footer className="site-footer">
+        <div className="footer-top">
+          <div className="footer-logo">Gurjant IELTS</div>
+          <ul className="footer-nav">
+            <li><a href="/">Home</a></li>
+            <li><a href="/introduction">Introduction</a></li>
+            <li><a href="/contact">Contact</a></li>
+          </ul>
+        </div>
+        <div className="footer-bottom">
+          <p>© {new Date().getFullYear()} Gurjant IELTS. All rights reserved.</p>
+        </div>
+      </footer>
 
 
     </>

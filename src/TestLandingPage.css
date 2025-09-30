@@ -7,6 +7,110 @@ body {
 
 
 
+/* .navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 30px;
+}
+
+.logo-img {
+  height: 60px;
+  width: auto;
+}
+
+.nav-links {
+  list-style: none;
+  display: flex;
+  gap: 25px;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-links li {
+  cursor: pointer;
+  color: #333;
+  font-weight: 800;
+  transition: color 0.3s;
+}
+
+.nav-links li:hover {
+  color: #ff0002;
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.nav-icon {
+  font-size: 24px;
+  color: #333;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.nav-icon:hover {
+  color: #ff0002;
+}
+
+.login-btn {
+  padding: 10px 18px;
+  font-size: 14px;
+  background-color: #fe1a1a;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.login-btn:hover {
+  background-color: #c70202;
+}
+
+.full-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  padding: 0 30px;
+  text-align: center;
+}
+@media (max-width: 768px) {
+  .navbar-left,
+  .navbar-right {
+    flex: 1 1 100%;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+@media (max-width: 768px) {
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+    height: auto;
+    padding-bottom: 10px;
+  }
+
+  .navbar-left, .navbar-right {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 10px;
+  }
+
+  .nav-links {
+    gap: 15px;
+  }
+} */
 
 .full-hero {
   position: relative;
@@ -61,6 +165,87 @@ body {
   text-align: center;
   padding: 60px 20px;
   background: white;
+}
+
+.tests-container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Section wrappers */
+.tests-section {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  padding: 18px;
+  margin: 24px 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.tests-section h3 {
+  margin: 16px 0 14px 0;
+  text-align: center;
+  padding-top: 20px;
+}
+
+.tests-section-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.subscribe-btn {
+  background: linear-gradient(135deg, #b30000, #ff0002);
+  color: #fff;
+  border: none;
+  padding: 12px 22px;
+  border-radius: 24px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.subscribe-btn:hover {
+  background: linear-gradient(135deg, #990000, #e60000);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(179, 0, 0, 0.25);
+}
+
+/* Paid overlay */
+.paid-blur-container {
+  position: relative;
+}
+
+.paid-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(234, 234, 234, 0.5);
+  backdrop-filter: blur(1px);
+  z-index: 2;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.overlay-btn {
+  background: linear-gradient(135deg, #b30000, #ff0002);
+  color: #fff;
+  border: none;
+  padding: 14px 26px;
+  border-radius: 28px;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.overlay-btn:hover {
+  background: linear-gradient(135deg, #990000, #e60000);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(179, 0, 0, 0.28);
 }
 
 .choose-heading {
@@ -442,58 +627,20 @@ body {
   background: #999;
 }
 
-/* Layout helpers for stacks/sections */
-.free-row {
+/* Flex-based cards wrappers */
+.cards-flex {
   display: flex;
-  justify-content: space-around;
-  gap: 16px;
   flex-wrap: wrap;
-  align-items: stretch;
-}
-
-.paid-row {
-  display: flex;
-  gap: 24px;
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-
-.section {
-  flex: 1 1 0;
-  min-width: 260px;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 8px 0;
-}
-
-.section-icon {
-  color: #b30000;
-}
-
-.section-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
-.col-cards {
+.cards-flex>.test-box {
+  flex: 1 1 260px;
+  max-width: 320px;
+}
+
+.cards-column {
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-@media (max-width: 900px) {
-  .section-cards {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 600px) {
-  .section-cards {
-    grid-template-columns: 1fr;
-  }
 }

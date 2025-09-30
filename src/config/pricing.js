@@ -6,27 +6,27 @@ export const TEST_PRICING = {
   test1: { price: 0, currency: 'INR', isFree: true },
   test2: { price: 0, currency: 'INR', isFree: true },
 
-  // Paid tests (test3, test4, test5, test6, test7, test8, test9) - ₹499 each
-  test3: { price: 1, currency: 'INR', isFree: false },
-  test4: { price: 1, currency: 'INR', isFree: false },
-  test5: { price: 1, currency: 'INR', isFree: false },
-  test6: { price: 1, currency: 'INR', isFree: false },
-  test7: { price: 1, currency: 'INR', isFree: false },
-  test8: { price: 1, currency: 'INR', isFree: false },
-  test9: { price: 1, currency: 'INR', isFree: false },
+  // Paid tests (test3, test4, test5, test6, test7, test8, test9)
+  test3: { price: 499, currency: 'INR', isFree: false },
+  test4: { price: 499, currency: 'INR', isFree: false },
+  test5: { price: 499, currency: 'INR', isFree: false },
+  test6: { price: 499, currency: 'INR', isFree: false },
+  test7: { price: 499, currency: 'INR', isFree: false },
+  test8: { price: 499, currency: 'INR', isFree: false },
+  test9: { price: 499, currency: 'INR', isFree: false },
 };
 
 // Bundle pricing for multiple tests
+export const BUNDLE_ID = 'bundleAll';
 export const BUNDLE_PRICING = {
-  allTests: { price: 2499, currency: 'INR', tests: ['test3', 'test4', 'test5', 'test6', 'test7', 'test8', 'test9'] },
-  threeTests: { price: 1299, currency: 'INR', tests: ['test3', 'test4', 'test5'] },
+  [BUNDLE_ID]: { price: 499, currency: 'INR', tests: ['test3', 'test4', 'test5', 'test6', 'test7', 'test8', 'test9'] },
 };
 
 // Access duration configuration
 export const ACCESS_DURATION = {
-  // 30 days in milliseconds
-  PAID_TEST_ACCESS_DAYS: 30,
-  PAID_TEST_ACCESS_MS: 30 * 24 * 60 * 60 * 1000,
+  // 90 days in milliseconds
+  PAID_TEST_ACCESS_DAYS: 90,
+  PAID_TEST_ACCESS_MS: 90 * 24 * 60 * 60 * 1000,
 };
 
 // Razorpay configuration

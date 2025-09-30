@@ -13,13 +13,77 @@ body {
 .hero-section {
   height: 100vh;
   width: 100%;
-  background-image: url('/Users/manraisingh/Desktop/FREELANCE/IELTS/IELTS-EXAM/src/assets/main-bg.jpg'); /* Example education image */
   background-size: cover;
   background-position: center;
   display: flex;
   align-items: center;
   justify-content: center;
   animation: fadeIn 2s ease-in-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-anim-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.float-icon {
+  position: absolute;
+  font-size: 48px;
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  animation: drift 16s ease-in-out infinite;
+}
+
+.float-icon.book {
+  top: 12%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.float-icon.cap {
+  bottom: 15%;
+  right: 12%;
+  animation-delay: 3s;
+}
+
+.float-icon.phones {
+  top: 20%;
+  right: 18%;
+  animation-delay: 6s;
+}
+
+.float-icon.chart {
+  bottom: 12%;
+  left: 18%;
+  animation-delay: 9s;
+}
+
+@keyframes drift {
+  0% {
+    transform: translateY(0) translateX(0) rotate(0deg);
+    opacity: 0.8;
+  }
+
+  25% {
+    transform: translateY(-18px) translateX(8px) rotate(6deg);
+    opacity: 1;
+  }
+
+  50% {
+    transform: translateY(10px) translateX(-10px) rotate(-4deg);
+  }
+
+  75% {
+    transform: translateY(-6px) translateX(6px) rotate(3deg);
+  }
+
+  100% {
+    transform: translateY(0) translateX(0) rotate(0deg);
+    opacity: 0.85;
+  }
 }
 
 .hero-content {
@@ -28,8 +92,10 @@ body {
   border-radius: 20px;
   text-align: center;
   max-width: 700px;
-  box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
   animation: slideUp 1.2s ease forwards;
+  position: relative;
+  z-index: 1;
 }
 
 .hero-title {
@@ -71,8 +137,13 @@ body {
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
@@ -80,11 +151,13 @@ body {
     transform: translateY(30px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
   }
 }
+
 .test-section {
   padding: 100px 20px;
   background-color: #f9f9f9;
@@ -264,4 +337,3 @@ body {
     font-size: 20px;
   }
 }
-

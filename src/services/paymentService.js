@@ -1,6 +1,6 @@
 import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebaseConfig';
-import { TEST_PRICING, RAZORPAY_CONFIG, ACCESS_DURATION } from '../config/pricing';
+import { TEST_PRICING, RAZORPAY_CONFIG, ACCESS_DURATION, BUNDLE_PRICING, BUNDLE_ID } from '../config/pricing';
 
 // Ensure Razorpay key is configured before opening checkout
 const ensureRazorpayKeyConfigured = () => {
@@ -74,7 +74,8 @@ export const initializePayment = async (testId, userId, onSuccess, onError) => {
       throw new Error('Failed to load Razorpay');
     }
 
-    const testPricing = TEST_PRICING[testId];
+    const isBundle = testId === BUNDLE_ID;
+    const testPricing = isBundle ? BUNDLE_PRICING[BUNDLE_ID] : TEST_PRICING[testId];
     const keyId = ensureRazorpayKeyConfigured();
 
     const options = {
@@ -83,7 +84,7 @@ export const initializePayment = async (testId, userId, onSuccess, onError) => {
       amount: testPricing.price * 100,
       currency: testPricing.currency,
       name: 'Gurjant IELTS',
-      description: `Payment for ${testPricing.testName || `IELTS Test ${testId.charAt(testId.length - 1)}`}`,
+      description: isBundle ? 'Payment for 3 months bundle (all paid tests)' : `Payment for ${testPricing.testName || `IELTS Test ${testId.charAt(testId.length - 1)}`}`,
       // order_id: backendOrder.id, // <-- only when using your own backend Orders API
       prefill: {
         name: auth.currentUser?.displayName || '',
@@ -122,12 +123,15 @@ export const handlePaymentSuccess = async (paymentResponse, testId, userId) => {
     const purchasedAt = new Date();
     const expiresAt = new Date(purchasedAt.getTime() + ACCESS_DURATION.PAID_TEST_ACCESS_MS);
 
+    const isBundle = testId === BUNDLE_ID;
+    const pricing = isBundle ? BUNDLE_PRICING[BUNDLE_ID] : TEST_PRICING[testId];
+
     // Save purchase record to Firestore
     const purchaseData = {
       userId,
       testId,
-      amount: TEST_PRICING[testId].price,
-      currency: TEST_PRICING[testId].currency,
+      amount: pricing.price,
+      currency: pricing.currency,
       status: 'completed',
       purchasedAt,
       expiresAt,
@@ -149,7 +153,14 @@ export const handlePaymentSuccess = async (paymentResponse, testId, userId) => {
     await setDoc(doc(db, 'purchases', purchaseId), purchaseData);
 
     // Update user's purchased tests with expiration
-    await updateUserPurchasedTests(userId, testId, expiresAt);
+    if (isBundle) {
+      const tests = BUNDLE_PRICING[BUNDLE_ID].tests || [];
+      for (const tId of tests) {
+        await updateUserPurchasedTests(userId, tId, expiresAt);
+      }
+    } else {
+      await updateUserPurchasedTests(userId, testId, expiresAt);
+    }
 
     console.log('Payment successful and recorded:', purchaseData);
   } catch (error) {
