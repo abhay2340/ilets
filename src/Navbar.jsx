@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import logo from './assets/logo.png';
 import { FaUserCircle, FaShoppingCart } from 'react-icons/fa';
@@ -10,6 +10,7 @@ import './Navbar.css'; // we'll create this too
 function Navbar({ transparent = false }) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -28,12 +29,11 @@ function Navbar({ transparent = false }) {
             </ul>
           </div>
           <div className="navbar-right">
-            <FaShoppingCart className="nav-icon" title="Cart" />
             {user ? (
               <>
-                <FaUserCircle className="nav-icon" title={user.email} onClick={() => navigate('/account')}
+                <FaUserCircle size={36} className="nav-icon" title={user.email} onClick={() => navigate('/account')}
                   style={{ cursor: 'pointer' }} />
-                <button className="login-btn" onClick={handleLogout}>Logout</button>
+                <button className="login-btn" onClick={() => setShowLogoutConfirm(true)}>Logout</button>
               </>
             ) : (
               <button className="login-btn" onClick={() => navigate('/login')}>LOGIN</button>
@@ -41,6 +41,65 @@ function Navbar({ transparent = false }) {
           </div>
         </div>
       </div>
+      {showLogoutConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: 20
+          }}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <div
+            style={{
+              background: '#fff',
+              padding: '20px 24px',
+              borderRadius: 10,
+              minWidth: 320,
+              maxWidth: '90vw',
+              boxShadow: '0 12px 28px rgba(0,0,0,0.25)',
+              textAlign: 'center'
+            }}
+          >
+            <h3 style={{ marginTop: 0, marginBottom: 8 }}>Confirm Logout</h3>
+            <p style={{ marginTop: 0, marginBottom: 18 }}>Are you sure you want to log out?</p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: 6,
+                  border: '1px solid #bbb',
+                  background: '#f2f2f2',
+                  cursor: 'pointer',
+                  fontWeight: 700
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: 6,
+                  border: 'none',
+                  background: '#b30000',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontWeight: 800
+                }}
+              >
+                Yes, Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

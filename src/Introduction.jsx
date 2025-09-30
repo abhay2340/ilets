@@ -55,7 +55,6 @@ function Introduction() {
 
         <div className="benefit-highlight">
           <h1><span>Benefit</span><br />Students receive<br />after taking<br />the test</h1>
-          <button>Try it now →</button>
           <img src={benefitImage} alt="Student with folder" />
         </div>
       </div>

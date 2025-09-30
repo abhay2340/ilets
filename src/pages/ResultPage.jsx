@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import answerKey from '../data/answerkey'; // assuming you've added the test1 key
 import Navbar from '../Navbar.jsx'; // Adjust the import path as necessary
+import { FaCheckCircle, FaTimesCircle, FaStepForward, FaChartPie, FaStopwatch } from 'react-icons/fa';
 import test1 from '../data/test1.jsx';
 import test2 from '../data/test2.jsx';
 import test3 from '../data/test3.jsx';
@@ -96,13 +97,47 @@ const ResultPage = () => {
         <h2 style={{ fontSize: '24px' }}>Test Summary</h2>
 
         {/* Dashboard Box */}
-        <div style={{ display: 'flex', gap: '20px', marginTop: '20px', marginBottom: '30px' }}>
-          <DashboardCard icon="✅" label="Correct answer" value={correct} color="#4CAF50" />
-          <DashboardCard icon="❌" label="Wrong answer" value={wrong} color="#f44336" />
-          <DashboardCard icon="⏭️" label="Missed" value={missed} color="#FFA726" />
-          <DashboardCard icon="📈" label="Accuracy" value={`${accuracy}%`} color="#3F51B5" />
-          <DashboardCard icon="⏱️" label="Time Taken" value={formatTime(timeTaken)} color="#009688" /> {/* <-- add this */}
-
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '16px',
+          marginTop: '20px',
+          marginBottom: '30px'
+        }}>
+          <DashboardCard
+            icon={<FaCheckCircle />}
+            label="Correct"
+            value={correct}
+            subtitle={`out of ${total}`}
+            color="#2e7d32"
+          />
+          <DashboardCard
+            icon={<FaTimesCircle />}
+            label="Wrong"
+            value={wrong}
+            subtitle={`out of ${total}`}
+            color="#c62828"
+          />
+          <DashboardCard
+            icon={<FaStepForward />}
+            label="Missed"
+            value={missed}
+            subtitle={`out of ${total}`}
+            color="#ff8f00"
+          />
+          <DashboardCard
+            icon={<FaChartPie />}
+            label="Accuracy"
+            value={`${accuracy}%`}
+            color="#3F51B5"
+            progressPercent={accuracy}
+          />
+          <DashboardCard
+            icon={<FaStopwatch />}
+            label="Time Taken"
+            value={formatTime(timeTaken)}
+            color="#009688"
+          />
         </div>
 
         <hr />
@@ -164,21 +199,28 @@ const ResultPage = () => {
   );
 };
 
-const DashboardCard = ({ icon, label, value, color }) => (
+const DashboardCard = ({ icon, label, value, subtitle, color, progressPercent }) => (
   <div style={{
-    flex: 1,
     backgroundColor: '#fff',
-    border: `2px solid ${color}`,
-    borderRadius: '12px',
-    padding: '20px',
-    textAlign: 'center',
-    boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+    border: '1px solid #e5e7eb',
+    borderRadius: 12,
+    padding: 16,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
   }}>
-    <div style={{ fontSize: '32px' }}>{icon}</div>
-    <div style={{ fontSize: '14px', marginTop: '10px', color }}>{label}</div>
-    <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{value}</div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, color }}>
+      <div style={{ fontSize: 22, display: 'flex', alignItems: 'center' }}>{icon}</div>
+      <div style={{ fontWeight: 800 }}>{label}</div>
+    </div>
+    <div style={{ fontSize: 28, fontWeight: 900, marginTop: 6 }}>{value}</div>
+    {subtitle && (
+      <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{subtitle}</div>
+    )}
+    {typeof progressPercent === 'number' && (
+      <div style={{ height: 8, background: '#eee', borderRadius: 999, marginTop: 10, overflow: 'hidden' }}>
+        <div style={{ width: `${Math.min(Math.max(progressPercent, 0), 100)}%`, height: '100%', background: color }} />
+      </div>
+    )}
   </div>
-
 );
 
 export default ResultPage;

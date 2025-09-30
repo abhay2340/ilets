@@ -2,6 +2,12 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import test1 from '../data/test1.jsx';
 import test2 from '../data/test2.jsx';
 import test3 from '../data/test3.jsx';
+import test4 from '../data/test4.jsx';
+import test5 from '../data/test5.jsx';
+import test6 from '../data/test6.jsx';
+import test7 from '../data/test7.jsx';
+import test8 from '../data/test8.jsx';
+import test9 from '../data/test9.jsx';
 import answerKey from '../data/answerkey';
 import QuestionBox from '../components/QuestionBox';
 import QuestionNavigator from '../components/QuestionNavigator';
@@ -10,17 +16,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 // 🔥 Firebase
 import { doc, setDoc } from 'firebase/firestore';
 import { db, auth } from '../firebaseConfig.jsx';
-import test4 from '../data/test4.jsx';
-import test5 from '../data/test5.jsx';
-import test6 from '../data/test6.jsx';
-import test7 from '../data/test7.jsx';
-import test8 from '../data/test8.jsx';
-import test9 from '../data/test9.jsx';
+
 
 // Payment and access control
 import { useAuth } from '../AuthContext';
 import { usePurchases } from '../hooks/usePurchases';
 import { isTestFree } from '../config/pricing';
+import { FaBan } from 'react-icons/fa';
 
 const TEST_MAP = { test1, test2, test3, test4, test5, test6, test7, test8, test9 };
 
@@ -45,6 +47,7 @@ const TestPage = () => {
     const withAudio = parts.find(p => p.audioSrc);
     return withAudio ? withAudio.audioSrc : null;
   }, [parts]);
+  const isListening = !!persistentAudioSrc;
 
   const TOTAL_DURATION = 60 * 60; // 1 hour
 
@@ -53,10 +56,18 @@ const TestPage = () => {
   const [timeLeft, setTimeLeft] = useState(TOTAL_DURATION);
   const [submitted, setSubmitted] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
+  const [showFocusWarning, setShowFocusWarning] = useState(false);
+  const focusWarningTimerRef = useRef(null);
+  const lostFocusRef = useRef(false);
+  const fullscreenRequiredRef = useRef(true);
+  const [needsFullscreen, setNeedsFullscreen] = useState(false);
 
   const timerRef = useRef(null);
   // new ref to always hold latest timeLeft
   const timeLeftRef = useRef(TOTAL_DURATION);
+  // persistent deadline and session key
+  const deadlineRef = useRef(null);
+  const sessionKeyRef = useRef(null);
   // --- LISTENING LOCK: once started, user can't pause/seek ---
   const audioRef = useRef(null);
   const [listeningStarted, setListeningStarted] = useState(false);
@@ -221,6 +232,8 @@ const TestPage = () => {
     if (submitted) return;
     setSubmitted(true);
     clearInterval(timerRef.current);
+    // clear persisted session so it doesn't resume after submission
+    try { if (sessionKeyRef.current) localStorage.removeItem(sessionKeyRef.current); } catch (_) { }
     // stop/pause audio when the test ends (optional)
     try { audioRef.current?.pause(); } catch (_) { }
 
@@ -282,28 +295,182 @@ const TestPage = () => {
 
   };
 
+  // Initialize or resume timer session (disable refresh reset)
+  useEffect(() => {
+    if (!hasTestAccess) return;
+
+    const makeSessionKey = (uid, testId) => `testSession:${uid || 'anon'}:${testId}`;
+    const key = makeSessionKey(auth?.currentUser?.uid, currentTestId);
+    sessionKeyRef.current = key;
+
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(key) || 'null'); } catch (_) { saved = null; }
+
+    let deadline = saved?.deadline;
+    if (!deadline) {
+      // create a new deadline (seconds -> ms)
+      deadline = Date.now() + TOTAL_DURATION * 1000;
+      try { localStorage.setItem(key, JSON.stringify({ deadline })); } catch (_) { }
+    }
+
+    deadlineRef.current = deadline;
+
+    // compute remaining from wall clock
+    const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    setTimeLeft(remaining);
+    timeLeftRef.current = remaining;
+
+    // Optional: restore UI state if present
+    if (saved?.answers && typeof saved.answers === 'object') {
+      setAnswers(saved.answers);
+    }
+    if (typeof saved?.partIndex === 'number') {
+      setPartIndex(saved.partIndex);
+    }
+
+    if (remaining <= 0) {
+      // time already up, auto-submit immediately
+      handleSubmit();
+    }
+  }, [currentTestId, hasTestAccess]);
+
   // Timer effect must be declared unconditionally; gate logic inside
   useEffect(() => {
     if (!hasTestAccess) return;
     timerRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        const next = prev - 1;
+      const deadline = deadlineRef.current;
+      const remaining = Math.max(0, Math.ceil(((deadline || 0) - Date.now()) / 1000));
+      setTimeLeft(remaining);
+      timeLeftRef.current = remaining;
 
-        // keep the ref in sync
-        timeLeftRef.current = Math.max(next, 0);
-
-        if (prev <= 1) {
-          clearInterval(timerRef.current);
-          // when time finishes, submit with correct remaining seconds
-          handleSubmit();
-          return 0;
-        }
-        return next;
-      });
+      if (remaining <= 0) {
+        clearInterval(timerRef.current);
+        handleSubmit();
+      }
     }, 1000);
 
     return () => clearInterval(timerRef.current);
   }, [currentTestId, hasTestAccess]);
+
+  // Persist minimal state so a refresh resumes seamlessly
+  useEffect(() => {
+    const key = sessionKeyRef.current;
+    if (!key) return;
+    try {
+      const prev = JSON.parse(localStorage.getItem(key) || '{}');
+      localStorage.setItem(key, JSON.stringify({
+        ...prev,
+        deadline: deadlineRef.current,
+        answers,
+        partIndex,
+      }));
+    } catch (_) { }
+  }, [answers, partIndex]);
+
+  // Detect tab/window switches and transiently warn the user (on return)
+  useEffect(() => {
+    const showWarn = () => {
+      setShowFocusWarning(true);
+      clearTimeout(focusWarningTimerRef.current);
+      focusWarningTimerRef.current = setTimeout(() => setShowFocusWarning(false), 2000);
+    };
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        lostFocusRef.current = true;
+      } else if (!document.hidden && lostFocusRef.current) {
+        lostFocusRef.current = false;
+        showWarn();
+      }
+    };
+    const onBlur = () => {
+      // window lost focus (alt-tab, other window, etc.)
+      lostFocusRef.current = true;
+    };
+    const onFocus = () => {
+      if (lostFocusRef.current) {
+        lostFocusRef.current = false;
+        showWarn();
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('focus', onFocus);
+      clearTimeout(focusWarningTimerRef.current);
+    };
+  }, []);
+
+  // Disable copying globally within the test page and block context menu on main container
+  useEffect(() => {
+    const onCopy = (e) => {
+      e.preventDefault();
+    };
+    const onKeydown = (e) => {
+      const isCopy = (e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C');
+      if (isCopy) e.preventDefault();
+    };
+    document.addEventListener('copy', onCopy);
+    window.addEventListener('keydown', onKeydown, { capture: true });
+    return () => {
+      document.removeEventListener('copy', onCopy);
+      window.removeEventListener('keydown', onKeydown, { capture: true });
+    };
+  }, []);
+
+  // Fullscreen enforcement
+  useEffect(() => {
+    if (!hasTestAccess) return;
+    const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+    const checkFs = () => {
+      if (fullscreenRequiredRef.current) setNeedsFullscreen(!isFs());
+    };
+    checkFs();
+    const onFsChange = () => checkFs();
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+    document.addEventListener('mozfullscreenchange', onFsChange);
+    document.addEventListener('MSFullscreenChange', onFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      document.removeEventListener('webkitfullscreenchange', onFsChange);
+      document.removeEventListener('mozfullscreenchange', onFsChange);
+      document.removeEventListener('MSFullscreenChange', onFsChange);
+    };
+  }, [hasTestAccess]);
+
+  const requestFullscreen = () => {
+    const el = document.documentElement;
+    if (el.requestFullscreen) return el.requestFullscreen();
+    if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
+    if (el.mozRequestFullScreen) return el.mozRequestFullScreen();
+    if (el.msRequestFullscreen) return el.msRequestFullscreen();
+  };
+
+  // Periodic autosave of progress (answers + time left)
+  useEffect(() => {
+    if (!hasTestAccess) return;
+    const key = sessionKeyRef.current;
+    if (!key) return;
+    const interval = setInterval(() => {
+      try {
+        const prev = JSON.parse(localStorage.getItem(key) || '{}');
+        localStorage.setItem(key, JSON.stringify({
+          ...prev,
+          deadline: deadlineRef.current,
+          answers,
+          partIndex,
+          timeLeft: timeLeftRef.current,
+          savedAt: Date.now(),
+        }));
+      } catch (_) { }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [answers, partIndex, hasTestAccess]);
 
   // Show loading while checking access
   if (!accessChecked) {
@@ -374,6 +541,43 @@ const TestPage = () => {
 
   return (
     <div style={{ padding: '30px', marginTop: '-20px', maxHeight: '100vh', paddingBottom: '0px' }}>
+      {/* Fullscreen required overlay */}
+      {needsFullscreen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10001,
+            textAlign: 'center',
+            padding: 24
+          }}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <div style={{ maxWidth: 560 }}>
+            <h2 style={{ marginBottom: 10 }}>Enter Fullscreen to Continue</h2>
+            <p style={{ marginBottom: 18 }}>This test requires fullscreen mode to prevent distractions.</p>
+            <button
+              onClick={requestFullscreen}
+              style={{
+                backgroundColor: '#b30000',
+                color: '#fff',
+                border: 'none',
+                padding: '12px 24px',
+                borderRadius: 8,
+                fontWeight: 800,
+                cursor: 'pointer'
+              }}
+            >
+              Enter Fullscreen
+            </button>
+          </div>
+        </div>
+      )}
       {/* Tabs + Timer */}
       {/* Tabs + Timer */}
       {/* Tabs + Timer */}
@@ -383,6 +587,42 @@ const TestPage = () => {
           Time Remaining: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
         </div>
       </div>
+
+      {/* Focus change warning at top-level so it shows even without audio */}
+      {showFocusWarning && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: 20
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              color: '#333',
+              padding: '20px 28px',
+              borderRadius: 8,
+              boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
+              fontWeight: 800,
+              textAlign: 'center',
+              maxWidth: 520
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+              <FaBan size={36} color="#b30000" />
+              <div style={{ fontSize: 18 }}>Tab/Window Switch Detected</div>
+            </div>
+            <div style={{ fontSize: 14, marginTop: 6, fontWeight: 600 }}>Switching tabs or windows is not allowed during the test.</div>
+            <div style={{ fontSize: 13, marginTop: 2 }}>Please return and stay on this page to continue.</div>
+          </div>
+        </div>
+      )}
 
       {/* Persistent, locked audio player for the entire test */}
       {/* Persistent, locked audio for the entire test */}
@@ -485,64 +725,141 @@ const TestPage = () => {
 )} */}
 
 
-      {/* Passage & Questions with resizable splitter */}
-      <div className="test-content-container" style={{ display: 'flex', width: '100%', height: '80vh', userSelect: isResizingRef.current ? 'none' : 'auto' }}>
-        {/* Passage panel */}
-        <div
-          style={{
-            flexBasis: `${passageWidth}%`,
-            background: '#f9f9f9',
-            padding: '15px',
-            borderRadius: '8px',
-            overflowY: 'scroll',
-            border: '1px solid #ddd'
-          }}
-        >
-          <h3>{currentPart.title}</h3>
-          <p style={{ whiteSpace: 'pre-wrap' }}>{currentPart.passage}</p>
-        </div>
-
-        {/* Vertical splitter */}
-        <div
-          onMouseDown={onSplitterMouseDown}
-          style={{
-            width: '6px',
-            cursor: 'col-resize',
-            background: '#ccc',
-            margin: '0 8px',
-            borderRadius: '3px'
-          }}
-          title="Drag to resize"
-        />
-
-        {/* Questions panel */}
-        {hasQuestions && (
+      {/* Content layout: Listening -> single column; Writing -> split */}
+      {isListening ? (
+        <div className="test-content-container" style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '80vh' }} onContextMenu={(e) => e.preventDefault()}>
+          {/* Single column: Passage followed by Questions */}
           <div
             style={{
-              flexGrow: 1,
-              background: '#ffffff',
+              background: '#f9f9f9',
+              padding: '15px',
+              borderRadius: '8px',
+              border: '1px solid #ddd',
+              marginBottom: '12px',
+              maxHeight: '35vh',
+              overflowY: 'auto',
+              flex: '0 0 auto'
+            }}
+          >
+            <h3>{currentPart.title}</h3>
+            <p style={{ whiteSpace: 'pre-wrap' }}>{currentPart.passage}</p>
+          </div>
+
+          {hasQuestions && (
+            <div
+              style={{
+                background: '#ffffff',
+                padding: '15px',
+                borderRadius: '8px',
+                border: '1px solid #ddd',
+                overflowY: 'auto',
+                flex: '1 1 0',
+                minHeight: 0
+              }}
+              onCopy={(e) => e.preventDefault()}
+              onCut={(e) => e.preventDefault()}
+              onPaste={(e) => e.preventDefault()}
+            >
+              <p>
+                <strong>
+                  Questions {currentPart.questions[0].id}–{currentPart.questions.at(-1).id}
+                </strong>
+              </p>
+              {currentPart.questions.map((q) => (
+                <div
+                  key={`qb-wrap-${q.id}`}
+                  style={{ userSelect: 'none' }}
+                  onMouseDown={(e) => {
+                    const tag = (e.target?.tagName || '').toLowerCase();
+                    if (tag === 'input' || tag === 'textarea') return;
+                    e.preventDefault();
+                  }}
+                  onDragStart={(e) => e.preventDefault()}
+                >
+                  <QuestionBox
+                    key={q.id}
+                    question={q}
+                    answer={answers[q.id]}
+                    setAnswer={(val) => handleSetAnswer(q.id, val)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="test-content-container" style={{ display: 'flex', width: '100%', height: '80vh', userSelect: isResizingRef.current ? 'none' : 'auto' }} onContextMenu={(e) => e.preventDefault()}>
+          {/* Passage panel */}
+          <div
+            style={{
+              flexBasis: `${passageWidth}%`,
+              background: '#f9f9f9',
               padding: '15px',
               borderRadius: '8px',
               overflowY: 'scroll',
               border: '1px solid #ddd'
             }}
           >
-            <p>
-              <strong>
-                Questions {currentPart.questions[0].id}–{currentPart.questions.at(-1).id}
-              </strong>
-            </p>
-            {currentPart.questions.map((q) => (
-              <QuestionBox
-                key={q.id}
-                question={q}
-                answer={answers[q.id]}
-                setAnswer={(val) => handleSetAnswer(q.id, val)}
-              />
-            ))}
+            <h3>{currentPart.title}</h3>
+            <p style={{ whiteSpace: 'pre-wrap' }}>{currentPart.passage}</p>
           </div>
-        )}
-      </div>
+
+          {/* Vertical splitter */}
+          <div
+            onMouseDown={onSplitterMouseDown}
+            style={{
+              width: '6px',
+              cursor: 'col-resize',
+              background: '#ccc',
+              margin: '0 8px',
+              borderRadius: '3px'
+            }}
+            title="Drag to resize"
+          />
+
+          {/* Questions panel */}
+          {hasQuestions && (
+            <div
+              style={{
+                flexGrow: 1,
+                background: '#ffffff',
+                padding: '15px',
+                borderRadius: '8px',
+                overflowY: 'scroll',
+                border: '1px solid #ddd'
+              }}
+              onCopy={(e) => e.preventDefault()}
+              onCut={(e) => e.preventDefault()}
+              onPaste={(e) => e.preventDefault()}
+            >
+              <p>
+                <strong>
+                  Questions {currentPart.questions[0].id}–{currentPart.questions.at(-1).id}
+                </strong>
+              </p>
+              {currentPart.questions.map((q) => (
+                <div
+                  key={`qb-wrap-${q.id}`}
+                  style={{ userSelect: 'none' }}
+                  onMouseDown={(e) => {
+                    const tag = (e.target?.tagName || '').toLowerCase();
+                    if (tag === 'input' || tag === 'textarea') return; // allow editing/selection inside inputs
+                    e.preventDefault();
+                  }}
+                  onDragStart={(e) => e.preventDefault()}
+                >
+                  <QuestionBox
+                    key={q.id}
+                    question={q}
+                    answer={answers[q.id]}
+                    setAnswer={(val) => handleSetAnswer(q.id, val)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Bottom Row: Submit + Navigator */}
       {/* Inline strip: Part buttons, then active part’s numbers, then Submit */}
