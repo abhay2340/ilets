@@ -2,24 +2,14 @@
 
 // Pricing configuration for IELTS tests
 export const TEST_PRICING = {
-  // Free tests (test1, test2)
   test1: { price: 0, currency: 'INR', isFree: true },
   test2: { price: 0, currency: 'INR', isFree: true },
-
-  // Paid tests (test3, test4, test5, test6, test7, test8, test9)
-  test3: { price: 499, currency: 'INR', isFree: false },
-  test4: { price: 499, currency: 'INR', isFree: false },
-  test5: { price: 499, currency: 'INR', isFree: false },
-  test6: { price: 499, currency: 'INR', isFree: false },
-  test7: { price: 499, currency: 'INR', isFree: false },
-  test8: { price: 499, currency: 'INR', isFree: false },
-  test9: { price: 499, currency: 'INR', isFree: false },
 };
 
 // Bundle pricing for multiple tests
 export const BUNDLE_ID = 'bundleAll';
 export const BUNDLE_PRICING = {
-  [BUNDLE_ID]: { price: 499, currency: 'INR', tests: ['test3', 'test4', 'test5', 'test6', 'test7', 'test8', 'test9'] },
+  [BUNDLE_ID]: { price: 1, currency: 'INR', tests: ['test3', 'test4', 'test5', 'test6', 'test7', 'test8', 'test9'] },
 };
 
 // Access duration configuration
@@ -38,7 +28,8 @@ export const RAZORPAY_CONFIG = {
 
 // Helper functions
 export const getTestPrice = (testId) => {
-  return TEST_PRICING[testId] || { price: 0, currency: 'INR', isFree: true };
+  // Unknown tests are considered premium (bundle-only) and not individually priced
+  return TEST_PRICING[testId] || { price: null, currency: 'INR', isFree: false };
 };
 
 export const isTestFree = (testId) => {

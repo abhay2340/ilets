@@ -2,6 +2,8 @@ import React from 'react';
 import './TestLandingPage.css';
 import { FaHeadphones, FaPenNib } from 'react-icons/fa';
 import { TEST_PRICING } from './config/pricing';
+import test1 from './data/test1.jsx';
+import test2 from './data/test2.jsx';
 
 function FreeTests({ purchasedTests = [], loading = false, navigate }) {
     const allIds = Object.keys(TEST_PRICING)
@@ -15,8 +17,16 @@ function FreeTests({ purchasedTests = [], loading = false, navigate }) {
 
     const [freeListening, freeWriting] = splitHalf(freeIds);
 
-    const renderCard = (testId, label) => {
+    const TEST_META = { test1, test2 };
+    const getSectionLabel = (testId) => {
+        const data = TEST_META[testId];
+        const hasAudio = !!data?.parts?.some?.(p => !!p.audioSrc);
+        return hasAudio ? 'Listening' : 'Writing';
+    };
+
+    const renderCard = (testId) => {
         const num = parseInt(testId.replace('test', '')) || testId;
+        const label = getSectionLabel(testId);
         const isPurchased = purchasedTests?.some?.(t => t.testId === testId);
         const handleStart = () => navigate(`/security?testId=${testId}`);
         return (
@@ -46,12 +56,12 @@ function FreeTests({ purchasedTests = [], loading = false, navigate }) {
             <div style={{ display: 'flex', justifyContent: 'space-around', gap: 16, flexWrap: 'wrap', alignItems: 'stretch' }}>
                 <div style={{ flex: '1 1 0', minWidth: 260 }}>
                     <div className="cards-flex">
-                        {freeListening.map(id => renderCard(id, 'Listening'))}
+                        {freeListening.map(id => renderCard(id))}
                     </div>
                 </div>
                 <div style={{ flex: '1 1 0', minWidth: 260 }}>
                     <div className="cards-flex">
-                        {freeWriting.map(id => renderCard(id, 'Writing'))}
+                        {freeWriting.map(id => renderCard(id))}
                     </div>
                 </div>
             </div>

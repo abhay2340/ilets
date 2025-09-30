@@ -17,9 +17,11 @@ const PaymentPage = () => {
 
   // Get test ID from URL params
   const params = new URLSearchParams(location.search);
-  const testId = params.get('testId') || 'test4';
-  const isBundle = testId === BUNDLE_ID;
-  const testPricing = isBundle ? BUNDLE_PRICING[BUNDLE_ID] : TEST_PRICING[testId];
+  const testId = params.get('testId') || BUNDLE_ID;
+  const isBundleParam = testId === BUNDLE_ID;
+  const isFreeTest = !!TEST_PRICING[testId]?.isFree;
+  const displayAsBundle = isBundleParam || !isFreeTest;
+  const displayPricing = displayAsBundle ? BUNDLE_PRICING[BUNDLE_ID] : TEST_PRICING[testId];
 
   const handlePurchase = async () => {
     if (!user) {
@@ -31,17 +33,18 @@ const PaymentPage = () => {
     setError('');
 
     try {
-      const res = await purchaseTest(testId);
+      const targetId = displayAsBundle ? BUNDLE_ID : testId;
+      const res = await purchaseTest(targetId);
       // Show lightweight success message in-page
       // If you have a toast lib, you can replace with toast.success
       console.log('Payment successful:', res?.razorpay_payment_id || res);
       // Wait until access is confirmed before navigating
       const maxWaitMs = 4000;
       const start = Date.now();
-      while (!(await hasAccess(testId)) && Date.now() - start < maxWaitMs) {
+      while (!(await hasAccess(targetId)) && Date.now() - start < maxWaitMs) {
         await new Promise(r => setTimeout(r, 200));
       }
-      navigate(`/test?testId=${testId}`);
+      navigate(`/test?testId=${targetId}`);
     } catch (error) {
       console.error('Purchase error:', error);
       setError(error.message || 'Payment failed. Please try again.');
@@ -54,7 +57,7 @@ const PaymentPage = () => {
   React.useEffect(() => {
     let isMounted = true;
     const check = async () => {
-      if (!user || isBundle) return;
+      if (!user || displayAsBundle) return;
       const access = await hasAccess(testId);
       if (isMounted && access) navigate(`/test?testId=${testId}`);
     };
@@ -66,7 +69,7 @@ const PaymentPage = () => {
     navigate('/test-start');
   };
 
-  if (!testPricing) {
+  if (!displayPricing) {
     return (
       <div className="payment-page">
         <div className="payment-container">
@@ -87,16 +90,16 @@ const PaymentPage = () => {
           <button onClick={handleBack} className="back-btn">
             <FaArrowLeft /> Back to Tests
           </button>
-          <h1>{isBundle ? 'Buy Subscription' : 'Purchase Test Access'}</h1>
+          <h1>{displayAsBundle ? 'Buy Subscription' : 'Purchase Test Access'}</h1>
         </div>
 
         <div className="payment-content">
           <div className="test-info">
             <div className="test-card">
               <div className="test-header">
-                <h2>{isBundle ? 'All Paid Tests (3 months)' : `IELTS Test ${testId.charAt(testId.length - 1)}`}</h2>
+                <h2>{displayAsBundle ? 'All Paid Tests (3 months)' : `IELTS Test ${testId.charAt(testId.length - 1)}`}</h2>
                 <div className="test-badge">
-                  {!isBundle && testPricing.isFree ? (
+                  {!displayAsBundle && TEST_PRICING[testId]?.isFree ? (
                     <span className="free-badge">FREE</span>
                   ) : (
                     <span className="premium-badge">PREMIUM</span>
@@ -136,17 +139,17 @@ const PaymentPage = () => {
           <div className="payment-section">
             <div className="price-card">
               <div className="price-header">
-                <h3>Test Access</h3>
+                <h3>{displayAsBundle ? 'Bundle Access' : 'Test Access'}</h3>
                 <div className="price">
-                  {!isBundle && testPricing.isFree ? (
+                  {!displayAsBundle && TEST_PRICING[testId]?.isFree ? (
                     <span className="free-price">FREE</span>
                   ) : (
-                    <span className="paid-price">{formatPrice(testPricing.price)}</span>
+                    <span className="paid-price">{formatPrice(displayPricing.price)}</span>
                   )}
                 </div>
               </div>
 
-              {(!isBundle && !testPricing.isFree) && (
+              {displayAsBundle && (
                 <div className="payment-methods">
                   <div className="payment-method">
                     <FaCreditCard className="payment-icon" />
@@ -174,7 +177,7 @@ const PaymentPage = () => {
               )}
 
               <div className="payment-actions">
-                {!isBundle && testPricing.isFree ? (
+                {!displayAsBundle && TEST_PRICING[testId]?.isFree ? (
                   <button
                     onClick={() => navigate(`/test?testId=${testId}`)}
                     className="start-test-btn"
@@ -195,7 +198,7 @@ const PaymentPage = () => {
                     ) : (
                       <>
                         <FaLock className="lock-icon" />
-                        {isBundle ? `Buy Subscriptionn for ${formatPrice(testPricing.price)}` : `Purchase for ${formatPrice(testPricing.price)}`}
+                        {displayAsBundle ? `Buy Subscription for ${formatPrice(displayPricing.price)}` : `Purchase for ${formatPrice(displayPricing.price)}`}
                       </>
                     )}
                   </button>
