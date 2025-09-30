@@ -1,11 +1,13 @@
 import React from 'react';
 import './TestLandingPage.css';
 import { FaHeadphones, FaPenNib } from 'react-icons/fa';
+import { useAuth } from './AuthContext';
 import { TEST_PRICING } from './config/pricing';
 import test1 from './data/test1.jsx';
 import test2 from './data/test2.jsx';
 
 function FreeTests({ purchasedTests = [], loading = false, navigate }) {
+    const { user } = useAuth();
     const allIds = Object.keys(TEST_PRICING)
         .sort((a, b) => (parseInt(a.replace('test', '')) || 0) - (parseInt(b.replace('test', '')) || 0));
     const freeIds = allIds.filter(id => TEST_PRICING[id]?.isFree);
@@ -28,7 +30,13 @@ function FreeTests({ purchasedTests = [], loading = false, navigate }) {
         const num = parseInt(testId.replace('test', '')) || testId;
         const label = getSectionLabel(testId);
         const isPurchased = purchasedTests?.some?.(t => t.testId === testId);
-        const handleStart = () => navigate(`/security?testId=${testId}`);
+        const handleStart = () => {
+            if (!user) {
+                navigate('/login');
+                return;
+            }
+            navigate(`/security?testId=${testId}`);
+        };
         return (
             <div key={`free-${label}-${testId}`} className="test-box">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

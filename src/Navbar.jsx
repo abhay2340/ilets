@@ -24,6 +24,7 @@ function Navbar({ transparent = false }) {
           <div className="navbar-left">
             <img src={logo} alt="Gurjant IELTS" className="logo-img" onClick={() => navigate('/')} />
             <ul className="nav-links">
+              <li><Link to="/">Home</Link></li>
               <li><Link to="/introduction">Introduction</Link></li>
               <li><Link to="/contact">Contact</Link></li>
             </ul>

@@ -13,6 +13,7 @@ const Account = () => {
   const navigate = useNavigate();
 
   if (!user) {
+    navigate('/login');
     return <p>Please log in to access your account.</p>;
   }
 
