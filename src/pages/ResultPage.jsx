@@ -25,10 +25,22 @@ const ResultPage = () => {
 
   // build parts from testData (real question ids per part)
   const parts = (testData?.parts || []).map((p, idx) => {
-    const ids = (p.questions || [])
-      .map(q => q?.id)
-      .filter(id => typeof id === 'number')
-      .sort((a, b) => a - b);
+    // Collect all question IDs including subIds from matching groups
+    let ids = [];
+    (p.questions || []).forEach(q => {
+      if (typeof q?.id === 'number') {
+        // For matching groups with subIds, add all subIds
+        if (q.type === 'matchinggroup' && Array.isArray(q.subIds) && q.subIds.length > 0) {
+          ids = [...ids, ...q.subIds];
+        } else {
+          ids.push(q.id);
+        }
+      }
+    });
+    
+    // Sort IDs numerically
+    ids.sort((a, b) => a - b);
+    
     return {
       title: p.title || `Part ${idx + 1}`,
       ids,
@@ -37,13 +49,39 @@ const ResultPage = () => {
 
   // accordion state: open first part by default
   const [openPart, setOpenPart] = React.useState(0);
+  // Find the original question data for a given ID
+  const findQuestionById = (id) => {
+    for (const part of testData.parts || []) {
+      for (const question of part.questions || []) {
+        // Check if this is the main question with this ID
+        if (question.id === id) return question;
+        
+        // Check if this ID is in the subIds of a matching group
+        if (question.type === 'matchinggroup' && Array.isArray(question.subIds)) {
+          const subIdIndex = question.subIds.indexOf(id);
+          if (subIdIndex !== -1) {
+            return {
+              parentQuestion: question,
+              subIdIndex
+            };
+          }
+        }
+      }
+    }
+    return null;
+  };
+
   const ResultRow = ({ id, correctAnswers, userAnswers }) => {
     const correctAns = correctAnswers[id];
-    const userAns = userAnswers[id];
+    // Use the processed user answers that have already been split for matching groups
+    const userAns = processedUserAnswers[id];
     const isCorrect = userAns === correctAns;
     const bg = !userAns ? '#fff3cd' : (isCorrect ? '#e8f5e9' : '#ffebee');
     const bar = !userAns ? '#ff9800' : (isCorrect ? '#4CAF50' : '#f44336');
     const text = !userAns ? '#ff9800' : (isCorrect ? '#2e7d32' : '#c62828');
+    
+    // Format the display of the answer
+    let displayUserAns = userAns || 'Unanswered';
 
     return (
       <div
@@ -59,7 +97,7 @@ const ResultPage = () => {
         <strong>Q{id}:</strong>{' '}
         Your Answer:
         <span style={{ fontWeight: 'bold', color: text }}>
-          {userAns || 'Unanswered'}
+          {displayUserAns}
         </span>{' '}
         | Correct:
         <strong>{correctAns}</strong>
@@ -81,9 +119,35 @@ const ResultPage = () => {
   let wrong = 0;
   let missed = 0;
 
+  // Process user answers to extract individual answers for matching groups
+  const processedUserAnswers = { ...userAnswers };
+  
+  // Find all matching group questions and process their answers
+  for (const part of testData.parts || []) {
+    for (const question of part.questions || []) {
+      if (question.type === 'matchinggroup' && Array.isArray(question.subIds) && question.subIds.length > 0) {
+        const groupAnswer = userAnswers[question.id] || '';
+        const selections = groupAnswer.split('|');
+        
+        // Map each selection to its corresponding subId
+        question.subIds.forEach((subId, index) => {
+          if (index < selections.length && selections[index]) {
+            processedUserAnswers[subId] = selections[index];
+          }
+        });
+        
+        // Also update the main question ID to show only the first answer
+        // This fixes the issue with questions like Q37
+        if (selections.length > 0 && selections[0]) {
+          processedUserAnswers[question.id] = selections[0];
+        }
+      }
+    }
+  }
+
   questionIds.forEach(id => {
-    if (!userAnswers[id]) missed++;
-    else if (userAnswers[id] === correctAnswers[id]) correct++;
+    if (!processedUserAnswers[id]) missed++;
+    else if (processedUserAnswers[id] === correctAnswers[id]) correct++;
     else wrong++;
   });
 

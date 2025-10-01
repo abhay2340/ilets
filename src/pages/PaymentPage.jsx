@@ -211,7 +211,7 @@ const PaymentPage = () => {
                   Your payment is secure and encrypted
                 </p>
                 <p className="access-info">
-                  * 30 days access from purchase date
+                  * 90 days access from purchase date
                 </p>
                 <p className="refund-policy">
                   * 7-day money-back guarantee if not satisfied

@@ -242,8 +242,50 @@ const TestPage = () => {
 
     const allQuestions = parts.flatMap(p => p.questions);
     const userAnswers = {};
+    const processedUserAnswers = { ...answers };
+    
+    // First pass: Process all matching group questions to map their answers to subIds
+    // and convert MCQ answers to their correct format
     allQuestions.forEach(q => {
-      if (typeof q.id === 'number') userAnswers[q.id] = answers[q.id];
+      // Process all answers to normalize them (trim spaces and convert to uppercase)
+      if (typeof q.id === 'number' && answers[q.id]) {
+        // Normalize the answer: trim spaces and convert to uppercase for case-insensitive matching
+        answers[q.id] = answers[q.id].toString().trim().toUpperCase().replace(/\s+/g, ' ');
+      }
+      
+      // Handle matching group questions
+      if (typeof q.id === 'number' && q.type === 'matchinggroup' && Array.isArray(q.subIds) && q.subIds.length > 0) {
+        const groupAnswer = answers[q.id] || '';
+        const selections = groupAnswer.split('|');
+        
+        // Map each selection to its corresponding subid
+        q.subIds.forEach((subId, index) => {
+          if (index < selections.length && selections[index]) {
+            processedUserAnswers[subId] = selections[index];
+          }
+        });
+      }
+    });
+    
+    // Second pass: Copy all answers to userAnswers for result page
+    allQuestions.forEach(q => {
+      if (typeof q.id === 'number') {
+        // For matching groups with subids, include both main ID and subIDs
+        if (q.type === 'matchinggroup' && Array.isArray(q.subIds) && q.subIds.length > 0) {
+          // Store the original answer with the main ID
+          userAnswers[q.id] = answers[q.id];
+          
+          // Also store individual subId answers
+          q.subIds.forEach((subId, index) => {
+            if (processedUserAnswers[subId]) {
+              userAnswers[subId] = processedUserAnswers[subId];
+            }
+          });
+        } else {
+          // Regular question, just copy the answer
+          userAnswers[q.id] = answers[q.id];
+        }
+      }
     });
 
     const correctAnswers = answerKey[currentTestId] || {};
@@ -251,8 +293,14 @@ const TestPage = () => {
     const qIds = Object.keys(correctAnswers).map(Number);
     const total = qIds.length || allQuestions.filter(q => typeof q.id === 'number').length;
 
+    // Create a set to track which questions have been processed
+    const processedIds = new Set();
+
     qIds.forEach(id => {
-      const userAns = (userAnswers[id] || '')?.trim();
+      // Skip if this ID has already been processed (for matching group subIds)
+      if (processedIds.has(id)) return;
+      
+      const userAns = (processedUserAnswers[id] || '')?.trim();
       const keyAns = (correctAnswers[id] || '')?.trim();
 
       if (!userAns) return;
@@ -260,6 +308,9 @@ const TestPage = () => {
       const norm = s => s.toUpperCase().replace(/\s+/g, '').split(',').sort().join(',');
       if (norm(userAns) === norm(keyAns)) correct++;
       else wrong++;
+      
+      // Mark this ID as processed
+      processedIds.add(id);
     });
 
     const answered = correct + wrong;
