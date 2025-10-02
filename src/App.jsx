@@ -15,25 +15,26 @@ import TestPage from './pages/TestPage.jsx';
 import ResultPage from './pages/ResultPage.jsx';
 import PaymentPage from './pages/PaymentPage.jsx';
 import ContactSection from './ContactSection';
+import Navbar from './Navbar.jsx';
 function App() {
   return (
     <Router>
       <Routes>
-       <Route path="/" element={<Dashboard />} />
+        <Route path="/" element={<Dashboard />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
-         <Route path="/dashboard" element={<Dashboard />} />
-         <Route path="/introduction" element={<Introduction />} />
-         <Route path="/test-start" element={<TestLandingPage />} />
-         
-<Route path="/security" element={<InfoSecurity />} />
-<Route path="/privacy" element={<PrivacyPolicy />} />
- <Route path="/instructions" element={<TestInstructions />} />
- <Route path="/contact" element={<ContactSection />} />
-  <Route path="/account" element={<Account />} />
-  <Route path="/test" element={<TestPage />} />
-  <Route path="/payment" element={<PaymentPage />} />
-<Route path="/results" element={<ResultPage />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/introduction" element={<Introduction />} />
+        <Route path="/test-start" element={<TestLandingPage />} />
+
+        <Route path="/security" element={<InfoSecurity />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/instructions" element={<TestInstructions />} />
+        <Route path="/contact" element={<><Navbar /><ContactSection /></>} />
+        <Route path="/account" element={<Account />} />
+        <Route path="/test" element={<TestPage />} />
+        <Route path="/payment" element={<PaymentPage />} />
+        <Route path="/results" element={<ResultPage />} />
 
       </Routes>
 

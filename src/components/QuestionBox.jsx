@@ -1,6 +1,6 @@
 import React from 'react';
 
-const QuestionBox = ({ question, answer, setAnswer }) => {
+const QuestionBox = ({ question, answer, setAnswer, onVisited }) => {
   // Info blocks: headings or bullet lines
   if (question.type === 'info') {
     const kind = question.infoKind || 'bullet';
@@ -28,21 +28,45 @@ const QuestionBox = ({ question, answer, setAnswer }) => {
         <p><strong>{(question.displayId ?? question.id)}. {question.question}</strong></p>
       )}
 
-      {/* Multiple choice (TRUE/FALSE/NOT GIVEN or 4 options) */}
-      {question.type === 'mcq' &&
-        question.options.map((opt, i) => (
-          <label key={i} style={{ display: 'block', marginLeft: '20px', cursor: 'pointer' }}>
-            <input
-              type="radio"
-              name={`q-${question.id}`}  // MUST be unique per question
-              value={opt}
-              checked={answer === opt}
-              onChange={() => setAnswer(opt)}
-              style={{ cursor: 'pointer', marginRight: '8px' }}
-            /> {opt}
-          </label>
-        ))
-      }
+      {/* Multiple choice (TRUE/FALSE/NOT GIVEN or 4 options). For standard MCQs, store letter A/B/C/D. */}
+      {question.type === 'mcq' && (() => {
+        const opts = Array.isArray(question.options) ? question.options : [];
+        const normalized = opts.map(o => String(o ?? '').trim().toUpperCase());
+        const tfngSet = new Set(['TRUE', 'FALSE', 'NOT GIVEN', 'YES', 'NO']);
+        const isTFNG = normalized.every(o => tfngSet.has(o));
+
+        return opts.map((opt, i) => {
+          const letter = String.fromCharCode(65 + i); // A, B, C, D ...
+          const inputValue = isTFNG ? opt : letter;
+          const isChecked = isTFNG ? (answer === opt) : (answer === letter);
+          // Strip leading letter labels like "A.", "B)", or just "C" from option text
+          let displayText = String(opt ?? '');
+          if (!isTFNG) {
+            const match = displayText.match(/^([A-Za-z])\s*[\.)\-:]?\s*(.*)$/);
+            if (match && match[1].toUpperCase() === letter) {
+              displayText = match[2] || '';
+            }
+          }
+          return (
+            <label key={i} style={{ display: 'block', marginLeft: '20px', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name={`q-${question.id}`}  // MUST be unique per question
+                value={inputValue}
+                checked={isChecked}
+                onChange={() => { onVisited?.(question.id); setAnswer(inputValue); }}
+                style={{ cursor: 'pointer', marginRight: '8px' }}
+              />
+              {!isTFNG && <span style={{ fontWeight: 700, marginRight: 6 }}>{letter}.</span>}
+              {isTFNG ? (
+                <span>{opt}</span>
+              ) : (
+                displayText ? <span>{displayText}</span> : null
+              )}
+            </label>
+          );
+        });
+      })()}
 
       {/* Fill in the blank (supports inline blanks like ______) */}
       {question.type === 'written' && (() => {
@@ -56,7 +80,7 @@ const QuestionBox = ({ question, answer, setAnswer }) => {
               <input
                 type="text"
                 value={answer || ''}
-                onChange={(e) => setAnswer(e.target.value)}
+                onChange={(e) => { onVisited?.(question.id); setAnswer(e.target.value); }}
                 style={{
                   padding: '6px 12px',
                   minWidth: 160,
@@ -74,7 +98,7 @@ const QuestionBox = ({ question, answer, setAnswer }) => {
           <input
             type="text"
             value={answer || ''}
-            onChange={(e) => setAnswer(e.target.value)}
+            onChange={(e) => { onVisited?.(question.id); setAnswer(e.target.value); }}
             style={{
               marginLeft: '20px',
               marginTop: '10px',
@@ -124,6 +148,7 @@ const QuestionBox = ({ question, answer, setAnswer }) => {
           next[rowIdx] = colLetter;
           setLocalSel(next);
           // store as ordered string, using | so our equality check preserves order
+          onVisited?.(question.id);
           setAnswer(next.join('|'));
         };
 

@@ -59,7 +59,7 @@ const OverviewSection = ({ user }) => {
 
   return (
     <div className="account-section">
-      <h2 style={{ marginBottom: '30px' }}>Your Test Dashboard</h2>
+      <h2 style={{ marginBottom: '0px' }}>Your Test Dashboard</h2>
 
       {results.length === 0 ? (
         <p>No test results found yet.</p>

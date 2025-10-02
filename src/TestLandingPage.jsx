@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './TestLandingPage.css';
 import backgroundImg from './assets/student-hero.jpg';
 import { FaBookReader, FaClock, FaHeadphones } from 'react-icons/fa';
@@ -15,6 +15,7 @@ import PaidTests from './PaidTests';
 
 function TestLandingPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { purchasedTests, loading, hasAccess } = usePurchases();
 
@@ -24,6 +25,19 @@ function TestLandingPage() {
   };
 
   // (Old access-check and quick purchase helpers removed; simplified buttons below use hasAccess directly.)
+  // If navigated with #paid or ?section=paid, scroll into view
+  React.useEffect(() => {
+    const hash = (location.hash || '').toLowerCase();
+    const section = new URLSearchParams(location.search).get('section');
+    if (hash === '#paid' || (section && section.toLowerCase() === 'paid')) {
+      // Defer to next frame to ensure layout is ready
+      requestAnimationFrame(() => {
+        const el = document.getElementById('paid-tests-section');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        else window.scrollTo({ top: window.innerHeight, behavior: 'smooth' });
+      });
+    }
+  }, [location.pathname, location.hash, location.search]);
 
   return (
     <div className="test-landing-container">
@@ -69,11 +83,13 @@ function TestLandingPage() {
         </div>
       </section>
 
-      <section className="test-choose">
+      <section className="test-choose" id="paid-tests-anchor">
         <div className="tests-container">
           <h2 className="choose-heading">Available Tests</h2>
           <FreeTests purchasedTests={purchasedTests} loading={loading} navigate={navigate} />
-          <PaidTests purchasedTests={purchasedTests} loading={loading} navigate={navigate} hasAccess={hasAccess} />
+          <div id="paid-tests-section">
+            <PaidTests purchasedTests={purchasedTests} loading={loading} navigate={navigate} hasAccess={hasAccess} />
+          </div>
         </div>
       </section>
       <ContactSection />

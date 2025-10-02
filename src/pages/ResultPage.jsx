@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import answerKey from '../data/answerkey'; // assuming you've added the test1 key
 import Navbar from '../Navbar.jsx'; // Adjust the import path as necessary
+import { useAuth } from '../AuthContext';
 import { FaCheckCircle, FaTimesCircle, FaStepForward, FaChartPie, FaStopwatch } from 'react-icons/fa';
 import test1 from '../data/test1.jsx';
 import test2 from '../data/test2.jsx';
@@ -22,6 +23,26 @@ const ResultPage = () => {
   const { userAnswers = {}, testId = 'test1', timeTaken = 0 } = state || {};
   // get actual test definition for this result
   const testData = TEST_MAP[testId] || TEST_MAP.test1;
+  const { user } = useAuth();
+
+  // Local compare helper: ignore case, collapse spaces; for comma lists compare unordered
+  const compareAnswers = (a, b) => {
+    const toNorm = (s) => String(s ?? '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
+    const aStr = String(a ?? '');
+    const bStr = String(b ?? '');
+    if (aStr.includes(',') || bStr.includes(',')) {
+      const tokens = (s) => s.split(',').map(toNorm).filter(Boolean).sort();
+      const A = tokens(aStr);
+      const B = tokens(bStr);
+      if (A.length !== B.length) return false;
+      for (let i = 0; i < A.length; i += 1) if (A[i] !== B[i]) return false;
+      return true;
+    }
+    return toNorm(aStr) === toNorm(bStr);
+  };
 
   // build parts from testData (real question ids per part)
   const parts = (testData?.parts || []).map((p, idx) => {
@@ -40,7 +61,7 @@ const ResultPage = () => {
   const ResultRow = ({ id, correctAnswers, userAnswers }) => {
     const correctAns = correctAnswers[id];
     const userAns = userAnswers[id];
-    const isCorrect = userAns === correctAns;
+    const isCorrect = compareAnswers(userAns, correctAns);
     const bg = !userAns ? '#fff3cd' : (isCorrect ? '#e8f5e9' : '#ffebee');
     const bar = !userAns ? '#ff9800' : (isCorrect ? '#4CAF50' : '#f44336');
     const text = !userAns ? '#ff9800' : (isCorrect ? '#2e7d32' : '#c62828');
@@ -82,8 +103,9 @@ const ResultPage = () => {
   let missed = 0;
 
   questionIds.forEach(id => {
-    if (!userAnswers[id]) missed++;
-    else if (userAnswers[id] === correctAnswers[id]) correct++;
+    const ua = userAnswers[id];
+    if (!String(ua ?? '').trim()) missed++;
+    else if (compareAnswers(ua, correctAnswers[id])) correct++;
     else wrong++;
   });
 
@@ -93,107 +115,156 @@ const ResultPage = () => {
   return (
     <>
       <Navbar />
-      <div style={{ padding: '30px' }}>
-        <h2 style={{ fontSize: '24px' }}>Test Summary</h2>
-
-        {/* Dashboard Box */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '16px',
-          marginTop: '20px',
-          marginBottom: '30px'
-        }}>
-          <DashboardCard
-            icon={<FaCheckCircle />}
-            label="Correct"
-            value={correct}
-            subtitle={`out of ${total}`}
-            color="#2e7d32"
-          />
-          <DashboardCard
-            icon={<FaTimesCircle />}
-            label="Wrong"
-            value={wrong}
-            subtitle={`out of ${total}`}
-            color="#c62828"
-          />
-          <DashboardCard
-            icon={<FaStepForward />}
-            label="Missed"
-            value={missed}
-            subtitle={`out of ${total}`}
-            color="#ff8f00"
-          />
-          <DashboardCard
-            icon={<FaChartPie />}
-            label="Accuracy"
-            value={`${accuracy}%`}
-            color="#3F51B5"
-            progressPercent={accuracy}
-          />
-          <DashboardCard
-            icon={<FaStopwatch />}
-            label="Time Taken"
-            value={formatTime(timeTaken)}
-            color="#009688"
-          />
-        </div>
-
-        <hr />
-
-        {/* Detailed Answer View */}
-        <h3 style={{ marginTop: '30px', marginBottom: 10 }}>Question-wise Review</h3>
-
-        <div style={{ marginTop: 8 }}>
-          {parts.map((p, idx) => {
-            const opened = openPart === idx;
-            const first = p.ids[0];
-            const last = p.ids[p.ids.length - 1];
-
-            return (
-              <div key={p.title} style={{ marginBottom: 14, border: '1px solid #e6e6e6', borderRadius: 8, overflow: 'hidden' }}>
-                {/* Part header (click to toggle) */}
-                <button
-                  onClick={() => setOpenPart(prev => (prev === idx ? -1 : idx))}
-                  style={{
-                    width: '100%',
-                    textAlign: 'left',
-                    padding: '12px 16px',
-                    background: opened ? '#b30000' : '#f7f7f7',
-                    color: opened ? '#fff' : '#333',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontWeight: 700
-                  }}
-                >
-                  {p.title}
-                  {!!p.ids.length && (
-                    <span style={{ fontWeight: 400, marginLeft: 8 }}>
-                      (Q{first}–{last})
-                    </span>
-                  )}
-                  <span style={{ float: 'right', opacity: 0.8 }}>{opened ? '▲' : '▼'}</span>
-                </button>
-
-                {/* Part body (only when open) */}
-                {opened && (
-                  <div style={{ padding: '12px 16px', background: '#fff' }}>
-                    {p.ids.map(id => (
-                      <ResultRow
-                        key={id}
-                        id={id}
-                        correctAnswers={correctAnswers}
-                        userAnswers={userAnswers}
-                      />
-                    ))}
+      <div style={{ padding: '34px' }}>
+        <div style={{ display: 'flex', gap: 28, alignItems: 'stretch', minHeight: 'calc(100vh - 120px)' }}>
+          {/* Sidebar: User details (moved left, full height) */}
+          <div style={{ flex: '0 0 320px', maxWidth: 360, alignSelf: 'stretch' }}>
+            <div style={{
+              backgroundColor: '#fff',
+              border: '1px solid #e5e7eb',
+              borderRadius: 12,
+              padding: 20,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <div style={{ fontWeight: 800, marginBottom: 14 }}>Submitted By</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+                {user?.photoURL ? (
+                  <img src={user.photoURL} alt="avatar" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: '50%',
+                    background: '#f3f4f6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 800,
+                    color: '#374151'
+                  }}>
+                    {(user?.displayName || user?.email || 'U').slice(0, 2).toUpperCase()}
                   </div>
                 )}
+                <div>
+                  <div style={{ fontWeight: 800, marginBottom: 2 }}>{user?.displayName || user?.email || 'User'}</div>
+                  {user?.email && <div style={{ fontSize: 12, color: '#6b7280' }}>{user.email}</div>}
+                </div>
               </div>
-            );
-          })}
-        </div>
+              <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6 }}>
+                <div style={{ marginBottom: 8 }}><span style={{ fontWeight: 700 }}>Test:</span> {String(testId).toUpperCase()}</div>
+                <div style={{ marginBottom: 8 }}><span style={{ fontWeight: 700 }}>Score:</span> {correct}/{total} ({accuracy}%)</div>
+                <div><span style={{ fontWeight: 700 }}>Time Taken:</span> {formatTime(timeTaken)}</div>
+              </div>
+            </div>
+          </div>
 
+          {/* Main content */}
+          <div style={{ flex: 1 }}>
+            <h2 style={{ fontSize: '24px' }}>Test Summary</h2>
+
+            {/* Dashboard Box */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: 20,
+              marginTop: 24,
+              marginBottom: 36
+            }}>
+              <DashboardCard
+                icon={<FaCheckCircle />}
+                label="Correct"
+                value={correct}
+                subtitle={`out of ${total}`}
+                color="#2e7d32"
+              />
+              <DashboardCard
+                icon={<FaTimesCircle />}
+                label="Wrong"
+                value={wrong}
+                subtitle={`out of ${total}`}
+                color="#c62828"
+              />
+              <DashboardCard
+                icon={<FaStepForward />}
+                label="Missed"
+                value={missed}
+                subtitle={`out of ${total}`}
+                color="#ff8f00"
+              />
+              <DashboardCard
+                icon={<FaChartPie />}
+                label="Accuracy"
+                value={`${accuracy}%`}
+                color="#3F51B5"
+                progressPercent={accuracy}
+              />
+              <DashboardCard
+                icon={<FaStopwatch />}
+                label="Time Taken"
+                value={formatTime(timeTaken)}
+                color="#009688"
+              />
+            </div>
+
+            <hr style={{ marginTop: 6, marginBottom: 18 }} />
+
+            {/* Detailed Answer View */}
+            <h3 style={{ marginTop: 30, marginBottom: 12 }}>Question-wise Review</h3>
+
+            <div style={{ marginTop: 10 }}>
+              {parts.map((p, idx) => {
+                const opened = openPart === idx;
+                const first = p.ids[0];
+                const last = p.ids[p.ids.length - 1];
+
+                return (
+                  <div key={p.title} style={{ marginBottom: 16, border: '1px solid #e6e6e6', borderRadius: 8, overflow: 'hidden' }}>
+                    {/* Part header (click to toggle) */}
+                    <button
+                      onClick={() => setOpenPart(prev => (prev === idx ? -1 : idx))}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '14px 16px',
+                        background: opened ? '#b30000' : '#f7f7f7',
+                        color: opened ? '#fff' : '#333',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontWeight: 700
+                      }}
+                    >
+                      {p.title}
+                      {!!p.ids.length && (
+                        <span style={{ fontWeight: 400, marginLeft: 8 }}>
+                          (Q{first}–{last})
+                        </span>
+                      )}
+                      <span style={{ float: 'right', opacity: 0.8 }}>{opened ? '▲' : '▼'}</span>
+                    </button>
+
+                    {/* Part body (only when open) */}
+                    {opened && (
+                      <div style={{ padding: '14px 16px', background: '#fff' }}>
+                        {p.ids.map(id => (
+                          <ResultRow
+                            key={id}
+                            id={id}
+                            correctAnswers={correctAnswers}
+                            userAnswers={userAnswers}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+        </div>
       </div>
     </>
   );

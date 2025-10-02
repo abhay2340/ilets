@@ -53,6 +53,7 @@ const TestPage = () => {
 
   const [partIndex, setPartIndex] = useState(0);
   const [answers, setAnswers] = useState({});
+  const [visited, setVisited] = useState({});
   const [timeLeft, setTimeLeft] = useState(TOTAL_DURATION);
   const [submitted, setSubmitted] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
@@ -329,8 +330,16 @@ const TestPage = () => {
     }
 
     if (remaining <= 0) {
-      // time already up, auto-submit immediately
-      handleSubmit();
+      // Saved deadline is stale; start a fresh session instead of auto-submitting
+      const newDeadline = Date.now() + TOTAL_DURATION * 1000;
+      deadlineRef.current = newDeadline;
+      const resetRemaining = Math.max(0, Math.ceil((newDeadline - Date.now()) / 1000));
+      setTimeLeft(resetRemaining);
+      timeLeftRef.current = resetRemaining;
+      try {
+        const prev = JSON.parse(localStorage.getItem(key) || '{}');
+        localStorage.setItem(key, JSON.stringify({ ...prev, deadline: newDeadline }));
+      } catch (_) { }
     }
   }, [currentTestId, hasTestAccess]);
 
@@ -537,6 +546,12 @@ const TestPage = () => {
 
   const handleSetAnswer = (id, val) => {
     setAnswers(prev => ({ ...prev, [id]: val }));
+    setVisited(prev => ({ ...prev, [id]: true }));
+  };
+
+  const markVisited = (id) => {
+    if (typeof id !== 'number') return;
+    setVisited(prev => (prev[id] ? prev : { ...prev, [id]: true }));
   };
 
   return (
@@ -760,6 +775,22 @@ const TestPage = () => {
               onCut={(e) => e.preventDefault()}
               onPaste={(e) => e.preventDefault()}
             >
+              {/* Legend at top of questions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#e8f5e9', border: '1px solid #2e7d32', display: 'inline-block' }}></span>
+                  <span style={{ fontSize: 12, color: '#555' }}>Attempted</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#e0f2fe', border: '1px solid #0284c7', display: 'inline-block' }}></span>
+                  <span style={{ fontSize: 12, color: '#555' }}>Visited</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#eee', border: '1px solid #999', display: 'inline-block' }}></span>
+                  <span style={{ fontSize: 12, color: '#555' }}>Unvisited</span>
+                </div>
+              </div>
+
               <p>
                 <strong>
                   Questions {currentPart.questions[0].id}–{currentPart.questions.at(-1).id}
@@ -781,6 +812,7 @@ const TestPage = () => {
                     question={q}
                     answer={answers[q.id]}
                     setAnswer={(val) => handleSetAnswer(q.id, val)}
+                    onVisited={(id) => markVisited(id)}
                   />
                 </div>
               ))}
@@ -832,6 +864,22 @@ const TestPage = () => {
               onCut={(e) => e.preventDefault()}
               onPaste={(e) => e.preventDefault()}
             >
+              {/* Legend at top of questions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#e8f5e9', border: '1px solid #2e7d32', display: 'inline-block' }}></span>
+                  <span style={{ fontSize: 12, color: '#555' }}>Attempted</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#e0f2fe', border: '1px solid #0284c7', display: 'inline-block' }}></span>
+                  <span style={{ fontSize: 12, color: '#555' }}>Visited</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#eee', border: '1px solid #999', display: 'inline-block' }}></span>
+                  <span style={{ fontSize: 12, color: '#555' }}>Unvisited</span>
+                </div>
+              </div>
+
               <p>
                 <strong>
                   Questions {currentPart.questions[0].id}–{currentPart.questions.at(-1).id}
@@ -853,6 +901,7 @@ const TestPage = () => {
                     question={q}
                     answer={answers[q.id]}
                     setAnswer={(val) => handleSetAnswer(q.id, val)}
+                    onVisited={(id) => markVisited(id)}
                   />
                 </div>
               ))}
@@ -900,8 +949,13 @@ const TestPage = () => {
 
             {/* Inline numbers ONLY for the active part */}
             {i === partIndex && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <QuestionNavigator allQuestions={p.questions} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                <QuestionNavigator
+                  allQuestions={p.questions}
+                  answers={answers}
+                  visited={visited}
+                  onVisit={markVisited}
+                />
               </div>
             )}
           </React.Fragment>

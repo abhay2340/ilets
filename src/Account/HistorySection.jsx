@@ -35,7 +35,7 @@ const HistorySection = ({ user }) => {
   return (
     <div>
       <h2>Your Test History</h2>
-      <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+      <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', maxHeight: '80vh', overflowY: 'auto' }}>
         {results.map((r) => {
           const accuracyColor = (r.accuracy >= 75) ? '#2e7d32' : (r.accuracy >= 50 ? '#ff8f00' : '#c62828');
           return (

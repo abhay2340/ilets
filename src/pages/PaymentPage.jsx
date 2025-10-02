@@ -44,7 +44,8 @@ const PaymentPage = () => {
       while (!(await hasAccess(targetId)) && Date.now() - start < maxWaitMs) {
         await new Promise(r => setTimeout(r, 200));
       }
-      navigate(`/test?testId=${targetId}`);
+      // After successful purchase, go to test-start and scroll to Paid Tests
+      navigate(`/test-start#paid`);
     } catch (error) {
       console.error('Purchase error:', error);
       setError(error.message || 'Payment failed. Please try again.');
