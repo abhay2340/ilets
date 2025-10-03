@@ -3,13 +3,11 @@ import './Introduction.css';
 import logo from './assets/logo.png';
 import benefitImage from './assets/benefit-girl.png'; // update if filename differs
 import { FaUserCircle, FaShoppingCart } from 'react-icons/fa';
-import Navbar from './Navbar';
 import ContactSection from './ContactSection';
 
 function Introduction() {
   return (
     <>
-      <Navbar transparent />
       <div className="intro-top-bg" />
       <div className="intro-card">
         <div className="intro-left">

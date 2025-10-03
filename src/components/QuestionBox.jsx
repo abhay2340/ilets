@@ -213,27 +213,52 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited }) => {
       })()}
 
       {/* Dropdown for heading matching */}
-      {question.type === 'dropdown' &&
-        <select
-          name={`q-${question.id}`} // ensure uniqueness here too
-          value={answer || ''}
-          onChange={(e) => setAnswer(e.target.value)}
-          style={{
-            marginLeft: '20px',
-            marginTop: '10px',
-            padding: '6px 12px',
-            width: '80%',
-            borderRadius: '5px',
-            border: '1px solid #aaa',
-            cursor: 'pointer'
-          }}
-        >
-          <option value="">-- Select heading --</option>
-          {question.options.map((opt, index) => (
-            <option key={index} value={opt}>{opt}</option>
-          ))}
-        </select>
-      }
+      {question.type === 'dropdown' && (() => {
+        // Parse options like "ii How hurricanes form" → value "ii", label full text
+        const parsedOptions = (question.options || []).map((opt) => {
+          const text = String(opt ?? '');
+          const firstSpace = text.indexOf(' ');
+          if (firstSpace > 0) {
+            const code = text.slice(0, firstSpace).trim();
+            return { value: code, label: text };
+          }
+          // Fallback: whole string as value
+          return { value: text, label: text };
+        });
+
+        // Support previously-saved full-label answers by normalizing to code
+        const labelToValue = parsedOptions.reduce((acc, o) => { acc[o.label] = o.value; return acc; }, {});
+        const valueSet = new Set(parsedOptions.map(o => o.value));
+        const normalizedValue = (() => {
+          if (!answer) return '';
+          if (valueSet.has(answer)) return answer; // already code
+          // If stored as full label, map back to code
+          if (labelToValue[answer]) return labelToValue[answer];
+          return '';
+        })();
+
+        return (
+          <select
+            name={`q-${question.id}`}
+            value={normalizedValue}
+            onChange={(e) => { onVisited?.(question.id); setAnswer(e.target.value); }}
+            style={{
+              marginLeft: '20px',
+              marginTop: '10px',
+              padding: '6px 12px',
+              width: '80%',
+              borderRadius: '5px',
+              border: '1px solid #aaa',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="">-- Select heading --</option>
+            {parsedOptions.map((opt, index) => (
+              <option key={index} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        );
+      })()}
     </div>
   );
 };

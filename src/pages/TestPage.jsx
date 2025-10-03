@@ -58,6 +58,7 @@ const TestPage = () => {
   const [submitted, setSubmitted] = useState(false);
   const [showOverlay, setShowOverlay] = useState(true);
   const [showFocusWarning, setShowFocusWarning] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const focusWarningTimerRef = useRef(null);
   const lostFocusRef = useRef(false);
   const fullscreenRequiredRef = useRef(true);
@@ -285,13 +286,24 @@ const TestPage = () => {
       await setDoc(doc(db, 'results', resultId), resultData);
     }
 
+    // Exit fullscreen before leaving the test page
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        await document.exitFullscreen();
+      }
+      if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
+    } catch (_) { }
+
     // 👉 Navigate to result page
     navigate('/results', {
       state: {
         userAnswers,
         testId: currentTestId,
         timeTaken           // <-- add this
-      }
+      },
+      replace: true
     });
 
   };
@@ -354,6 +366,7 @@ const TestPage = () => {
 
       if (remaining <= 0) {
         clearInterval(timerRef.current);
+        // Auto submit when time is up (no confirmation)
         handleSubmit();
       }
     }, 1000);
@@ -802,7 +815,7 @@ const TestPage = () => {
                   style={{ userSelect: 'none' }}
                   onMouseDown={(e) => {
                     const tag = (e.target?.tagName || '').toLowerCase();
-                    if (tag === 'input' || tag === 'textarea') return;
+                    if (tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'option') return;
                     e.preventDefault();
                   }}
                   onDragStart={(e) => e.preventDefault()}
@@ -891,7 +904,7 @@ const TestPage = () => {
                   style={{ userSelect: 'none' }}
                   onMouseDown={(e) => {
                     const tag = (e.target?.tagName || '').toLowerCase();
-                    if (tag === 'input' || tag === 'textarea') return; // allow editing/selection inside inputs
+                    if (tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'option') return; // allow editing/selection inside inputs and selects
                     e.preventDefault();
                   }}
                   onDragStart={(e) => e.preventDefault()}
@@ -964,7 +977,7 @@ const TestPage = () => {
         {/* Submit pinned to the right (wraps on small screens) */}
         <div style={{ marginLeft: 'auto' }}>
           <button
-            onClick={handleSubmit}
+            onClick={() => setShowSubmitConfirm(true)}
             style={{
               backgroundColor: '#b30000',
               padding: '10px 20px',
@@ -980,6 +993,66 @@ const TestPage = () => {
           </button>
         </div>
       </div>
+
+      {/* Submit confirmation modal */}
+      {showSubmitConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10002,
+            padding: 20
+          }}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <div
+            style={{
+              background: '#fff',
+              padding: '22px 26px',
+              borderRadius: 10,
+              minWidth: 320,
+              maxWidth: '90vw',
+              boxShadow: '0 12px 28px rgba(0,0,0,0.25)'
+            }}
+          >
+            <h3 style={{ marginTop: 0, marginBottom: 10 }}>Submit Test?</h3>
+            <p style={{ marginTop: 0, marginBottom: 18 }}>You won’t be able to change answers after submitting.</p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setShowSubmitConfirm(false)}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: 6,
+                  border: '1px solid #bbb',
+                  background: '#f2f2f2',
+                  cursor: 'pointer',
+                  fontWeight: 700
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmit}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: 6,
+                  border: 'none',
+                  background: '#b30000',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontWeight: 800
+                }}
+              >
+                Yes, Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -1,7 +1,6 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import answerKey from '../data/answerkey'; // assuming you've added the test1 key
-import Navbar from '../Navbar.jsx'; // Adjust the import path as necessary
 import { useAuth } from '../AuthContext';
 import { FaCheckCircle, FaTimesCircle, FaStepForward, FaChartPie, FaStopwatch } from 'react-icons/fa';
 import test1 from '../data/test1.jsx';
@@ -21,6 +20,11 @@ const ResultPage = () => {
 
   const { state } = useLocation();
   const { userAnswers = {}, testId = 'test1', timeTaken = 0 } = state || {};
+  // If no state (e.g., user navigated back), send them to dashboard to avoid reopening test
+  if (!state) {
+    window.location.replace('/dashboard');
+    return null;
+  }
   // get actual test definition for this result
   const testData = TEST_MAP[testId] || TEST_MAP.test1;
   const { user } = useAuth();
@@ -114,7 +118,6 @@ const ResultPage = () => {
 
   return (
     <>
-      <Navbar />
       <div style={{ padding: '34px' }}>
         <div style={{ display: 'flex', gap: 28, alignItems: 'stretch', minHeight: 'calc(100vh - 120px)' }}>
           {/* Sidebar: User details (moved left, full height) */}
@@ -153,10 +156,27 @@ const ResultPage = () => {
                   {user?.email && <div style={{ fontSize: 12, color: '#6b7280' }}>{user.email}</div>}
                 </div>
               </div>
-              <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6 }}>
-                <div style={{ marginBottom: 8 }}><span style={{ fontWeight: 700 }}>Test:</span> {String(testId).toUpperCase()}</div>
-                <div style={{ marginBottom: 8 }}><span style={{ fontWeight: 700 }}>Score:</span> {correct}/{total} ({accuracy}%)</div>
-                <div><span style={{ fontWeight: 700 }}>Time Taken:</span> {formatTime(timeTaken)}</div>
+              <div style={{ marginTop: 6 }}>
+                <div style={{
+                  backgroundColor: '#fff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 12,
+                  padding: 14,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                }}>
+                  <div style={{ color: '#6b7280', fontWeight: 800, fontSize: 14, marginBottom: 4 }}>Test</div>
+                  <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: 0.2 }}>{String(testId).toUpperCase()}</div>
+                  <div style={{ height: 10 }} />
+                  <div style={{ color: '#6b7280', fontWeight: 800, fontSize: 14, marginBottom: 4 }}>Score</div>
+                  <div style={{ fontSize: 28, fontWeight: 900 }}>{correct}/{total} ({accuracy}%)</div>
+                </div>
+              </div>
+              <div style={{ marginTop: 16, borderTop: '1px solid #eee', paddingTop: 12 }}>
+                <div style={{ fontWeight: 800, marginBottom: 10 }}>Account</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <Link to="/account?tab=history" style={{ color: '#0ea5e9', textDecoration: 'none', fontWeight: 700 }}>View History</Link>
+                  <Link to="/account?tab=overview" style={{ color: '#0ea5e9', textDecoration: 'none', fontWeight: 700 }}>Overview</Link>
+                </div>
               </div>
             </div>
           </div>

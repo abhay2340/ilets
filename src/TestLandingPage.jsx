@@ -8,7 +8,6 @@ import { usePurchases } from './hooks/usePurchases';
 import { TEST_PRICING, formatPrice } from './config/pricing';
 import { signOut } from 'firebase/auth';
 import { auth } from './firebaseConfig';
-import Navbar from './Navbar';
 import ContactSection from './ContactSection';
 import FreeTests from './FreeTests';
 import PaidTests from './PaidTests';
@@ -41,8 +40,7 @@ function TestLandingPage() {
 
   return (
     <div className="test-landing-container">
-      {/* Navbar */}
-      <Navbar transparent />
+      {/* Navbar is global now */}
 
       {/* Hero Section with Background */}
       <section className="full-hero" style={{ backgroundImage: `url(${backgroundImg})` }}>

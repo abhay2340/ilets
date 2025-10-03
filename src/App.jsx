@@ -19,6 +19,7 @@ import Navbar from './Navbar.jsx';
 function App() {
   return (
     <Router>
+      <Navbar />
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/login" element={<LoginPage />} />
@@ -30,7 +31,7 @@ function App() {
         <Route path="/security" element={<InfoSecurity />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/instructions" element={<TestInstructions />} />
-        <Route path="/contact" element={<><Navbar /><ContactSection /></>} />
+        <Route path="/contact" element={<ContactSection />} />
         <Route path="/account" element={<Account />} />
         <Route path="/test" element={<TestPage />} />
         <Route path="/payment" element={<PaymentPage />} />

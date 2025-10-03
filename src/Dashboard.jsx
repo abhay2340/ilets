@@ -7,7 +7,6 @@ import { useAuth } from './AuthContext';
 import { signOut } from 'firebase/auth';
 import { auth } from './firebaseConfig';
 import { FaLaptopCode, FaChartLine, FaUserGraduate, FaClock, FaBullseye, FaShieldAlt, FaHeadset, FaLightbulb, FaStar, FaBookReader, FaGraduationCap, FaHeadphones } from 'react-icons/fa';
-import Navbar from './Navbar';
 import ContactSection from './ContactSection';
 import heroBg from './assets/main-bg.jpg';
 
@@ -22,7 +21,6 @@ function Dashboard() {
 
   return (
     <>
-      <Navbar transparent />
       {/* Background with White Box + animated education icons */}
       <div className="hero-section" style={{ backgroundImage: `url(${heroBg})` }}>
 
