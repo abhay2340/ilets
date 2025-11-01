@@ -16,6 +16,9 @@ import ResultPage from './pages/ResultPage.jsx';
 import PaymentPage from './pages/PaymentPage.jsx';
 import ContactSection from './ContactSection';
 import Navbar from './Navbar.jsx';
+import Admin from './Admin.jsx';
+import Tests from './Tests.jsx';
+import Bundle from './Bundle.jsx';
 function App() {
   return (
     <Router>
@@ -36,6 +39,10 @@ function App() {
         <Route path="/test" element={<TestPage />} />
         <Route path="/payment" element={<PaymentPage />} />
         <Route path="/results" element={<ResultPage />} />
+        <Route path="/admin" element={<Admin />} />
+        <Route path="/admin/:testId" element={<Admin />} />
+        <Route path="/tests" element={<Tests />} />
+        <Route path="/bundle" element={<Bundle />} />
 
       </Routes>
 

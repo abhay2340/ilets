@@ -27,6 +27,7 @@ function Navbar({ transparent = false }) {
               <li><Link to="/">Home</Link></li>
               <li><Link to="/introduction">Introduction</Link></li>
               <li><Link to="/contact">Contact</Link></li>
+              <li><Link to="/admin-panel">Admin Panel</Link></li>
             </ul>
           </div>
           <div className="navbar-right">
