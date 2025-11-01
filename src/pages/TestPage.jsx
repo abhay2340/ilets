@@ -14,7 +14,7 @@ import QuestionNavigator from '../components/QuestionNavigator';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 // 🔥 Firebase
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../firebaseConfig.jsx';
 
 
@@ -33,8 +33,12 @@ const TestPage = () => {
   const { hasAccess } = usePurchases();
 
   const params = new URLSearchParams(location.search);
+  const dbId = params.get('dbId');
   const currentTestId = params.get('testId') || 'test1';
-  const testData = TEST_MAP[currentTestId] ?? TEST_MAP['test1'];
+  const isDbMode = !!dbId;
+  const [dbTest, setDbTest] = useState(null);
+  const [dbAnswers, setDbAnswers] = useState(null);
+  const testData = isDbMode ? (dbTest || { parts: [] }) : (TEST_MAP[currentTestId] ?? TEST_MAP['test1']);
 
   const [accessChecked, setAccessChecked] = useState(false);
   const [hasTestAccess, setHasTestAccess] = useState(false);
@@ -87,6 +91,20 @@ const TestPage = () => {
     startWidthRef.current = passageWidth;
     e.preventDefault();
   };
+
+  useEffect(() => {
+    if (!isDbMode) return;
+    let active = true;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'tests', dbId));
+        if (active && snap.exists()) setDbTest(snap.data());
+        const ans = await getDoc(doc(db, 'answers', dbId));
+        if (active && ans.exists()) setDbAnswers((ans.data() || {}).answers || {});
+      } catch { }
+    })();
+    return () => { active = false };
+  }, [isDbMode, dbId]);
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -206,6 +224,12 @@ const TestPage = () => {
         return;
       }
 
+      if (isDbMode) {
+        setHasTestAccess(true);
+        setAccessChecked(true);
+        return;
+      }
+
       // Free tests are always accessible
       if (isTestFree(currentTestId)) {
         setHasTestAccess(true);
@@ -248,7 +272,7 @@ const TestPage = () => {
       if (typeof q.id === 'number') userAnswers[q.id] = answers[q.id];
     });
 
-    const correctAnswers = answerKey[currentTestId] || {};
+    const correctAnswers = isDbMode ? (dbAnswers || {}) : (answerKey[currentTestId] || {});
     let correct = 0, wrong = 0;
     const qIds = Object.keys(correctAnswers).map(Number);
     const total = qIds.length || allQuestions.filter(q => typeof q.id === 'number').length;
@@ -272,7 +296,7 @@ const TestPage = () => {
     if (auth?.currentUser) {
       const resultData = {
         user: auth.currentUser.uid,
-        test: currentTestId.toUpperCase(),
+        test: isDbMode ? dbId : currentTestId.toUpperCase(),
         correct,
         wrong,
         unanswered,
@@ -282,7 +306,7 @@ const TestPage = () => {
         timeTaken,          // <-- add this
         submittedAt: new Date()
       };
-      const resultId = `${auth.currentUser.uid}_${currentTestId}_${Date.now()}`;
+      const resultId = `${auth.currentUser.uid}_${isDbMode ? dbId : currentTestId}_${Date.now()}`;
       await setDoc(doc(db, 'results', resultId), resultData);
     }
 
@@ -300,7 +324,7 @@ const TestPage = () => {
     navigate('/results', {
       state: {
         userAnswers,
-        testId: currentTestId,
+        testId: isDbMode ? dbId : currentTestId,
         timeTaken           // <-- add this
       },
       replace: true

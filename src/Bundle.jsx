@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { db } from './firebaseConfig'
 import { collection, getDocs, setDoc, doc, serverTimestamp } from 'firebase/firestore'
 import { toast } from 'react-toastify'
+import LoaderOverlay from './components/LoaderOverlay.jsx'
 
 const Bundle = () => {
     const [bundles, setBundles] = useState([])
@@ -149,7 +150,7 @@ const Bundle = () => {
                     <button onClick={() => setIsOpen(true)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #cfe3ff', background: '#f0f7ff', cursor: 'pointer' }}>+ Add Bundle</button>
                 </div>
 
-                {loading && <div>Loading…</div>}
+                {loading && <LoaderOverlay text="Loading bundles…" />}
                 {error && <div style={{ color: 'crimson' }}>{error}</div>}
                 {!loading && !error && bundles.length === 0 && <div>No bundles found.</div>}
 
@@ -260,7 +261,7 @@ const Bundle = () => {
                             <button onClick={() => { setIsTestsOpen(false); setActiveBundle(null) }} style={{ border: 'none', background: 'transparent', fontSize: 22, lineHeight: 1, cursor: 'pointer', color: '#555' }} aria-label="Close">×</button>
                         </div>
                         <div style={{ padding: 16, overflowY: 'auto' }}>
-                            {testsLoading && <div>Loading…</div>}
+                            {testsLoading && <div style={{ position: 'relative' }}><LoaderOverlay text="Loading tests…" fullscreen={false} /></div>}
                             {testsError && <div style={{ color: 'crimson' }}>{testsError}</div>}
                             {!testsLoading && !testsError && (
                                 <>

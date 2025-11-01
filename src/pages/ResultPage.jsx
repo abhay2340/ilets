@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import answerKey from '../data/answerkey'; // assuming you've added the test1 key
+import answerKey from '../data/answerkey';
 import { useAuth } from '../AuthContext';
 import { FaCheckCircle, FaTimesCircle, FaStepForward, FaChartPie, FaStopwatch } from 'react-icons/fa';
 import test1 from '../data/test1.jsx';
@@ -12,6 +12,9 @@ import test6 from '../data/test6.jsx';
 import test7 from '../data/test7.jsx';
 import test8 from '../data/test8.jsx';
 import test9 from '../data/test9.jsx';
+import { db } from '../firebaseConfig.jsx';
+import { doc, getDoc } from 'firebase/firestore';
+import LoaderOverlay from '../components/LoaderOverlay.jsx';
 
 const TEST_MAP = { test1, test2, test3, test4, test5, test6, test7, test8, test9 };
 
@@ -25,8 +28,12 @@ const ResultPage = () => {
     window.location.replace('/dashboard');
     return null;
   }
+  const isDbMode = !TEST_MAP[testId];
+  const [dbTest, setDbTest] = React.useState(null);
+  const [dbAnswers, setDbAnswers] = React.useState(null);
+  const [loadingDb, setLoadingDb] = React.useState(isDbMode);
   // get actual test definition for this result
-  const testData = TEST_MAP[testId] || TEST_MAP.test1;
+  const testData = isDbMode ? (dbTest || { parts: [] }) : (TEST_MAP[testId] || TEST_MAP.test1);
   const { user } = useAuth();
 
   // Local compare helper: ignore case, collapse spaces; for comma lists compare unordered
@@ -98,9 +105,25 @@ const ResultPage = () => {
     return `${mins}m ${secs.toString().padStart(2, '0')}s`;
   };
 
-  const correctAnswers = answerKey[testId];
+  // If db mode, fetch test + answers
+  React.useEffect(() => {
+    if (!isDbMode) return;
+    let active = true;
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'tests', testId));
+        if (active && snap.exists()) setDbTest(snap.data());
+        const ans = await getDoc(doc(db, 'answers', testId));
+        if (active && ans.exists()) setDbAnswers((ans.data() || {}).answers || {});
+      } catch { }
+      if (active) setLoadingDb(false);
+    })();
+    return () => { active = false };
+  }, [isDbMode, testId]);
 
-  const questionIds = Object.keys(correctAnswers).map(Number).sort((a, b) => a - b);
+  const correctAnswers = isDbMode ? (dbAnswers || {}) : (answerKey[testId] || {});
+
+  const questionIds = Object.keys(correctAnswers || {}).map(Number).sort((a, b) => a - b);
 
   let correct = 0;
   let wrong = 0;
@@ -118,7 +141,8 @@ const ResultPage = () => {
 
   return (
     <>
-      <div style={{ padding: '34px' }}>
+      <div style={{ padding: '34px', position: 'relative' }}>
+        {loadingDb && <LoaderOverlay text="Loading results…" />}
         <div style={{ display: 'flex', gap: 28, alignItems: 'stretch', minHeight: 'calc(100vh - 120px)' }}>
           {/* Sidebar: User details (moved left, full height) */}
           <div style={{ flex: '0 0 320px', maxWidth: 360, alignSelf: 'stretch' }}>

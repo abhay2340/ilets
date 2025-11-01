@@ -8,7 +8,7 @@ import { auth } from './firebaseConfig';
 import './Navbar.css'; // we'll create this too
 
 function Navbar({ transparent = false }) {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const navigate = useNavigate();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
@@ -27,7 +27,9 @@ function Navbar({ transparent = false }) {
               <li><Link to="/">Home</Link></li>
               <li><Link to="/introduction">Introduction</Link></li>
               <li><Link to="/contact">Contact</Link></li>
-              <li><Link to="/admin-panel">Admin Panel</Link></li>
+              {role === 'ADMIN' && (
+                <li><Link to="/admin-panel">Admin Panel</Link></li>
+              )}
             </ul>
           </div>
           <div className="navbar-right">

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './LoginPage.css';
 import logo from './assets/logo.png';
 import loginImage from './assets/login-image.jpg';
@@ -7,6 +7,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from './firebaseConfig';
 import { toast } from 'react-toastify';
 import { sendPasswordResetEmail } from 'firebase/auth';
+import { useAuth } from './AuthContext';
 
 const handleForgotPassword = async () => {
   const email = prompt("Enter your email to reset password");
@@ -30,6 +31,7 @@ const handleForgotPassword = async () => {
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -61,6 +63,12 @@ function LoginPage() {
 
     } finally { setSubmitting(false); }
   };
+
+  useEffect(() => {
+    if (!loading && user) {
+      navigate('/', { replace: true });
+    }
+  }, [loading, user, navigate]);
 
   return (
     <div className="login-wrapper">

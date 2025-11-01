@@ -19,6 +19,8 @@ import Navbar from './Navbar.jsx';
 import Admin from './Admin.jsx';
 import Tests from './Tests.jsx';
 import Bundle from './Bundle.jsx';
+import AdminPanel from './AdminPanel.jsx';
+import BundleDetail from './BundleDetail.jsx';
 function App() {
   return (
     <Router>
@@ -43,7 +45,8 @@ function App() {
         <Route path="/admin/:testId" element={<Admin />} />
         <Route path="/tests" element={<Tests />} />
         <Route path="/bundle" element={<Bundle />} />
-
+        <Route path="/bundle/:bundleId" element={<BundleDetail />} />
+        <Route path="/admin-panel" element={<AdminPanel />} />
       </Routes>
 
       <ToastContainer position="top-center" />

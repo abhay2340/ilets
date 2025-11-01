@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { db } from './firebaseConfig'
 import { useNavigate } from 'react-router-dom'
 import { collection, getDocs } from 'firebase/firestore'
+import LoaderOverlay from './components/LoaderOverlay.jsx'
 
 const Tests = () => {
     const [tests, setTests] = useState([])
@@ -27,10 +28,10 @@ const Tests = () => {
     }, [])
 
     return (
-        <div style={{ padding: '16px', maxWidth: 1100, margin: '0 auto' }}>
+        <div style={{ padding: '16px', maxWidth: 1100, margin: '0 auto', position: 'relative' }}>
 
             <h2 style={{ marginBottom: 16 }}>Tests</h2>
-            {loading && <div>Loading…</div>}
+            {loading && <LoaderOverlay text="Loading tests…" />}
             {error && <div style={{ color: 'crimson' }}>{error}</div>}
             {!loading && !error && tests.length === 0 && (
                 <div>No tests found.</div>

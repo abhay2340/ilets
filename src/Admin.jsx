@@ -6,6 +6,7 @@ import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore'
 import { useParams } from 'react-router-dom'
 import * as yup from 'yup'
 import { yupResolver } from '@hookform/resolvers/yup'
+import LoaderOverlay from './components/LoaderOverlay.jsx'
 
 const QUESTION_TYPES = [
     { value: 'mcq', label: 'Multiple Choice (TRUE/FALSE/NOT GIVEN or options)' },
@@ -300,7 +301,7 @@ const Admin = () => {
             <form onSubmit={handleSubmit(onSubmit)}>
                 <div style={{ border: '1px solid #e0e0e0', borderRadius: 8, padding: 16, marginBottom: 20 }}>
                     <h3 style={{ marginTop: 0, marginBottom: 12 }}>Test Meta</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                    <div style={{ display: 'flex', gap: 1, justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                             <label style={{ display: 'block', fontWeight: 600 }}>Test Title</label>
                             <input placeholder="TEST — Title" {...register('testMeta.title')} style={{ width: '100%', padding: 8 }} />
@@ -325,7 +326,7 @@ const Admin = () => {
                     <div style={{ color: 'crimson', marginBottom: 12 }}>{errors.parts.message}</div>
                 )}
 
-                {isLoadingExisting ? <div>Loading test…</div> : partFields.map((part, partIndex) => (
+                {isLoadingExisting ? <LoaderOverlay text="Loading test…" /> : partFields.map((part, partIndex) => (
                     <div key={part.id} style={{ border: '1px solid #e0e0e0', borderRadius: 8, padding: 16, marginBottom: 20 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <h3 style={{ margin: 0 }}>Part {partIndex + 1}</h3>
@@ -402,15 +403,6 @@ const QuestionsSection = ({ control, register, partIndex, errors }) => {
         <div style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h4 style={{ margin: 0 }}>Questions</h4>
-                <button
-                    type="button"
-                    onClick={() => {
-                        append({ type: 'mcq', question: '', options: ['TRUE', 'FALSE', 'NOT GIVEN'] })
-                    }}
-                    style={{ background: '#f0fff9', border: '1px solid #c7f7e3', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}
-                >
-                    + Add Question
-                </button>
             </div>
 
             {errors.parts?.[partIndex]?.questions?.message && (
@@ -429,6 +421,18 @@ const QuestionsSection = ({ control, register, partIndex, errors }) => {
                         remove={remove}
                     />
                 ))}
+            </div>
+
+            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-start' }}>
+                <button
+                    type="button"
+                    onClick={() => {
+                        append({ type: 'mcq', question: '', options: ['TRUE', 'FALSE', 'NOT GIVEN'] })
+                    }}
+                    style={{ background: '#f0fff9', border: '1px solid #c7f7e3', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}
+                >
+                    + Add Question
+                </button>
             </div>
         </div>
     )

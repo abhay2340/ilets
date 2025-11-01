@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './SignupPage.css';
 import logo from './assets/logo.png';
 import loginImage from './assets/login-image.jpg';
@@ -6,9 +6,11 @@ import { useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
 import { auth } from './firebaseConfig';
+import { useAuth } from './AuthContext';
 
 function SignupPage() {
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -58,6 +60,13 @@ function SignupPage() {
       setSubmitting(false);
     }
   };
+
+  // If already logged in, redirect to home
+  useEffect(() => {
+    if (!loading && user) {
+      navigate('/', { replace: true });
+    }
+  }, [loading, user, navigate]);
 
   return (
     <div className="signup-wrapper">
