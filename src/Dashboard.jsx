@@ -63,6 +63,7 @@ function Dashboard() {
             <li><a href="/">Home</a></li>
             <li><a href="/introduction">Introduction</a></li>
             <li><a href="/contact">Contact</a></li>
+            <li><a href="/admin-panel">Admin Panel</a></li>
           </ul>
         </div>
         <div className="footer-bottom">
