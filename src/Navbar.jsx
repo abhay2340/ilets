@@ -13,8 +13,12 @@ function Navbar({ transparent = false }) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const handleLogout = async () => {
-    await signOut(auth);
-    navigate('/login');
+    setShowLogoutConfirm(false);
+    try {
+      await signOut(auth);
+    } finally {
+      navigate('/login');
+    }
   };
 
   return (
