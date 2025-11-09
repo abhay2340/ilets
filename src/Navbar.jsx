@@ -29,6 +29,7 @@ function Navbar({ transparent = false }) {
             <img src={logo} alt="Gurjant IELTS" className="logo-img" onClick={() => navigate('/')} />
             <ul className="nav-links">
               <li><Link to="/">Home</Link></li>
+              <li><Link to="/blogs">Blogs</Link></li>
               <li><Link to="/introduction">Introduction</Link></li>
               <li><Link to="/contact">Contact</Link></li>
               {role === 'ADMIN' && (

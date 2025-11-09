@@ -21,6 +21,8 @@ import Tests from './Tests.jsx';
 import Bundle from './Bundle.jsx';
 import AdminPanel from './AdminPanel.jsx';
 import BundleDetail from './BundleDetail.jsx';
+import Blogs from './Blogs.jsx';
+import BlogDetail from './BlogDetail.jsx';
 function App() {
   return (
     <Router>
@@ -47,6 +49,8 @@ function App() {
         <Route path="/bundle" element={<Bundle />} />
         <Route path="/bundle/:bundleId" element={<BundleDetail />} />
         <Route path="/admin-panel" element={<AdminPanel />} />
+        <Route path="/blogs" element={<Blogs />} />
+        <Route path="/blogs/:id" element={<BlogDetail />} />
       </Routes>
 
       <ToastContainer position="top-center" />
