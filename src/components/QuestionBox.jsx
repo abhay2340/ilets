@@ -20,11 +20,16 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
     );
   }
 
-  const isInlineBlank = question.type === 'written' && /_{3,}/.test(question.question);
+  // Hide the header line for inline paragraph types to avoid duplication
+  const hasInlineBlanks = /_{3,}/.test(String(question.question || ''));
+  const hideHeader =
+    (question.type === 'written' && hasInlineBlanks) ||
+    question.type === 'summarydrag' ||
+    question.type === 'sentencefill';
 
   return (
     <div id={`q-${question.id}`} style={{ marginBottom: '25px' }}>
-      {!isInlineBlank && (
+      {!hideHeader && (
         <p><strong>{(question.displayId ?? question.id)}. {question.question}</strong></p>
       )}
 
@@ -89,7 +94,7 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
             setAnswer(next.join('|'));
           };
           return (
-            <div style={{ marginTop: '10px', marginLeft: '10px' }}>
+            <div style={{ marginTop: '10px', marginLeft: '10px', lineHeight: 1.8 }}>
               <span style={{ fontWeight: 700, marginRight: 6 }}>•</span>
               {chunks.map((c, i) => {
                 if (i === chunks.length - 1) return <span key={`w-c-${i}`}>{c}</span>;
@@ -101,11 +106,12 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
                       value={localVals[i] || ''}
                       onChange={(e) => change(i, e.target.value)}
                       style={{
-                        padding: '6px 12px',
-                        minWidth: 160,
+                        padding: '4px 10px',
+                        minWidth: 110,
                         borderRadius: '5px',
                         border: '1px solid #ccc',
-                        margin: '0 8px'
+                        margin: '0 6px',
+                        verticalAlign: 'middle'
                       }}
                       placeholder={`${(question.displayId ?? question.id)}.${i + 1}`}
                     />
@@ -433,7 +439,7 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
         return (
           <div style={{ marginTop: 10 }}>
             {/* Render sentence with inline dropzones */}
-            <div style={{ marginLeft: 10, lineHeight: 1.6 }}>
+            <div style={{ marginLeft: 10, lineHeight: 1.8 }}>
               {parts.map((chunk, i) => {
                 if (i === parts.length - 1) return <span key={`c-${i}`}>{chunk}</span>;
                 const word = localSel[i];
@@ -451,8 +457,8 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
                       }}
                       style={{
                         display: 'inline-flex',
-                        minWidth: 90,
-                        minHeight: 30,
+                        minWidth: 80,
+                        minHeight: 32,
                         padding: '4px 8px',
                         border: '2px dashed #bbb',
                         borderRadius: 8,
@@ -530,7 +536,7 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
         };
 
         return (
-          <div style={{ marginTop: '10px', marginLeft: '10px' }}>
+          <div style={{ marginTop: '10px', marginLeft: '10px', lineHeight: 1.8 }}>
             {parts.map((chunk, i) => {
               if (i === parts.length - 1) return <span key={`sf-c-${i}`}>{chunk}</span>;
               return (
@@ -541,11 +547,12 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
                     value={localSel[i] || ''}
                     onChange={(e) => onChangeBlank(i, e.target.value)}
                     style={{
-                      padding: '6px 12px',
-                      minWidth: 120,
+                      padding: '4px 10px',
+                      minWidth: 100,
                       borderRadius: '5px',
                       border: '1px solid #ccc',
                       margin: '0 6px',
+                      verticalAlign: 'middle'
                     }}
                     placeholder={`${(question.displayId ?? question.id)}.${i + 1}`}
                   />
