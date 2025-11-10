@@ -15,6 +15,7 @@ const QUESTION_TYPES = [
     { value: 'matchinggroup', label: 'Matching Group (Rows ↔ Columns)' },
     { value: 'matchingdrag', label: 'Matching Sentence Endings (Drag & Drop)' },
     { value: 'summarydrag', label: 'Summary Completion (Drag words into blanks)' },
+    { value: 'sentencefill', label: 'Sentence Completion (typed words into blanks)' },
     { value: 'info', label: 'Info/Instruction (No answer)' }
 ]
 
@@ -38,7 +39,7 @@ const buildValidationSchema = () =>
                 questions: yup.array().min(1, 'At least one question is required').of(
                     yup.object({
                         id: yup.mixed().notRequired(),
-                        type: yup.string().oneOf(['mcq', 'written', 'dropdown', 'matchinggroup', 'matchingdrag', 'summarydrag', 'info']).required('Type is required'),
+                        type: yup.string().oneOf(['mcq', 'written', 'dropdown', 'matchinggroup', 'matchingdrag', 'summarydrag', 'sentencefill', 'info']).required('Type is required'),
                         question: yup.string().required('Question text is required'),
                         options: yup.array()
                             .when('type', {
@@ -83,7 +84,7 @@ const buildValidationSchema = () =>
                         answers: yup.array().when(['type', 'rows', 'question'], {
                             is: (vals) => {
                                 const [type] = Array.isArray(vals) ? vals : []
-                                return type === 'matchinggroup' || type === 'matchingdrag' || type === 'summarydrag'
+                                return type === 'matchinggroup' || type === 'matchingdrag' || type === 'summarydrag' || type === 'sentencefill'
                             },
                             then: (s) => s.of(yup.string().trim().required('Answer cannot be empty')).test('answers-length', 'Answers must match number of items', function (val) {
                                 const type = this.parent.type
@@ -92,6 +93,11 @@ const buildValidationSchema = () =>
                                     return Array.isArray(val) && val.length === rows.length
                                 }
                                 if (type === 'summarydrag') {
+                                    const qtext = this.parent.question || ''
+                                    const blanks = (qtext.match(/_{3,}/g) || []).length
+                                    return Array.isArray(val) && val.length === blanks
+                                }
+                                if (type === 'sentencefill') {
                                     const qtext = this.parent.question || ''
                                     const blanks = (qtext.match(/_{3,}/g) || []).length
                                     return Array.isArray(val) && val.length === blanks
@@ -230,6 +236,24 @@ const Admin = () => {
                             options: Array.isArray(q.options) ? q.options : []
                         }
                     }
+                    if (q.type === 'sentencefill') {
+                        const blanks = (String(q.question || '').match(/_{3,}/g) || []).length
+                        const count = Math.max(0, blanks)
+                        const subIds = Array.from({ length: count }, (_, i) => nextId + i)
+                        if (Array.isArray(q.answers)) {
+                            q.answers.forEach((ans, idx) => {
+                                const subId = subIds[idx]
+                                if (subId != null) answerMap[subId] = ans
+                            })
+                        }
+                        nextId += count
+                        return {
+                            id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
+                            type: 'sentencefill',
+                            subIds,
+                            question: q.question
+                        }
+                    }
 
                     const id = nextId
                     nextId += 1
@@ -305,7 +329,7 @@ const Admin = () => {
                             const answers = subIds.map((sid) => answersMap[sid] || '')
                             return { ...q, answers }
                         }
-                        if (q.type === 'matchingdrag' || q.type === 'summarydrag') {
+                        if (q.type === 'matchingdrag' || q.type === 'summarydrag' || q.type === 'sentencefill') {
                             const subIds = Array.isArray(q.subIds) ? q.subIds : []
                             const answers = subIds.map((sid) => answersMap[sid] || '')
                             return { ...q, answers }
@@ -609,6 +633,9 @@ const AnswerSection = ({ control, register, partIndex, qIndex, errors }) => {
                 if (type === 'summarydrag') {
                     return <SummaryDragEditor control={control} register={register} namePrefix={namePrefix} errors={errors} />
                 }
+                if (type === 'sentencefill') {
+                    return <SentenceFillEditor control={control} register={register} namePrefix={namePrefix} errors={errors} />
+                }
 
                 if (type === 'mcq' || type === 'dropdown') {
                     return (
@@ -835,6 +862,32 @@ const SummaryDragEditor = ({ control, register, namePrefix, errors }) => {
                     </div>
                     <button type="button" onClick={() => appendAnswer('')} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Answer</button>
                 </div>
+            </div>
+        </div>
+    )
+}
+
+const SentenceFillEditor = ({ control, register, namePrefix, errors }) => {
+    const { fields: answerFields, append: appendAnswer, remove: removeAnswer } = useFieldArray({ control, name: `${namePrefix}.answers` })
+    const answersError = getNestedError(errors, `${namePrefix}.answers`)
+
+    return (
+        <div style={{ marginTop: 12 }}>
+            <div style={{ marginBottom: 8, color: '#555' }}>
+                Use three or more underscores ___ in the Question Text to mark each blank. Provide the correct typed answer for each blank in order.
+            </div>
+            <div>
+                <label style={{ display: 'block', fontWeight: 600 }}>Answers (one per blank, in order)</label>
+                {typeof answersError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>}
+                <div style={{ display: 'grid', gap: 8 }}>
+                    {answerFields.map((ans, idx) => (
+                        <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
+                            <input placeholder={`Answer for blank ${idx + 1}`} {...register(`${namePrefix}.answers.${idx}`)} style={{ flex: 1, padding: 8 }} />
+                            <button type="button" onClick={() => removeAnswer(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
+                        </div>
+                    ))}
+                </div>
+                <button type="button" onClick={() => appendAnswer('')} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Answer</button>
             </div>
         </div>
     )

@@ -70,27 +70,48 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
 
       {/* Fill in the blank (supports inline blanks like ______) */}
       {question.type === 'written' && (() => {
-        const blankRegex = /_{3,}/; // three or more underscores
+        const blankRegex = /_{3,}/g; // three or more underscores, global
         if (blankRegex.test(question.question)) {
-          const parts = question.question.split(/_{3,}/);
+          const chunks = String(question.question || '').split(/_{3,}/);
+          // For legacy 'written' with multiple blanks, render inputs but store a single joined answer string for this question only (no subIds).
+          const vals = typeof answer === 'string' ? answer.split('|') : [];
+          const [localVals, setLocalVals] = React.useState(vals.length ? vals : Array(chunks.length - 1).fill(''));
+          React.useEffect(() => {
+            const next = (typeof answer === 'string' && answer.length) ? answer.split('|') : Array(chunks.length - 1).fill('');
+            setLocalVals(next);
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+          }, [answer]);
+          const change = (idx, v) => {
+            const next = [...localVals];
+            next[idx] = v;
+            setLocalVals(next);
+            onVisited?.(question.id);
+            setAnswer(next.join('|'));
+          };
           return (
             <div style={{ marginTop: '10px', marginLeft: '10px' }}>
               <span style={{ fontWeight: 700, marginRight: 6 }}>•</span>
-              <span>{parts[0]}</span>
-              <input
-                type="text"
-                value={answer || ''}
-                onChange={(e) => { onVisited?.(question.id); setAnswer(e.target.value); }}
-                style={{
-                  padding: '6px 12px',
-                  minWidth: 160,
-                  borderRadius: '5px',
-                  border: '1px solid #ccc',
-                  margin: '0 8px'
-                }}
-                placeholder={`${question.displayId ?? question.id}`}
-              />
-              <span>{parts.slice(1).join('')}</span>
+              {chunks.map((c, i) => {
+                if (i === chunks.length - 1) return <span key={`w-c-${i}`}>{c}</span>;
+                return (
+                  <React.Fragment key={`w-c-${i}`}>
+                    <span>{c}</span>
+                    <input
+                      type="text"
+                      value={localVals[i] || ''}
+                      onChange={(e) => change(i, e.target.value)}
+                      style={{
+                        padding: '6px 12px',
+                        minWidth: 160,
+                        borderRadius: '5px',
+                        border: '1px solid #ccc',
+                        margin: '0 8px'
+                      }}
+                      placeholder={`${(question.displayId ?? question.id)}.${i + 1}`}
+                    />
+                  </React.Fragment>
+                );
+              })}
             </div>
           );
         }
@@ -477,6 +498,60 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
                 ))}
               </div>
             </div>
+          </div>
+        );
+      })()}
+
+      {/* Sentence completion - inline text inputs into blanks */}
+      {question.type === 'sentencefill' && (() => {
+        const parts = String(question.question || '').split(/_{3,}/);
+        const blankCount = Math.max(0, parts.length - 1);
+        const selections = React.useMemo(() => {
+          const initial = Array(blankCount).fill('');
+          if (typeof answer === 'string' && answer.length > 0) {
+            const arr = answer.split('|');
+            for (let i = 0; i < initial.length; i++) initial[i] = arr[i] || '';
+          }
+          return initial;
+        }, [answer, blankCount]);
+        const [localSel, setLocalSel] = React.useState(selections);
+        React.useEffect(() => { setLocalSel(selections); }, [selections.join('|')]);
+
+        const onChangeBlank = (idx, val) => {
+          const next = [...localSel];
+          next[idx] = val;
+          setLocalSel(next);
+          setAnswer(next.join('|'));
+          try {
+            if (Array.isArray(question.subIds) && typeof question.subIds[idx] === 'number' && typeof setAnswerForId === 'function') {
+              setAnswerForId(question.subIds[idx], val);
+            }
+          } catch { }
+        };
+
+        return (
+          <div style={{ marginTop: '10px', marginLeft: '10px' }}>
+            {parts.map((chunk, i) => {
+              if (i === parts.length - 1) return <span key={`sf-c-${i}`}>{chunk}</span>;
+              return (
+                <React.Fragment key={`sf-c-${i}`}>
+                  <span>{chunk}</span>
+                  <input
+                    type="text"
+                    value={localSel[i] || ''}
+                    onChange={(e) => onChangeBlank(i, e.target.value)}
+                    style={{
+                      padding: '6px 12px',
+                      minWidth: 120,
+                      borderRadius: '5px',
+                      border: '1px solid #ccc',
+                      margin: '0 6px',
+                    }}
+                    placeholder={`${(question.displayId ?? question.id)}.${i + 1}`}
+                  />
+                </React.Fragment>
+              );
+            })}
           </div>
         );
       })()}

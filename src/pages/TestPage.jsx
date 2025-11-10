@@ -267,12 +267,13 @@ const TestPage = () => {
     const timeTaken = TOTAL_DURATION - timeLeftRef.current;
 
     const allQuestions = parts.flatMap(p => p.questions);
-    const userAnswers = {};
-    allQuestions.forEach(q => {
-      if (typeof q.id === 'number') userAnswers[q.id] = answers[q.id];
-    });
-
     const correctAnswers = isDbMode ? (dbAnswers || {}) : (answerKey[currentTestId] || {});
+    const userAnswers = {};
+    // Build userAnswers directly from the ids that will be scored (handles subIds)
+    Object.keys(correctAnswers).forEach((k) => {
+      const id = Number(k);
+      userAnswers[id] = answers[id];
+    });
     let correct = 0, wrong = 0;
     const qIds = Object.keys(correctAnswers).map(Number);
     const total = qIds.length || allQuestions.filter(q => typeof q.id === 'number').length;
