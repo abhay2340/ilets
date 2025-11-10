@@ -13,6 +13,8 @@ const QUESTION_TYPES = [
     { value: 'written', label: 'Written (Short Text Answer)' },
     { value: 'dropdown', label: 'Dropdown (Choose One)' },
     { value: 'matchinggroup', label: 'Matching Group (Rows ↔ Columns)' },
+    { value: 'matchingdrag', label: 'Matching Sentence Endings (Drag & Drop)' },
+    { value: 'summarydrag', label: 'Summary Completion (Drag words into blanks)' },
     { value: 'info', label: 'Info/Instruction (No answer)' }
 ]
 
@@ -36,7 +38,7 @@ const buildValidationSchema = () =>
                 questions: yup.array().min(1, 'At least one question is required').of(
                     yup.object({
                         id: yup.mixed().notRequired(),
-                        type: yup.string().oneOf(['mcq', 'written', 'dropdown', 'matchinggroup', 'info']).required('Type is required'),
+                        type: yup.string().oneOf(['mcq', 'written', 'dropdown', 'matchinggroup', 'matchingdrag', 'summarydrag', 'info']).required('Type is required'),
                         question: yup.string().required('Question text is required'),
                         options: yup.array()
                             .when('type', {
@@ -67,19 +69,34 @@ const buildValidationSchema = () =>
                             then: (s) => s.min(2, 'At least 2 columns (options) required').of(yup.string().trim().required('Column cannot be empty')),
                             otherwise: (s) => s.strip()
                         }),
+                        // For drag-match and summary we use options instead of columns
+                        options: yup.array().when('type', {
+                            is: (t) => t === 'matchingdrag' || t === 'summarydrag',
+                            then: (s) => s.min(2, 'At least 2 options (endings) required').of(yup.string().trim().required('Option cannot be empty')),
+                            otherwise: (s) => s.strip()
+                        }),
                         rows: yup.array().when('type', {
-                            is: 'matchinggroup',
+                            is: (t) => t === 'matchinggroup' || t === 'matchingdrag',
                             then: (s) => s.min(1, 'Add at least 1 row').of(yup.string().trim().required('Row cannot be empty')),
                             otherwise: (s) => s.strip()
                         }),
-                        answers: yup.array().when(['type', 'rows'], {
+                        answers: yup.array().when(['type', 'rows', 'question'], {
                             is: (vals) => {
-                                const [type, rows] = Array.isArray(vals) ? vals : [undefined, undefined]
-                                return type === 'matchinggroup' && Array.isArray(rows) && rows.length > 0
+                                const [type] = Array.isArray(vals) ? vals : []
+                                return type === 'matchinggroup' || type === 'matchingdrag' || type === 'summarydrag'
                             },
-                            then: (s) => s.of(yup.string().trim().required('Answer cannot be empty')).test('answers-length', 'Answers must match number of rows', function (val) {
-                                const rows = this.parent.rows || []
-                                return Array.isArray(val) && val.length === rows.length
+                            then: (s) => s.of(yup.string().trim().required('Answer cannot be empty')).test('answers-length', 'Answers must match number of items', function (val) {
+                                const type = this.parent.type
+                                if (type === 'matchinggroup' || type === 'matchingdrag') {
+                                    const rows = this.parent.rows || []
+                                    return Array.isArray(val) && val.length === rows.length
+                                }
+                                if (type === 'summarydrag') {
+                                    const qtext = this.parent.question || ''
+                                    const blanks = (qtext.match(/_{3,}/g) || []).length
+                                    return Array.isArray(val) && val.length === blanks
+                                }
+                                return true
                             }),
                             otherwise: (s) => s.strip()
                         })
@@ -175,6 +192,44 @@ const Admin = () => {
                         if (!out.displayId) delete out.displayId
                         return out
                     }
+                    if (q.type === 'matchingdrag') {
+                        const rowCount = Array.isArray(q.rows) ? q.rows.length : 0
+                        const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i)
+                        if (Array.isArray(q.answers)) {
+                            q.answers.forEach((ans, idx) => {
+                                const subId = subIds[idx]
+                                if (subId != null) answerMap[subId] = ans
+                            })
+                        }
+                        nextId += rowCount
+                        return {
+                            id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
+                            type: 'matchingdrag',
+                            subIds,
+                            question: q.question,
+                            options: Array.isArray(q.options) ? q.options : [],
+                            rows: Array.isArray(q.rows) ? q.rows : []
+                        }
+                    }
+                    if (q.type === 'summarydrag') {
+                        const blanks = (String(q.question || '').match(/_{3,}/g) || []).length
+                        const count = Math.max(0, blanks)
+                        const subIds = Array.from({ length: count }, (_, i) => nextId + i)
+                        if (Array.isArray(q.answers)) {
+                            q.answers.forEach((ans, idx) => {
+                                const subId = subIds[idx]
+                                if (subId != null) answerMap[subId] = ans
+                            })
+                        }
+                        nextId += count
+                        return {
+                            id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
+                            type: 'summarydrag',
+                            subIds,
+                            question: q.question,
+                            options: Array.isArray(q.options) ? q.options : []
+                        }
+                    }
 
                     const id = nextId
                     nextId += 1
@@ -246,6 +301,11 @@ const Admin = () => {
                     audioSrc: part.audioSrc || '',
                     questions: (part.questions || []).map((q) => {
                         if (q.type === 'matchinggroup') {
+                            const subIds = Array.isArray(q.subIds) ? q.subIds : []
+                            const answers = subIds.map((sid) => answersMap[sid] || '')
+                            return { ...q, answers }
+                        }
+                        if (q.type === 'matchingdrag' || q.type === 'summarydrag') {
                             const subIds = Array.isArray(q.subIds) ? q.subIds : []
                             const answers = subIds.map((sid) => answersMap[sid] || '')
                             return { ...q, answers }
@@ -543,6 +603,12 @@ const AnswerSection = ({ control, register, partIndex, qIndex, errors }) => {
                 if (type === 'matchinggroup') {
                     return <MatchingGroupEditor control={control} register={register} namePrefix={namePrefix} errors={errors} />
                 }
+                if (type === 'matchingdrag') {
+                    return <DragMatchEditor control={control} register={register} namePrefix={namePrefix} errors={errors} />
+                }
+                if (type === 'summarydrag') {
+                    return <SummaryDragEditor control={control} register={register} namePrefix={namePrefix} errors={errors} />
+                }
 
                 if (type === 'mcq' || type === 'dropdown') {
                     return (
@@ -655,6 +721,119 @@ const MatchingGroupEditor = ({ control, register, namePrefix, errors }) => {
                         ))}
                     </div>
                     <button type="button" onClick={addRowWithAnswer} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Answer</button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+const DragMatchEditor = ({ control, register, namePrefix, errors }) => {
+    const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({ control, name: `${namePrefix}.options` })
+    const { fields: rowFields, append: appendRow, remove: removeRow } = useFieldArray({ control, name: `${namePrefix}.rows` })
+    const { fields: answerFields, append: appendAnswer, remove: removeAnswer } = useFieldArray({ control, name: `${namePrefix}.answers` })
+
+    const optionsError = getNestedError(errors, `${namePrefix}.options`)
+    const rowsError = getNestedError(errors, `${namePrefix}.rows`)
+    const answersError = getNestedError(errors, `${namePrefix}.answers`)
+
+    const addRowWithAnswer = () => {
+        appendRow('')
+        appendAnswer('')
+    }
+    const removeRowWithAnswer = (idx) => {
+        removeRow(idx)
+        removeAnswer(idx)
+    }
+
+    return (
+        <div style={{ marginTop: 12 }}>
+            <label style={{ display: 'block', fontWeight: 600 }}>Matching Sentence Endings (Drag & Drop)</label>
+
+            <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+                <div>
+                    <label style={{ display: 'block', fontWeight: 600 }}>Answer Bank (Endings)</label>
+                    {typeof optionsError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{optionsError}</div>}
+                    <div style={{ display: 'grid', gap: 8 }}>
+                        {optionFields.map((opt, idx) => (
+                            <div key={opt.id} style={{ display: 'flex', gap: 8 }}>
+                                <input placeholder={`Ending ${idx + 1}`} {...register(`${namePrefix}.options.${idx}`)} style={{ flex: 1, padding: 8 }} />
+                                <button type="button" onClick={() => removeOption(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" onClick={() => appendOption('')} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Option</button>
+                </div>
+
+                <div>
+                    <label style={{ display: 'block', fontWeight: 600 }}>Rows (Sentence starts)</label>
+                    {typeof rowsError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{rowsError}</div>}
+                    <div style={{ display: 'grid', gap: 8 }}>
+                        {rowFields.map((row, idx) => (
+                            <div key={row.id} style={{ display: 'flex', gap: 8 }}>
+                                <input placeholder={`Row ${idx + 1}`} {...register(`${namePrefix}.rows.${idx}`)} style={{ flex: 1, padding: 8 }} />
+                                <button type="button" onClick={() => removeRowWithAnswer(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" onClick={addRowWithAnswer} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Row</button>
+                </div>
+
+                <div>
+                    <label style={{ display: 'block', fontWeight: 600 }}>Answers (letter for each Row)</label>
+                    {typeof answersError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>}
+                    <div style={{ display: 'grid', gap: 8 }}>
+                        {answerFields.map((ans, idx) => (
+                            <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
+                                <input placeholder={`Letter for Row ${idx + 1}`} {...register(`${namePrefix}.answers.${idx}`)} style={{ flex: 1, padding: 8 }} />
+                                <button type="button" onClick={() => removeRowWithAnswer(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" onClick={addRowWithAnswer} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Answer</button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+const SummaryDragEditor = ({ control, register, namePrefix, errors }) => {
+    const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({ control, name: `${namePrefix}.options` })
+    const { fields: answerFields, append: appendAnswer, remove: removeAnswer } = useFieldArray({ control, name: `${namePrefix}.answers` })
+
+    const optionsError = getNestedError(errors, `${namePrefix}.options`)
+    const answersError = getNestedError(errors, `${namePrefix}.answers`)
+
+    return (
+        <div style={{ marginTop: 12 }}>
+            <div style={{ marginBottom: 8, color: '#555' }}>
+                Use three or more underscores ___ in the Question Text to mark each blank. Add the words below for the answer bank, and provide the correct answer for each blank in order.
+            </div>
+            <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+                <div>
+                    <label style={{ display: 'block', fontWeight: 600 }}>Answer Bank (words/phrases)</label>
+                    {typeof optionsError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{optionsError}</div>}
+                    <div style={{ display: 'grid', gap: 8 }}>
+                        {optionFields.map((opt, idx) => (
+                            <div key={opt.id} style={{ display: 'flex', gap: 8 }}>
+                                <input placeholder={`Word ${idx + 1}`} {...register(`${namePrefix}.options.${idx}`)} style={{ flex: 1, padding: 8 }} />
+                                <button type="button" onClick={() => removeOption(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" onClick={() => appendOption('')} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Word</button>
+                </div>
+                <div>
+                    <label style={{ display: 'block', fontWeight: 600 }}>Answers (one per blank, in order)</label>
+                    {typeof answersError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>}
+                    <div style={{ display: 'grid', gap: 8 }}>
+                        {answerFields.map((ans, idx) => (
+                            <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
+                                <input placeholder={`Answer for blank ${idx + 1}`} {...register(`${namePrefix}.answers.${idx}`)} style={{ flex: 1, padding: 8 }} />
+                                <button type="button" onClick={() => removeAnswer(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" onClick={() => appendAnswer('')} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Answer</button>
                 </div>
             </div>
         </div>

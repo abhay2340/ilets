@@ -840,15 +840,22 @@ const TestPage = () => {
                   onMouseDown={(e) => {
                     const tag = (e.target?.tagName || '').toLowerCase();
                     if (tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'option') return;
+                    // Allow DnD elements to start drags
+                    if (e.target?.closest && e.target.closest('[data-dnd]')) return;
                     e.preventDefault();
                   }}
-                  onDragStart={(e) => e.preventDefault()}
+                  onDragStart={(e) => {
+                    // If drag originates from a DnD element, allow it
+                    if (e.target?.closest && e.target.closest('[data-dnd]')) return;
+                    e.preventDefault();
+                  }}
                 >
                   <QuestionBox
                     key={q.id}
                     question={q}
                     answer={answers[q.id]}
                     setAnswer={(val) => handleSetAnswer(q.id, val)}
+                    setAnswerForId={(qid, val) => handleSetAnswer(qid, val)}
                     onVisited={(id) => markVisited(id)}
                   />
                 </div>
@@ -929,15 +936,21 @@ const TestPage = () => {
                   onMouseDown={(e) => {
                     const tag = (e.target?.tagName || '').toLowerCase();
                     if (tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'option') return; // allow editing/selection inside inputs and selects
+                    // Allow DnD elements to start drags
+                    if (e.target?.closest && e.target.closest('[data-dnd]')) return;
                     e.preventDefault();
                   }}
-                  onDragStart={(e) => e.preventDefault()}
+                  onDragStart={(e) => {
+                    if (e.target?.closest && e.target.closest('[data-dnd]')) return;
+                    e.preventDefault();
+                  }}
                 >
                   <QuestionBox
                     key={q.id}
                     question={q}
                     answer={answers[q.id]}
                     setAnswer={(val) => handleSetAnswer(q.id, val)}
+                    setAnswerForId={(qid, val) => handleSetAnswer(qid, val)}
                     onVisited={(id) => markVisited(id)}
                   />
                 </div>

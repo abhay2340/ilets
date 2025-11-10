@@ -1,6 +1,6 @@
 import React from 'react';
 
-const QuestionBox = ({ question, answer, setAnswer, onVisited }) => {
+const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId }) => {
   // Info blocks: headings or bullet lines
   if (question.type === 'info') {
     const kind = question.infoKind || 'bullet';
@@ -150,6 +150,12 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited }) => {
           // store as ordered string, using | so our equality check preserves order
           onVisited?.(question.id);
           setAnswer(next.join('|'));
+          // Also persist per-subId so scoring works on numeric ids
+          try {
+            if (Array.isArray(question.subIds) && typeof question.subIds[rowIdx] === 'number' && typeof setAnswerForId === 'function') {
+              setAnswerForId(question.subIds[rowIdx], colLetter);
+            }
+          } catch { }
         };
 
         return (
@@ -207,6 +213,269 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited }) => {
 
             <div style={{ marginTop: '8px', color: '#666', fontSize: '12px' }}>
               Your selections: {localSel.filter(Boolean).length > 0 ? localSel.join(' | ') : 'None'}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Matching sentence endings - drag & drop */}
+      {question.type === 'matchingdrag' && (() => {
+        const rows = Array.isArray(question.rows) ? question.rows : [];
+        const opts = Array.isArray(question.options) ? question.options : [];
+        const letters = opts.map((_, idx) => String.fromCharCode(65 + idx));
+
+        // Parse existing selections from joined answer "A|C|"
+        const selections = React.useMemo(() => {
+          const initial = Array(rows.length).fill('');
+          if (typeof answer === 'string' && answer.length > 0) {
+            const parts = answer.split('|');
+            for (let i = 0; i < initial.length; i++) initial[i] = parts[i] || '';
+          }
+          return initial;
+        }, [answer, rows.length]);
+
+        const [localSel, setLocalSel] = React.useState(selections);
+
+        React.useEffect(() => {
+          setLocalSel(selections);
+        }, [selections.join('|')]);
+
+        // Determine which options are unassigned (in bank)
+        const assigned = new Set(localSel.filter(Boolean));
+        const bank = letters
+          .map((L, i) => ({ letter: L, text: String(opts[i] ?? '') }))
+          .filter(o => !assigned.has(o.letter));
+
+        const onDropToRow = (rowIdx, letter) => {
+          const next = [...localSel];
+          const prevAtRow = next[rowIdx];
+          next[rowIdx] = letter;
+          // if letter existed in another row, clear it there
+          const otherIdx = next.findIndex((l, idx) => idx !== rowIdx && l === letter);
+          if (otherIdx >= 0) next[otherIdx] = '';
+          setLocalSel(next);
+          onVisited?.(Array.isArray(question.subIds) ? question.subIds[rowIdx] : question.id);
+          setAnswer(next.join('|'));
+          // Persist per-subId too
+          try {
+            if (Array.isArray(question.subIds) && typeof question.subIds[rowIdx] === 'number' && typeof setAnswerForId === 'function') {
+              setAnswerForId(question.subIds[rowIdx], letter);
+            }
+            if (Array.isArray(question.subIds) && typeof question.subIds.find === 'function' && prevAtRow) {
+              const prevIdx = selections.findIndex((l, idx) => l === prevAtRow && idx !== rowIdx);
+              if (prevIdx >= 0 && typeof question.subIds[prevIdx] === 'number') {
+                setAnswerForId?.(question.subIds[prevIdx], prevAtRow);
+              }
+            }
+          } catch { }
+        };
+
+        const clearRow = (rowIdx) => {
+          const next = [...localSel];
+          next[rowIdx] = '';
+          setLocalSel(next);
+          setAnswer(next.join('|'));
+          try {
+            if (Array.isArray(question.subIds) && typeof question.subIds[rowIdx] === 'number') {
+              setAnswerForId?.(question.subIds[rowIdx], '');
+            }
+          } catch { }
+        };
+
+        return (
+          <div style={{ marginTop: '10px' }}>
+            {/* Rows with droppable boxes */}
+            <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
+              {rows.map((rowText, idx) => {
+                const letter = localSel[idx];
+                const text = letter ? (opts[letters.indexOf(letter)] ?? '') : '';
+                return (
+                  <div key={idx} style={{ display: 'grid', gap: 8 }}>
+                    <div style={{ fontWeight: 600 }}>
+                      {Array.isArray(question.subIds) ? `${question.subIds[idx]}. ` : `${idx + 1}. `}
+                      {String(rowText ?? '')}
+                    </div>
+                    <div
+                      data-dnd="dropzone"
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const L = e.dataTransfer.getData('text/plain');
+                        if (!letters.includes(L)) return;
+                        onDropToRow(idx, L);
+                      }}
+                      style={{
+                        border: '2px dashed #bbb',
+                        borderRadius: 8,
+                        minHeight: 44,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 8,
+                        padding: '6px 10px',
+                        background: '#fff'
+                      }}
+                    >
+                      {letter ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div>{text}</div>
+                        </div>
+                      ) : (
+                        <span style={{ color: '#777' }}>Drop an answer here</span>
+                      )}
+                      {letter ? (
+                        <button onClick={() => clearRow(idx)} style={{ background: '#ffecec', border: '1px solid #ffd4d4', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>
+                          Clear
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Answer bank below rows */}
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Answer bank</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {bank.map((o) => (
+                  <div
+                    key={o.letter}
+                    draggable
+                    data-dnd="chip"
+                    onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData('text/plain', o.letter); }}
+                    style={{ padding: '6px 10px', border: '1px solid #bbb', borderRadius: 16, background: '#f8fafc', cursor: 'grab' }}
+                    title={o.text}
+                  >
+                    {o.text}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Summary completion - drag words into inline blanks */}
+      {question.type === 'summarydrag' && (() => {
+        const bank = Array.isArray(question.options) ? question.options.map((t) => String(t ?? '')) : [];
+        const parts = String(question.question || '').split(/_{3,}/);
+        const blankCount = Math.max(0, parts.length - 1);
+
+        const selections = React.useMemo(() => {
+          const initial = Array(blankCount).fill('');
+          if (typeof answer === 'string' && answer.length > 0) {
+            const arr = answer.split('|');
+            for (let i = 0; i < initial.length; i++) initial[i] = arr[i] || '';
+          }
+          return initial;
+        }, [answer, blankCount]);
+
+        const [localSel, setLocalSel] = React.useState(selections);
+
+        React.useEffect(() => {
+          setLocalSel(selections);
+        }, [selections.join('|')]);
+
+        const assigned = new Set(localSel.filter(Boolean));
+        const bankRemaining = bank.filter(w => !assigned.has(w));
+
+        const onDropToBlank = (idx, word) => {
+          const next = [...localSel];
+          // If word is already used elsewhere, clear there
+          const otherIdx = next.findIndex((w, i) => i !== idx && w === word);
+          if (otherIdx >= 0) next[otherIdx] = '';
+          next[idx] = word;
+          setLocalSel(next);
+          // Persist parent joined answer
+          onVisited?.(Array.isArray(question.subIds) ? question.subIds[idx] : question.id);
+          setAnswer(next.join('|'));
+          try {
+            if (Array.isArray(question.subIds) && typeof question.subIds[idx] === 'number' && typeof setAnswerForId === 'function') {
+              setAnswerForId(question.subIds[idx], word);
+            }
+          } catch { }
+        };
+
+        const clearBlank = (idx) => {
+          const next = [...localSel];
+          next[idx] = '';
+          setLocalSel(next);
+          setAnswer(next.join('|'));
+          try {
+            if (Array.isArray(question.subIds) && typeof question.subIds[idx] === 'number') {
+              setAnswerForId?.(question.subIds[idx], '');
+            }
+          } catch { }
+        };
+
+        return (
+          <div style={{ marginTop: 10 }}>
+            {/* Render sentence with inline dropzones */}
+            <div style={{ marginLeft: 10, lineHeight: 1.6 }}>
+              {parts.map((chunk, i) => {
+                if (i === parts.length - 1) return <span key={`c-${i}`}>{chunk}</span>;
+                const word = localSel[i];
+                return (
+                  <React.Fragment key={`c-${i}`}>
+                    <span>{chunk}</span>
+                    <span
+                      data-dnd="dropzone"
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const w = e.dataTransfer.getData('text/plain');
+                        if (!bank.includes(w)) return;
+                        onDropToBlank(i, w);
+                      }}
+                      style={{
+                        display: 'inline-flex',
+                        minWidth: 90,
+                        minHeight: 30,
+                        padding: '4px 8px',
+                        border: '2px dashed #bbb',
+                        borderRadius: 8,
+                        margin: '0 6px',
+                        verticalAlign: 'middle',
+                        background: '#fff',
+                        alignItems: 'center',
+                        gap: 8
+                      }}
+                      title="Drop here"
+                    >
+                      {word ? (
+                        <>
+                          <span>{word}</span>
+                          <button type="button" onClick={() => clearBlank(i)} style={{ marginLeft: 8, background: '#ffecec', border: '1px solid #ffd4d4', padding: '2px 6px', borderRadius: 6, cursor: 'pointer' }}>
+                            ×
+                          </button>
+                        </>
+                      ) : (
+                        <span style={{ color: '#777' }}>Drop word</span>
+                      )}
+                    </span>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+
+            {/* Bank */}
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Word list</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {bankRemaining.map((w, idx) => (
+                  <div
+                    key={`${w}-${idx}`}
+                    draggable
+                    data-dnd="chip"
+                    onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData('text/plain', w); }}
+                    style={{ padding: '6px 10px', border: '1px solid #bbb', borderRadius: 16, background: '#f8fafc', cursor: 'grab' }}
+                    title={w}
+                  >
+                    {w}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         );
