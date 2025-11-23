@@ -40,8 +40,26 @@ function Navbar({ transparent = false }) {
           <div className="navbar-right">
             {user ? (
               <>
-                <FaUserCircle size={36} className="nav-icon" title={user.email} onClick={() => navigate('/account')}
-                  style={{ cursor: 'pointer' }} />
+                {user.photoURL ? (
+                  <img
+                    src={user.photoURL}
+                    alt="Profile"
+                    className="nav-icon"
+                    title={user.displayName || user.email}
+                    onClick={() => navigate('/account')}
+                    style={{
+                      cursor: 'pointer',
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '2px solid #fff'
+                    }}
+                  />
+                ) : (
+                  <FaUserCircle size={36} className="nav-icon" title={user.email} onClick={() => navigate('/account')}
+                    style={{ cursor: 'pointer' }} />
+                )}
                 <button className="login-btn" onClick={() => setShowLogoutConfirm(true)}>Logout</button>
               </>
             ) : (
