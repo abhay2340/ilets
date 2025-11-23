@@ -14,7 +14,7 @@
   background: white;
   width: 1100px;
   max-width: 95%;
-  box-shadow: 0 0 15px rgba(0,0,0,0.1);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
   display: flex;
   border-radius: 10px;
   overflow: hidden;
@@ -50,9 +50,11 @@
   font-family: 'arimo';
   font-weight: 800;
 }
+
 .login-right-side h2 span {
   color: #c70202;
 }
+
 .subtitle {
   color: #777;
   margin-bottom: 30px;
@@ -60,7 +62,7 @@
 }
 
 form label {
-    font-family: 'arimo';
+  font-family: 'arimo';
   font-weight: 600;
   font-size: 14px;
   margin-bottom: 5px;
@@ -76,6 +78,7 @@ form input {
   font-size: 14px;
   outline: none;
   transition: border 0.3s ease;
+  box-sizing: border-box;
 }
 
 form input:focus {
@@ -96,7 +99,7 @@ form input:focus {
 }
 
 .form-options a {
-    font-family: 'arimo';
+  font-family: 'arimo';
   text-decoration: none;
   color: #fe1a1a;
 }
@@ -126,12 +129,10 @@ form input:focus {
 }
 
 .signup-link a {
-    font-family: 'arimo';
+  font-family: 'arimo';
   color: #fe1a1a;
   text-decoration: none;
   font-weight: bold;
 }
 
 /* Additional styles for SignupPage */
-
-

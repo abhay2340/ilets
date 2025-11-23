@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import './LoginPage.css';
 import logo from './assets/logo.png';
 import loginImage from './assets/login-image.jpg';
@@ -34,6 +35,7 @@ function LoginPage() {
   const { user, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const emailRegex = useMemo(() => /[^\s@]+@[^\s@]+\.[^\s@]+/, []);
@@ -87,7 +89,37 @@ function LoginPage() {
             <input type="email" placeholder="Enter your email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => setErrors(prev => ({ ...prev, email: emailRegex.test(email) ? undefined : 'Enter a valid email' }))} required />
             {errors.email && <div style={{ color: '#b30000', fontSize: 12, marginTop: 4 }}>{errors.email}</div>}
             <label>Password</label>
-            <input type="password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} onBlur={() => setErrors(prev => ({ ...prev, password: password ? undefined : 'Password is required' }))} required />
+            <div style={{ position: 'relative', marginBottom: '15px' }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onBlur={() => setErrors(prev => ({ ...prev, password: password ? undefined : 'Password is required' }))}
+                required
+                style={{ width: '100%', paddingRight: '40px', marginBottom: 0 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#666',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0
+                }}
+              >
+                {showPassword ? <FaEyeSlash size={20} /> : <FaEye size={20} />}
+              </button>
+            </div>
             {errors.password && <div style={{ color: '#b30000', fontSize: 12, marginTop: 4 }}>{errors.password}</div>}
 
             <div className="form-options">
