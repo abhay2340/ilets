@@ -245,6 +245,90 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
         );
       })()}
 
+      {/* Plan/Map/Diagram labelling (matrix + optional image) */}
+      {question.type === 'maplabel' && (() => {
+        const rows = Array.isArray(question.rows) ? question.rows : [];
+        const cols = Array.isArray(question.columns) ? question.columns : [];
+
+        const parsedCols = React.useMemo(() => cols.map((c) => {
+          const text = String(c ?? '').trim();
+          const [first, ...rest] = text.split(' ');
+          if (first && first.length === 1 && /[A-Z]/i.test(first)) {
+            return { letter: first.toUpperCase(), label: rest.join(' ').trim() };
+          }
+          return { letter: text.toUpperCase(), label: '' };
+        }), [cols.join('|')]);
+
+        const selections = React.useMemo(() => {
+          const initial = Array(rows.length).fill('');
+          if (typeof answer === 'string' && answer.length > 0) {
+            const parts = answer.split('|');
+            for (let i = 0; i < initial.length; i++) initial[i] = parts[i] || '';
+          }
+          return initial;
+        }, [answer, rows.length]);
+
+        const [localSel, setLocalSel] = React.useState(selections);
+        React.useEffect(() => { setLocalSel(selections); }, [selections.join('|')]);
+
+        const choose = (rowIdx, colLetter) => {
+          const next = [...localSel];
+          next[rowIdx] = colLetter;
+          setLocalSel(next);
+          onVisited?.(question.id);
+          setAnswer(next.join('|'));
+          try {
+            if (Array.isArray(question.subIds) && typeof question.subIds[rowIdx] === 'number' && typeof setAnswerForId === 'function') {
+              setAnswerForId(question.subIds[rowIdx], colLetter);
+            }
+          } catch { }
+        };
+
+        return (
+          <div style={{ marginTop: '10px' }}>
+            {question.imageSrc ? (
+              <div style={{ marginBottom: 12 }}>
+                <img src={question.imageSrc} alt="" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid #eee' }} />
+              </div>
+            ) : null}
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ borderCollapse: 'collapse', minWidth: '420px' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '8px', borderBottom: '2px solid #000' }}></th>
+                    {parsedCols.map((c, i) => (
+                      <th key={i} style={{ width: 36, textAlign: 'center', padding: '6px', borderBottom: '2px solid #000' }}>{c.letter}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((label, rIdx) => (
+                    <tr key={rIdx}>
+                      <td style={{ padding: '8px 6px', borderBottom: '1px solid #ccc', fontWeight: 600 }}>
+                        {Array.isArray(question.subIds) ? `${question.subIds[rIdx]}. ` : `${rIdx + 1} `}
+                        {typeof label === 'string' ? label : (label?.label ?? '')}
+                      </td>
+                      {parsedCols.map((c, cIdx) => (
+                        <td key={cIdx} style={{ textAlign: 'center', padding: '6px 4px', borderBottom: '1px solid #eee', cursor: 'pointer' }}>
+                          <input
+                            type="radio"
+                            name={`q-${question.id}-row-${rIdx}`}
+                            value={c.letter}
+                            checked={localSel[rIdx] === c.letter}
+                            onChange={() => choose(rIdx, c.letter)}
+                            style={{ transform: 'scale(0.9)', cursor: 'pointer' }}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Matching sentence endings - drag & drop */}
       {question.type === 'matchingdrag' && (() => {
         const rows = Array.isArray(question.rows) ? question.rows : [];

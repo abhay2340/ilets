@@ -16,6 +16,7 @@ const QUESTION_TYPES = [
     { value: 'matchingdrag', label: 'Matching Sentence Endings (Drag & Drop)' },
     { value: 'summarydrag', label: 'Summary Completion (Drag words into blanks)' },
     { value: 'sentencefill', label: 'Sentence Completion (typed words into blanks)' },
+    { value: 'maplabel', label: 'Plan/Map/Diagram Labelling (matrix + image)' },
     { value: 'info', label: 'Info/Instruction (No answer)' }
 ]
 
@@ -39,7 +40,7 @@ const buildValidationSchema = () =>
                 questions: yup.array().min(1, 'At least one question is required').of(
                     yup.object({
                         id: yup.mixed().notRequired(),
-                        type: yup.string().oneOf(['mcq', 'written', 'dropdown', 'matchinggroup', 'matchingdrag', 'summarydrag', 'sentencefill', 'info']).required('Type is required'),
+                        type: yup.string().oneOf(['mcq', 'written', 'dropdown', 'matchinggroup', 'matchingdrag', 'summarydrag', 'sentencefill', 'maplabel', 'info']).required('Type is required'),
                         question: yup.string().required('Question text is required'),
                         options: yup.array()
                             .when('type', {
@@ -65,8 +66,13 @@ const buildValidationSchema = () =>
                             then: (s) => s.notRequired(),
                             otherwise: (s) => s.strip()
                         }),
+                        imageSrc: yup.string().trim().when('type', {
+                            is: 'maplabel',
+                            then: (s) => s.notRequired(),
+                            otherwise: (s) => s.strip()
+                        }),
                         columns: yup.array().when('type', {
-                            is: 'matchinggroup',
+                            is: (t) => t === 'matchinggroup' || t === 'maplabel',
                             then: (s) => s.min(2, 'At least 2 columns (options) required').of(yup.string().trim().required('Column cannot be empty')),
                             otherwise: (s) => s.strip()
                         }),
@@ -77,18 +83,18 @@ const buildValidationSchema = () =>
                             otherwise: (s) => s.strip()
                         }),
                         rows: yup.array().when('type', {
-                            is: (t) => t === 'matchinggroup' || t === 'matchingdrag',
+                            is: (t) => t === 'matchinggroup' || t === 'matchingdrag' || t === 'maplabel',
                             then: (s) => s.min(1, 'Add at least 1 row').of(yup.string().trim().required('Row cannot be empty')),
                             otherwise: (s) => s.strip()
                         }),
                         answers: yup.array().when(['type', 'rows', 'question'], {
                             is: (vals) => {
                                 const [type] = Array.isArray(vals) ? vals : []
-                                return type === 'matchinggroup' || type === 'matchingdrag' || type === 'summarydrag' || type === 'sentencefill'
+                                return type === 'matchinggroup' || type === 'matchingdrag' || type === 'summarydrag' || type === 'sentencefill' || type === 'maplabel'
                             },
                             then: (s) => s.of(yup.string().trim().required('Answer cannot be empty')).test('answers-length', 'Answers must match number of items', function (val) {
                                 const type = this.parent.type
-                                if (type === 'matchinggroup' || type === 'matchingdrag') {
+                                if (type === 'matchinggroup' || type === 'matchingdrag' || type === 'maplabel') {
                                     const rows = this.parent.rows || []
                                     return Array.isArray(val) && val.length === rows.length
                                 }
@@ -197,6 +203,26 @@ const Admin = () => {
                         }
                         if (!out.displayId) delete out.displayId
                         return out
+                    }
+                    if (q.type === 'maplabel') {
+                        const rowCount = Array.isArray(q.rows) ? q.rows.length : 0
+                        const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i)
+                        if (Array.isArray(q.answers)) {
+                            q.answers.forEach((ans, idx) => {
+                                const subId = subIds[idx]
+                                if (subId != null) answerMap[subId] = ans
+                            })
+                        }
+                        nextId += rowCount
+                        return {
+                            id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
+                            type: 'maplabel',
+                            subIds,
+                            question: q.question,
+                            columns: Array.isArray(q.columns) ? q.columns : [],
+                            rows: Array.isArray(q.rows) ? q.rows : [],
+                            ...(q.imageSrc ? { imageSrc: q.imageSrc } : {})
+                        }
                     }
                     if (q.type === 'matchingdrag') {
                         const rowCount = Array.isArray(q.rows) ? q.rows.length : 0
@@ -329,7 +355,7 @@ const Admin = () => {
                             const answers = subIds.map((sid) => answersMap[sid] || '')
                             return { ...q, answers }
                         }
-                        if (q.type === 'matchingdrag' || q.type === 'summarydrag' || q.type === 'sentencefill') {
+                        if (q.type === 'matchingdrag' || q.type === 'summarydrag' || q.type === 'sentencefill' || q.type === 'maplabel') {
                             const subIds = Array.isArray(q.subIds) ? q.subIds : []
                             const answers = subIds.map((sid) => answersMap[sid] || '')
                             return { ...q, answers }
@@ -464,6 +490,7 @@ const Admin = () => {
                             register={register}
                             partIndex={partIndex}
                             errors={errors}
+                            setValue={setValue}
                         />
                     </div>
                 ))}
@@ -477,7 +504,7 @@ const Admin = () => {
     )
 }
 
-const QuestionsSection = ({ control, register, partIndex, errors }) => {
+const QuestionsSection = ({ control, register, partIndex, errors, setValue }) => {
     const { fields, append, remove } = useFieldArray({
         control,
         name: `parts.${partIndex}.questions`
@@ -503,6 +530,7 @@ const QuestionsSection = ({ control, register, partIndex, errors }) => {
                         qIndex={qIndex}
                         errors={errors}
                         remove={remove}
+                        setValue={setValue}
                     />
                 ))}
             </div>
@@ -522,7 +550,7 @@ const QuestionsSection = ({ control, register, partIndex, errors }) => {
     )
 }
 
-const QuestionCard = ({ control, register, partIndex, qIndex, errors, remove }) => {
+const QuestionCard = ({ control, register, partIndex, qIndex, errors, remove, setValue }) => {
     const fieldName = `parts.${partIndex}.questions.${qIndex}`
     const questionTypeError = errors.parts?.[partIndex]?.questions?.[qIndex]?.type?.message
     const questionTextError = errors.parts?.[partIndex]?.questions?.[qIndex]?.question?.message
@@ -560,7 +588,7 @@ const QuestionCard = ({ control, register, partIndex, qIndex, errors, remove }) 
 
             <OptionsSection control={control} register={register} partIndex={partIndex} qIndex={qIndex} errors={errors} />
 
-            <AnswerSection control={control} register={register} partIndex={partIndex} qIndex={qIndex} errors={errors} />
+            <AnswerSection control={control} register={register} setValue={setValue} partIndex={partIndex} qIndex={qIndex} errors={errors} />
         </div>
     )
 }
@@ -613,7 +641,7 @@ const OptionsEditor = ({ control, register, namePrefix, errors }) => {
     )
 }
 
-const AnswerSection = ({ control, register, partIndex, qIndex, errors }) => {
+const AnswerSection = ({ control, register, setValue, partIndex, qIndex, errors }) => {
     const namePrefix = `parts.${partIndex}.questions.${qIndex}`
     const fieldError = getNestedError(errors, `${namePrefix}.answer`)
 
@@ -635,6 +663,9 @@ const AnswerSection = ({ control, register, partIndex, qIndex, errors }) => {
                 }
                 if (type === 'sentencefill') {
                     return <SentenceFillEditor control={control} register={register} namePrefix={namePrefix} errors={errors} />
+                }
+                if (type === 'maplabel') {
+                    return <MapLabelEditor control={control} register={register} namePrefix={namePrefix} errors={errors} setValue={setValue} />
                 }
 
                 if (type === 'mcq' || type === 'dropdown') {
@@ -743,6 +774,98 @@ const MatchingGroupEditor = ({ control, register, namePrefix, errors }) => {
                         {answerFields.map((ans, idx) => (
                             <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
                                 <input placeholder={`Answer for Row ${idx + 1}`} {...register(`${namePrefix}.answers.${idx}`)} style={{ flex: 1, padding: 8 }} />
+                                <button type="button" onClick={() => removeRowWithAnswer(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" onClick={addRowWithAnswer} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Answer</button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+const MapLabelEditor = ({ control, register, namePrefix, errors, setValue }) => {
+    const { fields: columnFields, append: appendColumn, remove: removeColumn } = useFieldArray({ control, name: `${namePrefix}.columns` })
+    const { fields: rowFields, append: appendRow, remove: removeRow } = useFieldArray({ control, name: `${namePrefix}.rows` })
+    const { fields: answerFields, append: appendAnswer, remove: removeAnswer } = useFieldArray({ control, name: `${namePrefix}.answers` })
+
+    const columnsError = getNestedError(errors, `${namePrefix}.columns`)
+    const rowsError = getNestedError(errors, `${namePrefix}.rows`)
+    const answersError = getNestedError(errors, `${namePrefix}.answers`)
+
+    const addRowWithAnswer = () => {
+        appendRow('')
+        appendAnswer('')
+    }
+    const removeRowWithAnswer = (idx) => {
+        removeRow(idx)
+        removeAnswer(idx)
+    }
+
+    const [previewUrl, setPreviewUrl] = React.useState('')
+
+    return (
+        <div style={{ marginTop: 12 }}>
+            <label style={{ display: 'block', fontWeight: 600 }}>Plan/Map/Diagram Labelling</label>
+
+            <div style={{ marginTop: 8 }}>
+                <label style={{ display: 'block', fontWeight: 600 }}>Image URL (optional)</label>
+                <input placeholder="/images/map-1.png" {...register(`${namePrefix}.imageSrc`)} style={{ width: '100%', padding: 8 }} />
+                <small>Tip: Use the upload below to set this automatically to /images/&lt;filename&gt; and place the file in public/images/.</small>
+            </div>
+            <div style={{ marginTop: 8 }}>
+                <label style={{ display: 'block', fontWeight: 600 }}>Upload Image (optional)</label>
+                <input type="file" accept="image/*" onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const url = URL.createObjectURL(file)
+                    setPreviewUrl(url)
+                    try { setValue(`${namePrefix}.imageSrc`, `/images/${file.name}`) } catch (_) { }
+                }} />
+                {(previewUrl) && (
+                    <div style={{ marginTop: 8 }}>
+                        <img src={previewUrl} alt="" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid #eee' }} />
+                    </div>
+                )}
+            </div>
+
+            <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+                <div>
+                    <label style={{ display: 'block', fontWeight: 600 }}>Columns (A–H, etc.)</label>
+                    {typeof columnsError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{columnsError}</div>}
+                    <div style={{ display: 'grid', gap: 8 }}>
+                        {columnFields.map((col, idx) => (
+                            <div key={col.id} style={{ display: 'flex', gap: 8 }}>
+                                <input placeholder={`Letter ${idx + 1} (e.g., A)`} {...register(`${namePrefix}.columns.${idx}`)} style={{ flex: 1, padding: 8 }} />
+                                <button type="button" onClick={() => removeColumn(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" onClick={() => appendColumn('')} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Column</button>
+                </div>
+
+                <div>
+                    <label style={{ display: 'block', fontWeight: 600 }}>Rows (items to label)</label>
+                    {typeof rowsError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{rowsError}</div>}
+                    <div style={{ display: 'grid', gap: 8 }}>
+                        {rowFields.map((row, idx) => (
+                            <div key={row.id} style={{ display: 'flex', gap: 8 }}>
+                                <input placeholder={`Row ${idx + 1}`} {...register(`${namePrefix}.rows.${idx}`)} style={{ flex: 1, padding: 8 }} />
+                                <button type="button" onClick={() => removeRowWithAnswer(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" onClick={addRowWithAnswer} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Row</button>
+                </div>
+
+                <div>
+                    <label style={{ display: 'block', fontWeight: 600 }}>Answers (letter for each Row)</label>
+                    {typeof answersError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>}
+                    <div style={{ display: 'grid', gap: 8 }}>
+                        {answerFields.map((ans, idx) => (
+                            <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
+                                <input placeholder={`Letter for Row ${idx + 1}`} {...register(`${namePrefix}.answers.${idx}`)} style={{ flex: 1, padding: 8 }} />
                                 <button type="button" onClick={() => removeRowWithAnswer(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
                             </div>
                         ))}
