@@ -647,6 +647,89 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
         );
       })()}
 
+      {/* Table fill - blanks inside table cells */}
+      {question.type === 'tablefill' && (() => {
+        const table = question.table || {};
+        const rows = Array.isArray(table.rows) ? table.rows : [];
+        // Build selections array from joined answer "a|b|c" pattern
+        // We will maintain row-major blank order
+        const computeBlankCount = React.useCallback(() => {
+          let cnt = 0;
+          for (const rr of rows) {
+            for (const cell of (rr || [])) {
+              const m = String(cell || '').match(/_{3,}/g) || [];
+              cnt += m.length;
+            }
+          }
+          return cnt;
+        }, [rows]);
+
+        const selections = React.useMemo(() => {
+          const initialCount = computeBlankCount();
+          const initial = Array(initialCount).fill('');
+          if (typeof answer === 'string' && answer.length > 0) {
+            const parts = answer.split('|');
+            for (let i = 0; i < initial.length; i++) initial[i] = parts[i] || '';
+          }
+          return initial;
+        }, [answer, computeBlankCount]);
+
+        const [localSel, setLocalSel] = React.useState(selections);
+        React.useEffect(() => { setLocalSel(selections); }, [selections.join('|')]);
+
+        let globalIdx = -1;
+        const onChangeBlank = (val, idx) => {
+          const next = [...localSel];
+          next[idx] = val;
+          setLocalSel(next);
+          setAnswer(next.join('|'));
+          try {
+            if (Array.isArray(question.subIds) && typeof question.subIds[idx] === 'number' && typeof setAnswerForId === 'function') {
+              setAnswerForId(question.subIds[idx], val);
+            }
+          } catch { }
+        };
+
+        return (
+          <div style={{ marginTop: '10px' }}>
+            <div style={{ overflowX: 'auto', border: '1px solid #eee', borderRadius: 8 }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                <tbody>
+                  {rows.map((rr, rIdx) => (
+                    <tr key={rIdx}>
+                      {(rr || []).map((cell, cIdx) => {
+                        const chunks = String(cell ?? '').split(/_{3,}/);
+                        return (
+                          <td key={cIdx} style={{ border: '1px solid #e3e3e3', padding: 8, lineHeight: 1.8 }}>
+                            {chunks.map((ch, i) => {
+                              if (i === chunks.length - 1) return <span key={`tf-${rIdx}-${cIdx}-${i}`}>{ch}</span>;
+                              globalIdx += 1;
+                              const idx = globalIdx;
+                              return (
+                                <React.Fragment key={`tf-${rIdx}-${cIdx}-${i}`}>
+                                  <span>{ch}</span>
+                                  <input
+                                    type="text"
+                                    value={localSel[idx] || ''}
+                                    onChange={(e) => onChangeBlank(e.target.value, idx)}
+                                    style={{ padding: '4px 10px', minWidth: 90, borderRadius: '5px', border: '1px solid #ccc', margin: '0 6px', verticalAlign: 'middle' }}
+                                    placeholder={`${(question.displayId ?? question.id)}.${idx + 1}`}
+                                  />
+                                </React.Fragment>
+                              );
+                            })}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Dropdown for heading matching */}
       {question.type === 'dropdown' && (() => {
         // Parse options like "ii How hurricanes form" → value "ii", label full text

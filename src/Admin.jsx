@@ -17,6 +17,7 @@ const QUESTION_TYPES = [
     { value: 'summarydrag', label: 'Summary Completion (Drag words into blanks)' },
     { value: 'sentencefill', label: 'Sentence Completion (typed words into blanks)' },
     { value: 'maplabel', label: 'Plan/Map/Diagram Labelling (matrix + image)' },
+    { value: 'tablefill', label: 'Table Fill (typed blanks in table)' },
     { value: 'info', label: 'Info/Instruction (No answer)' }
 ]
 
@@ -40,8 +41,15 @@ const buildValidationSchema = () =>
                 questions: yup.array().min(1, 'At least one question is required').of(
                     yup.object({
                         id: yup.mixed().notRequired(),
-                        type: yup.string().oneOf(['mcq', 'written', 'dropdown', 'matchinggroup', 'matchingdrag', 'summarydrag', 'sentencefill', 'maplabel', 'info']).required('Type is required'),
+                        type: yup.string().oneOf(['mcq', 'written', 'dropdown', 'matchinggroup', 'matchingdrag', 'summarydrag', 'sentencefill', 'maplabel', 'tablefill', 'info']).required('Type is required'),
                         question: yup.string().required('Question text is required'),
+                        table: yup.object({
+                            rows: yup.array().of(yup.array().of(yup.string().default(''))).default([])
+                        }).when('type', {
+                            is: 'tablefill',
+                            then: (s) => s.required(),
+                            otherwise: (s) => s.strip()
+                        }),
                         options: yup.array()
                             .when('type', {
                                 is: (t) => t === 'mcq' || t === 'dropdown',
@@ -87,10 +95,10 @@ const buildValidationSchema = () =>
                             then: (s) => s.min(1, 'Add at least 1 row').of(yup.string().trim().required('Row cannot be empty')),
                             otherwise: (s) => s.strip()
                         }),
-                        answers: yup.array().when(['type', 'rows', 'question'], {
+                        answers: yup.array().when(['type', 'rows', 'question', 'table'], {
                             is: (vals) => {
                                 const [type] = Array.isArray(vals) ? vals : []
-                                return type === 'matchinggroup' || type === 'matchingdrag' || type === 'summarydrag' || type === 'sentencefill' || type === 'maplabel'
+                                return type === 'matchinggroup' || type === 'matchingdrag' || type === 'summarydrag' || type === 'sentencefill' || type === 'maplabel' || type === 'tablefill'
                             },
                             then: (s) => s.of(yup.string().trim().required('Answer cannot be empty')).test('answers-length', 'Answers must match number of items', function (val) {
                                 const type = this.parent.type
@@ -106,6 +114,17 @@ const buildValidationSchema = () =>
                                 if (type === 'sentencefill') {
                                     const qtext = this.parent.question || ''
                                     const blanks = (qtext.match(/_{3,}/g) || []).length
+                                    return Array.isArray(val) && val.length === blanks
+                                }
+                                if (type === 'tablefill') {
+                                    const rows = (this.parent.table?.rows || [])
+                                    let blanks = 0
+                                    for (const row of rows) {
+                                        for (const cell of (row || [])) {
+                                            const matches = String(cell || '').match(/_{3,}/g) || []
+                                            blanks += matches.length
+                                        }
+                                    }
                                     return Array.isArray(val) && val.length === blanks
                                 }
                                 return true
@@ -280,6 +299,31 @@ const Admin = () => {
                             question: q.question
                         }
                     }
+                    if (q.type === 'tablefill') {
+                        const rows = (q.table?.rows || [])
+                        let count = 0
+                        for (const rr of rows) {
+                            for (const cell of (rr || [])) {
+                                const matches = String(cell || '').match(/_{3,}/g) || []
+                                count += matches.length
+                            }
+                        }
+                        const subIds = Array.from({ length: count }, (_, i) => nextId + i)
+                        if (Array.isArray(q.answers)) {
+                            q.answers.forEach((ans, idx) => {
+                                const subId = subIds[idx]
+                                if (subId != null) answerMap[subId] = ans
+                            })
+                        }
+                        nextId += count
+                        return {
+                            id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
+                            type: 'tablefill',
+                            subIds,
+                            question: q.question,
+                            table: { rows: rows }
+                        }
+                    }
 
                     const id = nextId
                     nextId += 1
@@ -355,7 +399,7 @@ const Admin = () => {
                             const answers = subIds.map((sid) => answersMap[sid] || '')
                             return { ...q, answers }
                         }
-                        if (q.type === 'matchingdrag' || q.type === 'summarydrag' || q.type === 'sentencefill' || q.type === 'maplabel') {
+                        if (q.type === 'matchingdrag' || q.type === 'summarydrag' || q.type === 'sentencefill' || q.type === 'maplabel' || q.type === 'tablefill') {
                             const subIds = Array.isArray(q.subIds) ? q.subIds : []
                             const answers = subIds.map((sid) => answersMap[sid] || '')
                             return { ...q, answers }
@@ -666,6 +710,9 @@ const AnswerSection = ({ control, register, setValue, partIndex, qIndex, errors 
                 }
                 if (type === 'maplabel') {
                     return <MapLabelEditor control={control} register={register} namePrefix={namePrefix} errors={errors} setValue={setValue} />
+                }
+                if (type === 'tablefill') {
+                    return <TableFillEditor control={control} register={register} namePrefix={namePrefix} errors={errors} setValue={setValue} />
                 }
 
                 if (type === 'mcq' || type === 'dropdown') {
@@ -1011,6 +1058,208 @@ const SentenceFillEditor = ({ control, register, namePrefix, errors }) => {
                     ))}
                 </div>
                 <button type="button" onClick={() => appendAnswer('')} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Answer</button>
+            </div>
+        </div>
+    )
+}
+
+const TableFillEditor = ({ control, register, namePrefix, errors, setValue }) => {
+    const answersError = getNestedError(errors, `${namePrefix}.answers`)
+    // helper to read current rows
+    const [_, force] = React.useState(0)
+    const getRows = () => {
+        try {
+            // react-hook-form watch is not available here; we will rely on setValue updates to force render
+            // Provide a fallback storage on window for simplicity
+            return []
+        } catch { return [] }
+    }
+
+    const rowsRef = React.useRef([]) // we keep a mirror for ease
+    const ensureInit = () => {
+        const path = `${namePrefix}.table.rows`
+        try {
+            const current = rowsRef.current
+            if (!Array.isArray(current) || current.length === 0) {
+                rowsRef.current = [['']]
+                setValue(path, [['']])
+            }
+        } catch { }
+    }
+    React.useEffect(() => { ensureInit(); }, [])
+
+    const getColCount = () => {
+        const rows = rowsRef.current || []
+        return rows.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0) || 1
+    }
+
+    const addRow = () => {
+        const cols = getColCount()
+        const next = [...(rowsRef.current || [])]
+        next.push(Array.from({ length: cols }, () => ''))
+        rowsRef.current = next
+        setValue(`${namePrefix}.table.rows`, next)
+        force(x => x + 1)
+    }
+    const addCol = () => {
+        const next = (rowsRef.current || []).map(r => {
+            const row = Array.isArray(r) ? [...r] : []
+            row.push('')
+            return row
+        })
+        if (next.length === 0) next.push([''])
+        rowsRef.current = next
+        setValue(`${namePrefix}.table.rows`, next)
+        force(x => x + 1)
+    }
+    const removeRow = (idx) => {
+        const next = [...(rowsRef.current || [])]
+        next.splice(idx, 1)
+        if (next.length === 0) next.push([''])
+        rowsRef.current = next
+        setValue(`${namePrefix}.table.rows`, next)
+        force(x => x + 1)
+    }
+    const removeCol = (idx) => {
+        const base = rowsRef.current || []
+        const next = base.map(r => {
+            const row = Array.isArray(r) ? [...r] : []
+            if (row.length > 1) row.splice(idx, 1)
+            return row.length === 0 ? [''] : row
+        })
+        rowsRef.current = next
+        setValue(`${namePrefix}.table.rows`, next)
+        force(x => x + 1)
+    }
+    const setCell = (r, c, v) => {
+        const next = (rowsRef.current || []).map((row, ri) => {
+            if (ri !== r) return row
+            const copy = Array.isArray(row) ? [...row] : []
+            copy[c] = v
+            return copy
+        })
+        rowsRef.current = next
+        setValue(`${namePrefix}.table.rows`, next)
+        force(x => x + 1)
+    }
+
+    // Count blanks
+    const getBlankCount = () => {
+        const rows = rowsRef.current || []
+        let blanks = 0
+        for (const row of rows) {
+            for (const cell of (row || [])) {
+                const m = String(cell || '').match(/_{3,}/g) || []
+                blanks += m.length
+            }
+        }
+        return blanks
+    }
+    const getBlankCoords = () => {
+        const rows = rowsRef.current || []
+        const coords = []
+        for (let r = 0; r < rows.length; r++) {
+            const row = rows[r] || []
+            for (let c = 0; c < row.length; c++) {
+                const cell = String(row[c] ?? '')
+                const m = cell.match(/_{3,}/g) || []
+                for (let k = 0; k < m.length; k++) {
+                    coords.push({ r: r + 1, c: c + 1, k: k + 1 })
+                }
+            }
+        }
+        return coords
+    }
+
+    const syncAnswers = () => {
+        const count = getBlankCount()
+        const path = `${namePrefix}.answers`
+        // We do not have read; just set length
+        const arr = Array.from({ length: count }, () => '')
+        setValue(path, arr)
+        force(x => x + 1)
+    }
+
+    const rows = rowsRef.current || []
+    const colCount = getColCount()
+
+    return (
+        <div style={{ marginTop: 12 }}>
+            <div style={{ marginBottom: 6, color: '#555' }}>
+                Use three or more underscores ___ inside any cell to mark a blank. Students will see inputs inline.
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                <button type="button" onClick={addRow} style={{ background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Row</button>
+                <button type="button" onClick={addCol} style={{ background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Column</button>
+                <button type="button" onClick={syncAnswers} style={{ background: '#f0fff5', border: '1px solid #c8f0d2', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Sync Answers to Blanks</button>
+                <div style={{ fontSize: 13, color: '#555', alignSelf: 'center' }}>Blanks detected: {getBlankCount()}</div>
+            </div>
+
+            <div style={{ overflowX: 'auto', border: '1px solid #eee', borderRadius: 8 }}>
+                <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+                    <thead>
+                        <tr>
+                            <th style={{ width: 50, textAlign: 'center', border: '1px solid #e3e3e3', background: '#fafafa' }}>r\\c</th>
+                            {Array.from({ length: colCount }).map((_, cIdx) => (
+                                <th key={cIdx} style={{ textAlign: 'center', border: '1px solid #e3e3e3', background: '#fafafa', padding: '6px 8px' }}>{cIdx + 1}</th>
+                            ))}
+                            <th style={{ width: 120, border: '1px solid #e3e3e3', background: '#fafafa' }}></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((row, rIdx) => (
+                            <tr key={rIdx}>
+                                <td style={{ textAlign: 'center', border: '1px solid #e3e3e3', padding: '6px 8px', background: '#fafafa', fontWeight: 600 }}>{rIdx + 1}</td>
+                                {(Array.from({ length: Math.max(colCount, row?.length || 0) })).map((_, cIdx) => (
+                                    <td key={cIdx} style={{ border: '1px solid #e3e3e3', padding: 0 }}>
+                                        <input
+                                            value={String(row?.[cIdx] ?? '')}
+                                            onChange={(e) => setCell(rIdx, cIdx, e.target.value)}
+                                            placeholder="Cell"
+                                            style={{ width: '100%', padding: 8, border: 'none', outline: 'none' }}
+                                        />
+                                    </td>
+                                ))}
+                                <td style={{ padding: 6, whiteSpace: 'nowrap' }}>
+                                    <button type="button" onClick={() => removeRow(rIdx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 8px', borderRadius: 6, cursor: 'pointer' }}>Remove Row</button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style={{ marginTop: 8 }}>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>Remove Column</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {Array.from({ length: colCount }).map((_, idx) => (
+                        <button key={idx} type="button" onClick={() => removeCol(idx)} style={{ background: '#fff8e6', border: '1px solid #ffe8b3', padding: '6px 8px', borderRadius: 6, cursor: 'pointer' }}>
+                            Column {idx + 1}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div style={{ marginTop: 12 }}>
+                <label style={{ display: 'block', fontWeight: 600 }}>Answers (row-major, one per blank)</label>
+                {typeof answersError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>}
+                <div style={{ display: 'grid', gap: 8 }}>
+                    {(() => {
+                        const coords = getBlankCoords()
+                        return coords.map((pos, idx) => (
+                            <div key={`${pos.r}-${pos.c}-${pos.k}-${idx}`} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <div style={{ width: 150, color: '#666' }}>Blank ({pos.r},{pos.c}){pos.k > 1 ? ` #${pos.k}` : ''}</div>
+                                <input
+                                    {...register(`${namePrefix}.answers.${idx}`)}
+                                    placeholder={`Answer (${pos.r},${pos.c})${pos.k > 1 ? ` #${pos.k}` : ''}`}
+                                    style={{ flex: 1, padding: 8 }}
+                                />
+                            </div>
+                        ))
+                    })()}
+                    <small style={{ color: '#666' }}>Order: row-major (left→right, top→bottom). Coordinates are 1-based (row,col).</small>
+                </div>
             </div>
         </div>
     )
