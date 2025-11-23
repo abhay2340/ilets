@@ -78,6 +78,7 @@ const TestPage = () => {
   const audioRef = useRef(null);
   const [listeningStarted, setListeningStarted] = useState(false);
   const lastTimeRef = useRef(0); // last allowed playback time
+  const [audioError, setAudioError] = useState(null);
 
   // Resizable vertical splitter between passage and questions
   const [passageWidth, setPassageWidth] = useState(50); // percentage
@@ -721,6 +722,11 @@ const TestPage = () => {
                 Once you start, the audio will play continuously and cannot be paused or stopped.
                 Please ensure you are ready before beginning.
               </p>
+              {audioError && (
+                <div style={{ maxWidth: '640px', marginBottom: 16, color: '#ffcccc' }}>
+                  {audioError}
+                </div>
+              )}
               <button
                 onClick={() => {
                   startListening();
@@ -746,8 +752,10 @@ const TestPage = () => {
           {/* Hidden, locked audio (NO controls) */}
           <audio
             ref={audioRef}
-            src={persistentAudioSrc}
+            src={persistentAudioSrc ? encodeURI(persistentAudioSrc) : undefined}
             preload="auto"
+            onLoadedData={() => setAudioError(null)}
+            onError={() => setAudioError(`Audio failed to load. Please verify the file exists at "${persistentAudioSrc}" and the path is correct (avoid typos and ensure it is inside public/audio).`)}
           // no controls -> no play/pause UI
           // we also block pause/seek via events + MediaSession
           />

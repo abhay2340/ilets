@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useForm, useFieldArray, Controller } from 'react-hook-form'
 import { toast } from 'react-toastify'
-import { db } from './firebaseConfig'
+import { db, storage } from './firebaseConfig'
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore'
 import { useParams } from 'react-router-dom'
 import * as yup from 'yup'
@@ -507,19 +508,34 @@ const Admin = () => {
                             {watch('testMeta.type') === 'audio' && (
                                 <>
                                     <div>
-                                        <label style={{ display: 'block', fontWeight: 600 }}>Audio Src (optional)</label>
-                                        <input placeholder="/audio/test-1.m4a" {...register(`parts.${partIndex}.audioSrc`)} style={{ width: '100%', padding: 8 }} />
-                                        <small>Tip: Use the upload below to set this automatically to /audio/&lt;filename&gt; and then place the file in public/audio/.</small>
+                                        <label style={{ display: 'block', fontWeight: 600 }}>Audio Src</label>
+                                        <input placeholder="Will be set after upload" {...register(`parts.${partIndex}.audioSrc`)} style={{ width: '100%', padding: 8 }} />
+                                        <small>Uploads to Firebase Storage and sets a streaming URL automatically.</small>
                                     </div>
 
                                     <div>
                                         <label style={{ display: 'block', fontWeight: 600 }}>Upload Audio (optional)</label>
-                                        <input type="file" accept="audio/*" onChange={(e) => {
+                                        <input type="file" accept="audio/*" onChange={async (e) => {
                                             const file = e.target.files?.[0]
                                             if (!file) return
-                                            const url = URL.createObjectURL(file)
-                                            setAudioPreviews((prev) => ({ ...prev, [partIndex]: url }))
-                                            setValue(`parts.${partIndex}.audioSrc`, `/audio/${file.name}`)
+                                            // show local preview immediately
+                                            try {
+                                                const localUrl = URL.createObjectURL(file)
+                                                setAudioPreviews((prev) => ({ ...prev, [partIndex]: localUrl }))
+                                            } catch { }
+                                            // upload to Firebase Storage
+                                            try {
+                                                const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
+                                                const path = `tests/audio/${safeName}`
+                                                const ref = storageRef(storage, path)
+                                                await uploadBytes(ref, file, { contentType: file.type || 'audio/mpeg' })
+                                                const downloadURL = await getDownloadURL(ref)
+                                                setValue(`parts.${partIndex}.audioSrc`, downloadURL)
+                                                try { toast.success('Audio uploaded'); } catch { }
+                                            } catch (err) {
+                                                console.error('Audio upload failed', err)
+                                                try { toast.error('Audio upload failed'); } catch { }
+                                            }
                                         }} />
                                         {audioPreviews[partIndex] && (
                                             <audio controls style={{ marginTop: 8, width: '100%' }} src={audioPreviews[partIndex]} />
