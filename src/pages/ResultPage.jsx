@@ -189,7 +189,7 @@ const ResultPage = () => {
                   boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
                 }}>
                   <div style={{ color: '#6b7280', fontWeight: 800, fontSize: 14, marginBottom: 4 }}>Test</div>
-                  <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: 0.2 }}>{String(testId).toUpperCase()}</div>
+                  <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: 0.2 }}>{testData?.title || String(testId).toUpperCase()}</div>
                   <div style={{ height: 10 }} />
                   <div style={{ color: '#6b7280', fontWeight: 800, fontSize: 14, marginBottom: 4 }}>Score</div>
                   <div style={{ fontSize: 28, fontWeight: 900 }}>{correct}/{total} ({accuracy}%)</div>

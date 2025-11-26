@@ -752,7 +752,7 @@ const TestPage = () => {
           {/* Hidden, locked audio (NO controls) */}
           <audio
             ref={audioRef}
-            src={persistentAudioSrc ? encodeURI(persistentAudioSrc) : undefined}
+            src={persistentAudioSrc || undefined}
             preload="auto"
             onLoadedData={() => setAudioError(null)}
             onError={() => setAudioError(`Audio failed to load. Please verify the file exists at "${persistentAudioSrc}" and the path is correct (avoid typos and ensure it is inside public/audio).`)}

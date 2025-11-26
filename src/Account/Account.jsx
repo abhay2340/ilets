@@ -6,8 +6,11 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import './Account.css'; // Ensure you have this CSS file for styling
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebaseConfig.jsx';
+import ConfirmationModal from '../components/ConfirmationModal';
+
 const Account = () => {
   const [selectedTab, setSelectedTab] = useState('profile');
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -25,11 +28,20 @@ const Account = () => {
     return <p>Please log in to access your account.</p>;
   }
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
+    setIsLogoutModalOpen(true);
+  };
+
+  const handleConfirmLogout = async () => {
+    setIsLogoutModalOpen(false);
     try {
       await signOut(auth);
     } catch (_) { }
     navigate('/login');
+  };
+
+  const handleCancelLogout = () => {
+    setIsLogoutModalOpen(false);
   };
 
   // Support deep linking via ?tab=profile|history|overview|logout
@@ -42,6 +54,12 @@ const Account = () => {
 
   const handleChangeTab = (tab) => {
     const next = (tab || '').toLowerCase();
+
+    if (next === 'logout') {
+      handleLogoutClick();
+      return;
+    }
+
     setSelectedTab(next);
     try {
       const url = `/account?tab=${encodeURIComponent(next)}`;
@@ -53,8 +71,17 @@ const Account = () => {
     <>
       <div className="account-container">
         <AccountSidebar selectedTab={selectedTab} setSelectedTab={setSelectedTab} onChangeTab={handleChangeTab} />
-        <AccountContent selectedTab={selectedTab} user={user} onLogout={handleLogout} />
+        <AccountContent selectedTab={selectedTab} user={user} onLogout={handleConfirmLogout} />
       </div>
+      <ConfirmationModal
+        isOpen={isLogoutModalOpen}
+        onClose={handleCancelLogout}
+        onConfirm={handleConfirmLogout}
+        title="Confirm Logout"
+        message="Are you sure you want to log out of your account?"
+        confirmText="Logout"
+        cancelText="Cancel"
+      />
     </>
   );
 };
