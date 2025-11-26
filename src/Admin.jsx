@@ -1,1296 +1,2203 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { useForm, useFieldArray, Controller } from 'react-hook-form'
-import { toast } from 'react-toastify'
-import { db, storage } from './firebaseConfig'
-import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore'
-import { useParams } from 'react-router-dom'
-import * as yup from 'yup'
-import { yupResolver } from '@hookform/resolvers/yup'
-import LoaderOverlay from './components/LoaderOverlay.jsx'
+import React, { useEffect, useMemo, useState } from 'react';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { toast } from 'react-toastify';
+import { db, storage } from './firebaseConfig';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { useParams } from 'react-router-dom';
+import * as yup from 'yup';
+import { yupResolver } from '@hookform/resolvers/yup';
+import LoaderOverlay from './components/LoaderOverlay.jsx';
 
 const QUESTION_TYPES = [
-    { value: 'mcq', label: 'Multiple Choice (TRUE/FALSE/NOT GIVEN or options)' },
-    { value: 'written', label: 'Written (Short Text Answer)' },
-    { value: 'dropdown', label: 'Dropdown (Choose One)' },
-    { value: 'matchinggroup', label: 'Matching Group (Rows ↔ Columns)' },
-    { value: 'matchingdrag', label: 'Matching Sentence Endings (Drag & Drop)' },
-    { value: 'summarydrag', label: 'Summary Completion (Drag words into blanks)' },
-    { value: 'sentencefill', label: 'Sentence Completion (typed words into blanks)' },
-    { value: 'maplabel', label: 'Plan/Map/Diagram Labelling (matrix + image)' },
-    { value: 'tablefill', label: 'Table Fill (typed blanks in table)' },
-    { value: 'info', label: 'Info/Instruction (No answer)' }
-]
+  { value: 'mcq', label: 'Multiple Choice (TRUE/FALSE/NOT GIVEN or options)' },
+  { value: 'written', label: 'Written (Short Text Answer)' },
+  { value: 'dropdown', label: 'Dropdown (Choose One)' },
+  { value: 'matchinggroup', label: 'Matching Group (Rows ↔ Columns)' },
+  { value: 'matchingdrag', label: 'Matching Sentence Endings (Drag & Drop)' },
+  { value: 'summarydrag', label: 'Summary Completion (Drag words into blanks)' },
+  { value: 'sentencefill', label: 'Sentence Completion (typed words into blanks)' },
+  { value: 'maplabel', label: 'Plan/Map/Diagram Labelling (matrix + image)' },
+  { value: 'tablefill', label: 'Table Fill (typed blanks in table)' },
+  { value: 'info', label: 'Info/Instruction (No answer)' },
+];
 
 const buildValidationSchema = () =>
-    yup.object({
-        testMeta: yup.object({
-            title: yup.string().trim().required('Test title is required'),
-            number: yup.number()
-                .transform((value, originalValue) => originalValue === '' ? undefined : value)
-                .typeError('Test number must be a number')
-                .integer('Test number must be an integer')
-                .positive('Test number must be positive')
-                .required('Test number is required'),
-            type: yup.string().oneOf(['audio', 'non-audio']).required('Test type is required')
-        }),
-        parts: yup.array().of(
-            yup.object({
-                title: yup.string().required('Part title is required'),
-                passage: yup.string().required('Passage is required'),
-                audioSrc: yup.string().trim().notRequired(),
-                questions: yup.array().min(1, 'At least one question is required').of(
-                    yup.object({
-                        id: yup.mixed().notRequired(),
-                        type: yup.string().oneOf(['mcq', 'written', 'dropdown', 'matchinggroup', 'matchingdrag', 'summarydrag', 'sentencefill', 'maplabel', 'tablefill', 'info']).required('Type is required'),
-                        question: yup.string().required('Question text is required'),
-                        table: yup.object({
-                            rows: yup.array().of(yup.array().of(yup.string().default(''))).default([])
-                        }).when('type', {
-                            is: 'tablefill',
-                            then: (s) => s.required(),
-                            otherwise: (s) => s.strip()
-                        }),
-                        options: yup.array()
-                            .when('type', {
-                                is: (t) => t === 'mcq' || t === 'dropdown',
-                                then: (schema) => schema.min(2, 'Provide at least 2 options').of(
-                                    yup.string().trim().required('Option cannot be empty')
-                                ),
-                                otherwise: (schema) => schema.strip()
-                            }),
-                        answer: yup.string().trim().when('type', {
-                            is: (t) => t === 'mcq' || t === 'dropdown' || t === 'written',
-                            then: (schema) => schema.required('Answer is required'),
-                            otherwise: (schema) => schema.strip()
-                        }).when(['type', 'options'], (values, schema) => {
-                            const [type, options] = Array.isArray(values) ? values : [undefined, undefined]
-                            if ((type === 'mcq' || type === 'dropdown') && Array.isArray(options) && options.length > 0) {
-                                return schema.oneOf(options, 'Answer must match one of the options')
+  yup.object({
+    testMeta: yup.object({
+      title: yup.string().trim().required('Test title is required'),
+      number: yup
+        .number()
+        .transform((value, originalValue) => (originalValue === '' ? undefined : value))
+        .typeError('Test number must be a number')
+        .integer('Test number must be an integer')
+        .positive('Test number must be positive')
+        .required('Test number is required'),
+      type: yup.string().oneOf(['audio', 'non-audio']).required('Test type is required'),
+    }),
+    parts: yup
+      .array()
+      .of(
+        yup.object({
+          title: yup.string().required('Part title is required'),
+          passage: yup.string().required('Passage is required'),
+          audioSrc: yup.string().trim().notRequired(),
+          questions: yup
+            .array()
+            .min(1, 'At least one question is required')
+            .of(
+              yup.object({
+                id: yup.mixed().notRequired(),
+                type: yup
+                  .string()
+                  .oneOf([
+                    'mcq',
+                    'written',
+                    'dropdown',
+                    'matchinggroup',
+                    'matchingdrag',
+                    'summarydrag',
+                    'sentencefill',
+                    'maplabel',
+                    'tablefill',
+                    'info',
+                  ])
+                  .required('Type is required'),
+                question: yup.string().required('Question text is required'),
+                table: yup
+                  .object({
+                    rows: yup
+                      .array()
+                      .of(yup.array().of(yup.string().default('')))
+                      .default([]),
+                  })
+                  .when('type', {
+                    is: 'tablefill',
+                    then: (s) => s.required(),
+                    otherwise: (s) => s.strip(),
+                  }),
+                options: yup.array().when('type', {
+                  is: (t) =>
+                    t === 'mcq' || t === 'dropdown' || t === 'matchingdrag' || t === 'summarydrag',
+                  then: (schema) =>
+                    schema
+                      .min(2, 'Provide at least 2 options')
+                      .of(yup.string().trim().required('Option cannot be empty')),
+                  otherwise: (schema) => schema.strip(),
+                }),
+                answer: yup
+                  .string()
+                  .trim()
+                  .when('type', {
+                    is: (t) => t === 'mcq' || t === 'dropdown' || t === 'written',
+                    then: (schema) => schema.required('Answer is required'),
+                    otherwise: (schema) => schema.strip(),
+                  })
+                  .when(['type', 'options'], (values, schema) => {
+                    const [type, options] = Array.isArray(values) ? values : [undefined, undefined];
+                    if (
+                      (type === 'mcq' || type === 'dropdown') &&
+                      Array.isArray(options) &&
+                      options.length > 0
+                    ) {
+                      return schema.oneOf(options, 'Answer must match one of the options');
+                    }
+                    return schema;
+                  }),
+                displayId: yup
+                  .string()
+                  .trim()
+                  .when('type', {
+                    is: 'matchinggroup',
+                    then: (s) => s.notRequired(),
+                    otherwise: (s) => s.strip(),
+                  }),
+                imageSrc: yup
+                  .string()
+                  .trim()
+                  .when('type', {
+                    is: 'maplabel',
+                    then: (s) => s.notRequired(),
+                    otherwise: (s) => s.strip(),
+                  }),
+                columns: yup.array().when('type', {
+                  is: (t) => t === 'matchinggroup' || t === 'maplabel',
+                  then: (s) =>
+                    s
+                      .min(2, 'At least 2 columns (options) required')
+                      .of(yup.string().trim().required('Column cannot be empty')),
+                  otherwise: (s) => s.strip(),
+                }),
+                rows: yup.array().when('type', {
+                  is: (t) => t === 'matchinggroup' || t === 'matchingdrag' || t === 'maplabel',
+                  then: (s) =>
+                    s
+                      .min(1, 'Add at least 1 row')
+                      .of(yup.string().trim().required('Row cannot be empty')),
+                  otherwise: (s) => s.strip(),
+                }),
+                answers: yup.array().when(['type', 'rows', 'question', 'table'], {
+                  is: (vals) => {
+                    const [type] = Array.isArray(vals) ? vals : [];
+                    return (
+                      type === 'matchinggroup' ||
+                      type === 'matchingdrag' ||
+                      type === 'summarydrag' ||
+                      type === 'sentencefill' ||
+                      type === 'maplabel' ||
+                      type === 'tablefill'
+                    );
+                  },
+                  then: (s) =>
+                    s
+                      .of(yup.string().trim().required('Answer cannot be empty'))
+                      .test('answers-length', 'Answers must match number of items', function (val) {
+                        const type = this.parent.type;
+                        if (
+                          type === 'matchinggroup' ||
+                          type === 'matchingdrag' ||
+                          type === 'maplabel'
+                        ) {
+                          const rows = this.parent.rows || [];
+                          return Array.isArray(val) && val.length === rows.length;
+                        }
+                        if (type === 'summarydrag') {
+                          const qtext = this.parent.question || '';
+                          const blanks = (qtext.match(/_{3,}/g) || []).length;
+                          return Array.isArray(val) && val.length === blanks;
+                        }
+                        if (type === 'sentencefill') {
+                          const qtext = this.parent.question || '';
+                          const blanks = (qtext.match(/_{3,}/g) || []).length;
+                          return Array.isArray(val) && val.length === blanks;
+                        }
+                        if (type === 'tablefill') {
+                          const rows = this.parent.table?.rows || [];
+                          let blanks = 0;
+                          for (const row of rows) {
+                            for (const cell of row || []) {
+                              const matches = String(cell || '').match(/_{3,}/g) || [];
+                              blanks += matches.length;
                             }
-                            return schema
-                        }),
-                        displayId: yup.string().trim().when('type', {
-                            is: 'matchinggroup',
-                            then: (s) => s.notRequired(),
-                            otherwise: (s) => s.strip()
-                        }),
-                        imageSrc: yup.string().trim().when('type', {
-                            is: 'maplabel',
-                            then: (s) => s.notRequired(),
-                            otherwise: (s) => s.strip()
-                        }),
-                        columns: yup.array().when('type', {
-                            is: (t) => t === 'matchinggroup' || t === 'maplabel',
-                            then: (s) => s.min(2, 'At least 2 columns (options) required').of(yup.string().trim().required('Column cannot be empty')),
-                            otherwise: (s) => s.strip()
-                        }),
-                        // For drag-match and summary we use options instead of columns
-                        options: yup.array().when('type', {
-                            is: (t) => t === 'matchingdrag' || t === 'summarydrag',
-                            then: (s) => s.min(2, 'At least 2 options (endings) required').of(yup.string().trim().required('Option cannot be empty')),
-                            otherwise: (s) => s.strip()
-                        }),
-                        rows: yup.array().when('type', {
-                            is: (t) => t === 'matchinggroup' || t === 'matchingdrag' || t === 'maplabel',
-                            then: (s) => s.min(1, 'Add at least 1 row').of(yup.string().trim().required('Row cannot be empty')),
-                            otherwise: (s) => s.strip()
-                        }),
-                        answers: yup.array().when(['type', 'rows', 'question', 'table'], {
-                            is: (vals) => {
-                                const [type] = Array.isArray(vals) ? vals : []
-                                return type === 'matchinggroup' || type === 'matchingdrag' || type === 'summarydrag' || type === 'sentencefill' || type === 'maplabel' || type === 'tablefill'
-                            },
-                            then: (s) => s.of(yup.string().trim().required('Answer cannot be empty')).test('answers-length', 'Answers must match number of items', function (val) {
-                                const type = this.parent.type
-                                if (type === 'matchinggroup' || type === 'matchingdrag' || type === 'maplabel') {
-                                    const rows = this.parent.rows || []
-                                    return Array.isArray(val) && val.length === rows.length
-                                }
-                                if (type === 'summarydrag') {
-                                    const qtext = this.parent.question || ''
-                                    const blanks = (qtext.match(/_{3,}/g) || []).length
-                                    return Array.isArray(val) && val.length === blanks
-                                }
-                                if (type === 'sentencefill') {
-                                    const qtext = this.parent.question || ''
-                                    const blanks = (qtext.match(/_{3,}/g) || []).length
-                                    return Array.isArray(val) && val.length === blanks
-                                }
-                                if (type === 'tablefill') {
-                                    const rows = (this.parent.table?.rows || [])
-                                    let blanks = 0
-                                    for (const row of rows) {
-                                        for (const cell of (row || [])) {
-                                            const matches = String(cell || '').match(/_{3,}/g) || []
-                                            blanks += matches.length
-                                        }
-                                    }
-                                    return Array.isArray(val) && val.length === blanks
-                                }
-                                return true
-                            }),
-                            otherwise: (s) => s.strip()
-                        })
-                    })
-                )
-            })
-        ).min(1, 'At least one part is required')
-    })
+                          }
+                          return Array.isArray(val) && val.length === blanks;
+                        }
+                        return true;
+                      }),
+                  otherwise: (s) => s.strip(),
+                }),
+              })
+            ),
+        })
+      )
+      .min(1, 'At least one part is required'),
+  });
 
 const defaultValues = {
-    testMeta: { title: '', number: '', type: 'non-audio' },
-    parts: [
-        {
-            title: '',
-            passage: '',
-            audioSrc: '',
-            questions: []
-        }
-    ]
-}
+  testMeta: { title: '', number: '', type: 'non-audio' },
+  parts: [
+    {
+      title: '',
+      passage: '',
+      audioSrc: '',
+      questions: [],
+    },
+  ],
+};
 
 const Admin = () => {
-    const validationSchema = useMemo(() => buildValidationSchema(), [])
+  const validationSchema = useMemo(() => buildValidationSchema(), []);
 
-    const { control, register, handleSubmit, watch, reset, setValue, trigger, formState: { errors } } = useForm({
-        defaultValues,
-        resolver: yupResolver(validationSchema),
-        mode: 'onChange',
-        reValidateMode: 'onChange',
-        shouldUnregister: false
-    })
-    useEffect(() => {
-        console.log(errors)
-    }, [errors])
+  const {
+    control,
+    register,
+    handleSubmit,
+    watch,
+    reset,
+    setValue,
+    trigger,
+    formState: { errors },
+  } = useForm({
+    defaultValues,
+    resolver: yupResolver(validationSchema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
+    shouldUnregister: false,
+  });
+  useEffect(() => {
+    console.log(errors);
+  }, [errors]);
 
-    const { fields: partFields, append: appendPart, remove: removePart } = useFieldArray({
-        control,
-        name: 'parts'
-    })
+  const {
+    fields: partFields,
+    append: appendPart,
+    remove: removePart,
+  } = useFieldArray({
+    control,
+    name: 'parts',
+  });
 
-    const [generatedQuestionsJson, setGeneratedQuestionsJson] = useState('')
-    const [generatedAnswersJson, setGeneratedAnswersJson] = useState('')
-    const [audioPreviews, setAudioPreviews] = useState({})
-    const [isSaving, setIsSaving] = useState(false)
-    const { testId } = useParams()
-    const isEditing = Boolean(testId)
-    const [isLoadingExisting, setIsLoadingExisting] = useState(false)
+  const [generatedQuestionsJson, setGeneratedQuestionsJson] = useState('');
+  const [generatedAnswersJson, setGeneratedAnswersJson] = useState('');
+  const [audioPreviews, setAudioPreviews] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
+  const { testId } = useParams();
+  const isEditing = Boolean(testId);
+  const [isLoadingExisting, setIsLoadingExisting] = useState(false);
 
-    const onSubmit = async (values) => {
-        const { testMeta } = values
-        const answerMap = {}
-        let nextId = 1
+  const onSubmit = async (values) => {
+    const { testMeta } = values;
+    const answerMap = {};
+    let nextId = 1;
 
-        if (testMeta.type === 'audio') {
-            const missing = (values.parts || []).some((p) => !p.audioSrc || !p.audioSrc.trim())
-            if (missing) {
-                toast.error('Audio test selected: Please provide audioSrc for all parts')
-                return
+    if (testMeta.type === 'audio') {
+      const missing = (values.parts || []).some((p) => !p.audioSrc || !p.audioSrc.trim());
+      if (missing) {
+        toast.error('Audio test selected: Please provide audioSrc for all parts');
+        return;
+      }
+    }
+
+    const generatedId = isEditing
+      ? testId
+      : typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    const normalized = {
+      id: generatedId,
+      title: testMeta.title,
+      number: testMeta.number,
+      type: testMeta.type,
+      parts: values.parts.map((part, partIndex) => ({
+        title: part.title,
+        passage: part.passage,
+        ...(part.audioSrc ? { audioSrc: part.audioSrc } : {}),
+        questions: part.questions.map((q) => {
+          if (q.type === 'matchinggroup') {
+            const rowCount = Array.isArray(q.rows) ? q.rows.length : 0;
+            const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i);
+            if (Array.isArray(q.answers)) {
+              q.answers.forEach((ans, idx) => {
+                const subId = subIds[idx];
+                if (subId != null) answerMap[subId] = ans;
+              });
             }
-        }
-
-        const generatedId = isEditing ? testId : ((typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`)
-
-        const normalized = {
-            id: generatedId,
-            title: testMeta.title,
-            number: testMeta.number,
-            type: testMeta.type,
-            parts: values.parts.map((part, partIndex) => ({
-                title: part.title,
-                passage: part.passage,
-                ...(part.audioSrc ? { audioSrc: part.audioSrc } : {}),
-                questions: part.questions.map((q) => {
-                    if (q.type === 'matchinggroup') {
-                        const rowCount = Array.isArray(q.rows) ? q.rows.length : 0
-                        const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i)
-                        if (Array.isArray(q.answers)) {
-                            q.answers.forEach((ans, idx) => {
-                                const subId = subIds[idx]
-                                if (subId != null) answerMap[subId] = ans
-                            })
-                        }
-                        nextId += rowCount
-                        const out = {
-                            id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
-                            type: 'matchinggroup',
-                            subIds,
-                            displayId: q.displayId || undefined,
-                            question: q.question,
-                            columns: q.columns || [],
-                            rows: q.rows || []
-                        }
-                        if (!out.displayId) delete out.displayId
-                        return out
-                    }
-                    if (q.type === 'maplabel') {
-                        const rowCount = Array.isArray(q.rows) ? q.rows.length : 0
-                        const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i)
-                        if (Array.isArray(q.answers)) {
-                            q.answers.forEach((ans, idx) => {
-                                const subId = subIds[idx]
-                                if (subId != null) answerMap[subId] = ans
-                            })
-                        }
-                        nextId += rowCount
-                        return {
-                            id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
-                            type: 'maplabel',
-                            subIds,
-                            question: q.question,
-                            columns: Array.isArray(q.columns) ? q.columns : [],
-                            rows: Array.isArray(q.rows) ? q.rows : [],
-                            ...(q.imageSrc ? { imageSrc: q.imageSrc } : {})
-                        }
-                    }
-                    if (q.type === 'matchingdrag') {
-                        const rowCount = Array.isArray(q.rows) ? q.rows.length : 0
-                        const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i)
-                        if (Array.isArray(q.answers)) {
-                            q.answers.forEach((ans, idx) => {
-                                const subId = subIds[idx]
-                                if (subId != null) answerMap[subId] = ans
-                            })
-                        }
-                        nextId += rowCount
-                        return {
-                            id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
-                            type: 'matchingdrag',
-                            subIds,
-                            question: q.question,
-                            options: Array.isArray(q.options) ? q.options : [],
-                            rows: Array.isArray(q.rows) ? q.rows : []
-                        }
-                    }
-                    if (q.type === 'summarydrag') {
-                        const blanks = (String(q.question || '').match(/_{3,}/g) || []).length
-                        const count = Math.max(0, blanks)
-                        const subIds = Array.from({ length: count }, (_, i) => nextId + i)
-                        if (Array.isArray(q.answers)) {
-                            q.answers.forEach((ans, idx) => {
-                                const subId = subIds[idx]
-                                if (subId != null) answerMap[subId] = ans
-                            })
-                        }
-                        nextId += count
-                        return {
-                            id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
-                            type: 'summarydrag',
-                            subIds,
-                            question: q.question,
-                            options: Array.isArray(q.options) ? q.options : []
-                        }
-                    }
-                    if (q.type === 'sentencefill') {
-                        const blanks = (String(q.question || '').match(/_{3,}/g) || []).length
-                        const count = Math.max(0, blanks)
-                        const subIds = Array.from({ length: count }, (_, i) => nextId + i)
-                        if (Array.isArray(q.answers)) {
-                            q.answers.forEach((ans, idx) => {
-                                const subId = subIds[idx]
-                                if (subId != null) answerMap[subId] = ans
-                            })
-                        }
-                        nextId += count
-                        return {
-                            id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
-                            type: 'sentencefill',
-                            subIds,
-                            question: q.question
-                        }
-                    }
-                    if (q.type === 'tablefill') {
-                        const rows = (q.table?.rows || [])
-                        let count = 0
-                        for (const rr of rows) {
-                            for (const cell of (rr || [])) {
-                                const matches = String(cell || '').match(/_{3,}/g) || []
-                                count += matches.length
-                            }
-                        }
-                        const subIds = Array.from({ length: count }, (_, i) => nextId + i)
-                        if (Array.isArray(q.answers)) {
-                            q.answers.forEach((ans, idx) => {
-                                const subId = subIds[idx]
-                                if (subId != null) answerMap[subId] = ans
-                            })
-                        }
-                        nextId += count
-                        return {
-                            id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
-                            type: 'tablefill',
-                            subIds,
-                            question: q.question,
-                            table: { rows: rows }
-                        }
-                    }
-
-                    const id = nextId
-                    nextId += 1
-                    const base = {
-                        id,
-                        type: q.type,
-                        question: q.question
-                    }
-                    if (q.type === 'mcq' || q.type === 'dropdown') {
-                        if (Array.isArray(q.options)) base.options = q.options
-                    }
-                    if (q.type !== 'info') {
-                        if (q.type === 'written' || q.type === 'mcq' || q.type === 'dropdown') {
-                            if (q.answer != null && q.answer !== '') answerMap[id] = q.answer
-                        }
-                    }
-                    return base
-                })
-            }))
-        }
-
-        try {
-            setIsSaving(true)
-            await setDoc(doc(db, 'tests', generatedId), {
-                ...normalized,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp()
-            })
-            await setDoc(doc(db, 'answers', generatedId), {
-                testId: generatedId,
-                answers: answerMap,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp()
-            })
-            toast.success(isEditing ? 'Test updated' : 'Test created')
-        } catch (e) {
-            toast.error('Failed to save to Firebase')
-        } finally {
-            setIsSaving(false)
-        }
-    }
-
-    // Load existing test for editing
-    useEffect(() => {
-        const loadExisting = async () => {
-            if (!isEditing) return
-            setIsLoadingExisting(true)
-            try {
-                const testSnap = await getDoc(doc(db, 'tests', testId))
-                if (!testSnap.exists()) {
-                    toast.error('Test not found')
-                    setIsLoadingExisting(false)
-                    return
-                }
-                const testData = testSnap.data()
-                // answers
-                let answersMap = {}
-                try {
-                    const ansSnap = await getDoc(doc(db, 'answers', testId))
-                    if (ansSnap.exists()) {
-                        const a = ansSnap.data()
-                        answersMap = a?.answers || {}
-                    }
-                } catch { }
-
-                const populatedParts = (testData.parts || []).map((part) => ({
-                    title: part.title || '',
-                    passage: part.passage || '',
-                    audioSrc: part.audioSrc || '',
-                    questions: (part.questions || []).map((q) => {
-                        if (q.type === 'matchinggroup') {
-                            const subIds = Array.isArray(q.subIds) ? q.subIds : []
-                            const answers = subIds.map((sid) => answersMap[sid] || '')
-                            return { ...q, answers }
-                        }
-                        if (q.type === 'matchingdrag' || q.type === 'summarydrag' || q.type === 'sentencefill' || q.type === 'maplabel' || q.type === 'tablefill') {
-                            const subIds = Array.isArray(q.subIds) ? q.subIds : []
-                            const answers = subIds.map((sid) => answersMap[sid] || '')
-                            return { ...q, answers }
-                        }
-                        if (q.type === 'info') return { ...q }
-                        const ans = answersMap[q.id] || ''
-                        return { ...q, answer: ans }
-                    })
-                }))
-
-                reset({
-                    testMeta: { title: testData.title || '', number: testData.number || '', type: testData.type || 'non-audio' },
-                    parts: populatedParts
-                })
-            } catch (e) {
-                toast.error('Failed to load test')
-            } finally {
-                setIsLoadingExisting(false)
+            nextId += rowCount;
+            const out = {
+              id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
+              type: 'matchinggroup',
+              subIds,
+              displayId: q.displayId || undefined,
+              question: q.question,
+              columns: q.columns || [],
+              rows: q.rows || [],
+            };
+            if (!out.displayId) delete out.displayId;
+            return out;
+          }
+          if (q.type === 'maplabel') {
+            const rowCount = Array.isArray(q.rows) ? q.rows.length : 0;
+            const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i);
+            if (Array.isArray(q.answers)) {
+              q.answers.forEach((ans, idx) => {
+                const subId = subIds[idx];
+                if (subId != null) answerMap[subId] = ans;
+              });
             }
-        }
-        loadExisting()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isEditing, testId])
+            nextId += rowCount;
+            return {
+              id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
+              type: 'maplabel',
+              subIds,
+              question: q.question,
+              columns: Array.isArray(q.columns) ? q.columns : [],
+              rows: Array.isArray(q.rows) ? q.rows : [],
+              ...(q.imageSrc ? { imageSrc: q.imageSrc } : {}),
+            };
+          }
+          if (q.type === 'matchingdrag') {
+            const rowCount = Array.isArray(q.rows) ? q.rows.length : 0;
+            const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i);
+            if (Array.isArray(q.answers)) {
+              q.answers.forEach((ans, idx) => {
+                const subId = subIds[idx];
+                if (subId != null) answerMap[subId] = ans;
+              });
+            }
+            nextId += rowCount;
+            return {
+              id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
+              type: 'matchingdrag',
+              subIds,
+              question: q.question,
+              options: Array.isArray(q.options) ? q.options : [],
+              rows: Array.isArray(q.rows) ? q.rows : [],
+            };
+          }
+          if (q.type === 'summarydrag') {
+            const blanks = (String(q.question || '').match(/_{3,}/g) || []).length;
+            const count = Math.max(0, blanks);
+            const subIds = Array.from({ length: count }, (_, i) => nextId + i);
+            if (Array.isArray(q.answers)) {
+              q.answers.forEach((ans, idx) => {
+                const subId = subIds[idx];
+                if (subId != null) answerMap[subId] = ans;
+              });
+            }
+            nextId += count;
+            return {
+              id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
+              type: 'summarydrag',
+              subIds,
+              question: q.question,
+              options: Array.isArray(q.options) ? q.options : [],
+            };
+          }
+          if (q.type === 'sentencefill') {
+            const blanks = (String(q.question || '').match(/_{3,}/g) || []).length;
+            const count = Math.max(0, blanks);
+            const subIds = Array.from({ length: count }, (_, i) => nextId + i);
+            if (Array.isArray(q.answers)) {
+              q.answers.forEach((ans, idx) => {
+                const subId = subIds[idx];
+                if (subId != null) answerMap[subId] = ans;
+              });
+            }
+            nextId += count;
+            return {
+              id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
+              type: 'sentencefill',
+              subIds,
+              question: q.question,
+            };
+          }
+          if (q.type === 'tablefill') {
+            const rows = q.table?.rows || [];
+            let count = 0;
+            for (const rr of rows) {
+              for (const cell of rr || []) {
+                const matches = String(cell || '').match(/_{3,}/g) || [];
+                count += matches.length;
+              }
+            }
+            const subIds = Array.from({ length: count }, (_, i) => nextId + i);
+            if (Array.isArray(q.answers)) {
+              q.answers.forEach((ans, idx) => {
+                const subId = subIds[idx];
+                if (subId != null) answerMap[subId] = ans;
+              });
+            }
+            nextId += count;
+            return {
+              id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
+              type: 'tablefill',
+              subIds,
+              question: q.question,
+              table: { rows: rows },
+            };
+          }
 
-    const handleDownload = (content, filename) => {
-        if (!content) return
-        const blob = new Blob([content], { type: 'application/javascript;charset=utf-8' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = filename
-        document.body.appendChild(a)
-        a.click()
-        a.remove()
-        URL.revokeObjectURL(url)
+          const id = nextId;
+          nextId += 1;
+          const base = {
+            id,
+            type: q.type,
+            question: q.question,
+          };
+          if (q.type === 'mcq' || q.type === 'dropdown') {
+            if (Array.isArray(q.options)) base.options = q.options;
+          }
+          if (q.type !== 'info') {
+            if (q.type === 'written' || q.type === 'mcq' || q.type === 'dropdown') {
+              if (q.answer != null && q.answer !== '') answerMap[id] = q.answer;
+            }
+          }
+          return base;
+        }),
+      })),
+    };
+
+    try {
+      setIsSaving(true);
+      await setDoc(doc(db, 'tests', generatedId), {
+        ...normalized,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      await setDoc(doc(db, 'answers', generatedId), {
+        testId: generatedId,
+        answers: answerMap,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      toast.success(isEditing ? 'Test updated' : 'Test created');
+    } catch (e) {
+      toast.error('Failed to save to Firebase');
+    } finally {
+      setIsSaving(false);
     }
+  };
 
-    const handleCopy = async (content) => {
-        if (!content) return
+  // Load existing test for editing
+  useEffect(() => {
+    const loadExisting = async () => {
+      if (!isEditing) return;
+      setIsLoadingExisting(true);
+      try {
+        const testSnap = await getDoc(doc(db, 'tests', testId));
+        if (!testSnap.exists()) {
+          toast.error('Test not found');
+          setIsLoadingExisting(false);
+          return;
+        }
+        const testData = testSnap.data();
+        // answers
+        let answersMap = {};
         try {
-            await navigator.clipboard.writeText(content)
-        } catch (e) {
-            // silently ignore
-        }
-    }
+          const ansSnap = await getDoc(doc(db, 'answers', testId));
+          if (ansSnap.exists()) {
+            const a = ansSnap.data();
+            answersMap = a?.answers || {};
+          }
+        } catch {}
 
-    const parts = watch('parts')
+        const populatedParts = (testData.parts || []).map((part) => ({
+          title: part.title || '',
+          passage: part.passage || '',
+          audioSrc: part.audioSrc || '',
+          questions: (part.questions || []).map((q) => {
+            if (q.type === 'matchinggroup') {
+              const subIds = Array.isArray(q.subIds) ? q.subIds : [];
+              const answers = subIds.map((sid) => answersMap[sid] || '');
+              return { ...q, answers };
+            }
+            if (
+              q.type === 'matchingdrag' ||
+              q.type === 'summarydrag' ||
+              q.type === 'sentencefill' ||
+              q.type === 'maplabel' ||
+              q.type === 'tablefill'
+            ) {
+              const subIds = Array.isArray(q.subIds) ? q.subIds : [];
+              const answers = subIds.map((sid) => answersMap[sid] || '');
+              return { ...q, answers };
+            }
+            if (q.type === 'mcq' || q.type === 'dropdown') {
+              const ans = answersMap[q.id] || '';
+              return {
+                ...q,
+                options: Array.isArray(q.options) ? q.options : [],
+                answer: ans,
+              };
+            }
+            if (q.type === 'info') return { ...q };
+            const ans = answersMap[q.id] || '';
+            return { ...q, answer: ans };
+          }),
+        }));
 
-    return (
-        <div style={{ padding: '16px', maxWidth: 1100, margin: '0 auto' }}>
-            <h2 style={{ marginBottom: 16 }}>Admin: Dynamic Test Builder {isEditing && <span style={{ fontSize: 14, color: '#666' }}>(editing)</span>}</h2>
+        reset({
+          testMeta: {
+            title: testData.title || '',
+            number: testData.number || '',
+            type: testData.type || 'non-audio',
+          },
+          parts: populatedParts,
+        });
+      } catch (e) {
+        toast.error('Failed to load test');
+      } finally {
+        setIsLoadingExisting(false);
+      }
+    };
+    loadExisting();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing, testId]);
 
-            <form onSubmit={handleSubmit(onSubmit)}>
-                <div style={{ border: '1px solid #e0e0e0', borderRadius: 8, padding: 16, marginBottom: 20 }}>
-                    <h3 style={{ marginTop: 0, marginBottom: 12 }}>Test Meta</h3>
-                    <div style={{ display: 'flex', gap: 1, justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                            <label style={{ display: 'block', fontWeight: 600 }}>Test Title</label>
-                            <input placeholder="TEST — Title" {...register('testMeta.title')} style={{ width: '100%', padding: 8 }} />
-                            {errors.testMeta?.title && <span style={{ color: 'crimson' }}>{errors.testMeta?.title?.message}</span>}
-                        </div>
-                        <div>
-                            <label style={{ display: 'block', fontWeight: 600 }}>Test Number</label>
-                            <input type="number" placeholder="1" {...register('testMeta.number')} style={{ width: '100%', padding: 8 }} />
-                            {errors.testMeta?.number && <span style={{ color: 'crimson' }}>{errors.testMeta?.number?.message}</span>}
-                        </div>
-                        <div>
-                            <label style={{ display: 'block', fontWeight: 600 }}>Test Type</label>
-                            <select {...register('testMeta.type')} style={{ width: '100%', padding: 8 }}>
-                                <option value="non-audio">Non-audio</option>
-                                <option value="audio">Audio</option>
-                            </select>
-                            {errors.testMeta?.type && <span style={{ color: 'crimson' }}>{errors.testMeta?.type?.message}</span>}
-                        </div>
-                    </div>
-                </div>
-                {errors.parts?.message && (
-                    <div style={{ color: 'crimson', marginBottom: 12 }}>{errors.parts.message}</div>
-                )}
+  const handleDownload = (content, filename) => {
+    if (!content) return;
+    const blob = new Blob([content], { type: 'application/javascript;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
-                {isLoadingExisting ? <LoaderOverlay text="Loading test…" /> : partFields.map((part, partIndex) => (
-                    <div key={part.id} style={{ border: '1px solid #e0e0e0', borderRadius: 8, padding: 16, marginBottom: 20 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h3 style={{ margin: 0 }}>Part {partIndex + 1}</h3>
-                            <button type="button" onClick={() => removePart(partIndex)} style={{ background: '#ffe6e6', border: '1px solid #ffcccc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove Part</button>
-                        </div>
+  return (
+    <div style={{ padding: '16px', maxWidth: 1100, margin: '0 auto' }}>
+      <h2 style={{ marginBottom: 16 }}>
+        Admin: Dynamic Test Builder{' '}
+        {isEditing && <span style={{ fontSize: 14, color: '#666' }}>(editing)</span>}
+      </h2>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginTop: 12 }}>
-                            <div>
-                                <label style={{ display: 'block', fontWeight: 600 }}>Title</label>
-                                <input placeholder="PASSAGE 1" {...register(`parts.${partIndex}.title`)} style={{ width: '100%', padding: 8 }} />
-                                {errors.parts?.[partIndex]?.title && (
-                                    <span style={{ color: 'crimson' }}>{errors.parts?.[partIndex]?.title?.message}</span>
-                                )}
-                            </div>
-
-                            <div>
-                                <label style={{ display: 'block', fontWeight: 600 }}>Passage</label>
-                                <textarea placeholder="Paste or write the passage text here" rows={8} {...register(`parts.${partIndex}.passage`)} style={{ width: '100%', padding: 8 }} />
-                                {errors.parts?.[partIndex]?.passage && (
-                                    <span style={{ color: 'crimson' }}>{errors.parts?.[partIndex]?.passage?.message}</span>
-                                )}
-                            </div>
-
-                            {watch('testMeta.type') === 'audio' && (
-                                <>
-                                    <div>
-                                        <label style={{ display: 'block', fontWeight: 600 }}>Audio Src</label>
-                                        <input placeholder="Will be set after upload" {...register(`parts.${partIndex}.audioSrc`)} style={{ width: '100%', padding: 8 }} />
-                                        <small>Uploads to Firebase Storage and sets a streaming URL automatically.</small>
-                                    </div>
-
-                                    <div>
-                                        <label style={{ display: 'block', fontWeight: 600 }}>Upload Audio (optional)</label>
-                                        <input type="file" accept="audio/*" onChange={async (e) => {
-                                            const file = e.target.files?.[0]
-                                            if (!file) return
-                                            // show local preview immediately
-                                            try {
-                                                const localUrl = URL.createObjectURL(file)
-                                                setAudioPreviews((prev) => ({ ...prev, [partIndex]: localUrl }))
-                                            } catch { }
-                                            // upload to Firebase Storage
-                                            try {
-                                                const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
-                                                const path = `tests/audio/${safeName}`
-                                                const ref = storageRef(storage, path)
-                                                await uploadBytes(ref, file, { contentType: file.type || 'audio/mpeg' })
-                                                const downloadURL = await getDownloadURL(ref)
-                                                setValue(`parts.${partIndex}.audioSrc`, downloadURL)
-                                                try { toast.success('Audio uploaded'); } catch { }
-                                            } catch (err) {
-                                                console.error('Audio upload failed', err)
-                                                try { toast.error('Audio upload failed'); } catch { }
-                                            }
-                                        }} />
-                                        {audioPreviews[partIndex] && (
-                                            <audio controls style={{ marginTop: 8, width: '100%' }} src={audioPreviews[partIndex]} />
-                                        )}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-
-                        <QuestionsSection
-                            control={control}
-                            register={register}
-                            partIndex={partIndex}
-                            errors={errors}
-                            setValue={setValue}
-                        />
-                    </div>
-                ))}
-
-                <button type="button" onClick={() => appendPart({ title: '', passage: '', audioSrc: '', questions: [] })} style={{ background: '#f0f7ff', border: '1px solid #cfe3ff', padding: '8px 12px', borderRadius: 6, cursor: 'pointer', marginRight: 8 }}>+ Add Part</button>
-                <button type="submit" disabled={isSaving} style={{ background: '#e8ffe8', border: '1px solid #c1f0c1', padding: '8px 12px', borderRadius: 6, cursor: 'pointer', marginRight: 8 }}>{isSaving ? 'Saving…' : 'Save Test'}</button>
-                <button type="button" onClick={() => { reset(defaultValues); setGeneratedQuestionsJson(''); setGeneratedAnswersJson('') }} style={{ background: '#fff8e6', border: '1px solid #ffe8b3', padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Reset</button>
-            </form>
-
-        </div>
-    )
-}
-
-const QuestionsSection = ({ control, register, partIndex, errors, setValue }) => {
-    const { fields, append, remove } = useFieldArray({
-        control,
-        name: `parts.${partIndex}.questions`
-    })
-
-    return (
-        <div style={{ marginTop: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h4 style={{ margin: 0 }}>Questions</h4>
-            </div>
-
-            {errors.parts?.[partIndex]?.questions?.message && (
-                <div style={{ color: 'crimson', marginTop: 8 }}>{errors.parts?.[partIndex]?.questions?.message}</div>
-            )}
-
-            <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
-                {fields.map((q, qIndex) => (
-                    <QuestionCard
-                        key={q.id}
-                        control={control}
-                        register={register}
-                        partIndex={partIndex}
-                        qIndex={qIndex}
-                        errors={errors}
-                        remove={remove}
-                        setValue={setValue}
-                    />
-                ))}
-            </div>
-
-            <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-start' }}>
-                <button
-                    type="button"
-                    onClick={() => {
-                        append({ type: 'mcq', question: '', options: ['TRUE', 'FALSE', 'NOT GIVEN'] })
-                    }}
-                    style={{ background: '#f0fff9', border: '1px solid #c7f7e3', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}
-                >
-                    + Add Question
-                </button>
-            </div>
-        </div>
-    )
-}
-
-const QuestionCard = ({ control, register, partIndex, qIndex, errors, remove, setValue }) => {
-    const fieldName = `parts.${partIndex}.questions.${qIndex}`
-    const questionTypeError = errors.parts?.[partIndex]?.questions?.[qIndex]?.type?.message
-    const questionTextError = errors.parts?.[partIndex]?.questions?.[qIndex]?.question?.message
-    const optionsError = errors.parts?.[partIndex]?.questions?.[qIndex]?.options?.message
-
-    return (
-        <div style={{ border: '1px dashed #e2e8f0', borderRadius: 8, padding: 12 }}>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', fontWeight: 600 }}>Type</label>
-                    <Controller
-                        control={control}
-                        name={`${fieldName}.type`}
-                        render={({ field }) => (
-                            <select {...field} style={{ width: '100%', padding: 8 }}>
-                                {QUESTION_TYPES.map((t) => (
-                                    <option key={t.value} value={t.value}>{t.label}</option>
-                                ))}
-                            </select>
-                        )}
-                    />
-                    {questionTypeError && <span style={{ color: 'crimson' }}>{questionTypeError}</span>}
-                </div>
-
-                <div style={{ width: 120, alignSelf: 'flex-end', textAlign: 'right' }}>
-                    <button type="button" onClick={() => remove(qIndex)} style={{ background: '#ffecec', border: '1px solid #ffd4d4', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
-                </div>
-            </div>
-
-            <div style={{ marginTop: 12 }}>
-                <label style={{ display: 'block', fontWeight: 600 }}>Question Text</label>
-                <input placeholder="Enter question/instruction text" {...register(`${fieldName}.question`)} style={{ width: '100%', padding: 8 }} />
-                {questionTextError && <span style={{ color: 'crimson' }}>{questionTextError}</span>}
-            </div>
-
-            <OptionsSection control={control} register={register} partIndex={partIndex} qIndex={qIndex} errors={errors} />
-
-            <AnswerSection control={control} register={register} setValue={setValue} partIndex={partIndex} qIndex={qIndex} errors={errors} />
-        </div>
-    )
-}
-
-const OptionsSection = ({ control, register, partIndex, qIndex, errors }) => {
-    const namePrefix = `parts.${partIndex}.questions.${qIndex}`
-
-    // Read the type via a hidden Controller to drive conditional UI without extra re-renders
-    return (
-        <Controller
-            control={control}
-            name={`${namePrefix}.type`}
-            render={({ field }) => {
-                const type = field.value
-                if (!(type === 'mcq' || type === 'dropdown')) return null
-
-                return (
-                    <OptionsEditor
-                        control={control}
-                        register={register}
-                        namePrefix={namePrefix}
-                        errors={errors}
-                    />
-                )
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <div
+          style={{ border: '1px solid #e0e0e0', borderRadius: 8, padding: 16, marginBottom: 20 }}
+        >
+          <h3 style={{ marginTop: 0, marginBottom: 12 }}>Test Meta</h3>
+          <div
+            style={{
+              display: 'flex',
+              gap: 1,
+              justifyContent: 'space-between',
+              alignItems: 'center',
             }}
-        />
-    )
-}
-
-const OptionsEditor = ({ control, register, namePrefix, errors }) => {
-    const { fields, append, remove } = useFieldArray({ control, name: `${namePrefix}.options` })
-    const optionsError = errors?.parts && getNestedError(errors, `${namePrefix}.options`)
-
-    return (
-        <div style={{ marginTop: 12 }}>
-            <label style={{ display: 'block', fontWeight: 600 }}>Options</label>
-            {typeof optionsError === 'string' && (
-                <div style={{ color: 'crimson', marginBottom: 8 }}>{optionsError}</div>
-            )}
-            <div style={{ display: 'grid', gap: 8 }}>
-                {fields.map((opt, idx) => (
-                    <div key={opt.id} style={{ display: 'flex', gap: 8 }}>
-                        <input placeholder={`Option ${idx + 1}`} {...register(`${namePrefix}.options.${idx}`)} style={{ flex: 1, padding: 8 }} />
-                        <button type="button" onClick={() => remove(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
-                    </div>
-                ))}
-            </div>
-            <button type="button" onClick={() => append('')} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Option</button>
-        </div>
-    )
-}
-
-const AnswerSection = ({ control, register, setValue, partIndex, qIndex, errors }) => {
-    const namePrefix = `parts.${partIndex}.questions.${qIndex}`
-    const fieldError = getNestedError(errors, `${namePrefix}.answer`)
-
-    return (
-        <Controller
-            control={control}
-            name={`${namePrefix}.type`}
-            render={({ field }) => {
-                const type = field.value
-                if (type === 'info') return null
-                if (type === 'matchinggroup') {
-                    return <MatchingGroupEditor control={control} register={register} namePrefix={namePrefix} errors={errors} />
-                }
-                if (type === 'matchingdrag') {
-                    return <DragMatchEditor control={control} register={register} namePrefix={namePrefix} errors={errors} />
-                }
-                if (type === 'summarydrag') {
-                    return <SummaryDragEditor control={control} register={register} namePrefix={namePrefix} errors={errors} />
-                }
-                if (type === 'sentencefill') {
-                    return <SentenceFillEditor control={control} register={register} namePrefix={namePrefix} errors={errors} />
-                }
-                if (type === 'maplabel') {
-                    return <MapLabelEditor control={control} register={register} namePrefix={namePrefix} errors={errors} setValue={setValue} />
-                }
-                if (type === 'tablefill') {
-                    return <TableFillEditor control={control} register={register} namePrefix={namePrefix} errors={errors} setValue={setValue} />
-                }
-
-                if (type === 'mcq' || type === 'dropdown') {
-                    return (
-                        <div style={{ marginTop: 12 }}>
-                            <label style={{ display: 'block', fontWeight: 600 }}>Correct Answer</label>
-                            <Controller
-                                control={control}
-                                name={`${namePrefix}.options`}
-                                render={({ field: optsField }) => {
-                                    const options = Array.isArray(optsField.value) ? optsField.value : []
-                                    return (
-                                        <Controller
-                                            control={control}
-                                            name={`${namePrefix}.answer`}
-                                            render={({ field: ansField }) => (
-                                                <select {...ansField} style={{ width: '100%', padding: 8 }}>
-                                                    <option value="">Select correct option…</option>
-                                                    {options.map((opt, idx) => (
-                                                        <option key={`${opt}-${idx}`} value={opt}>{opt}</option>
-                                                    ))}
-                                                </select>
-                                            )}
-                                        />
-                                    )
-                                }}
-                            />
-                            {typeof fieldError === 'string' && <span style={{ color: 'crimson' }}>{fieldError}</span>}
-                        </div>
-                    )
-                }
-
-                // written
-                return (
-                    <div style={{ marginTop: 12 }}>
-                        <label style={{ display: 'block', fontWeight: 600 }}>Answer</label>
-                        <input placeholder="Enter the correct answer" {...register(`${namePrefix}.answer`)} style={{ width: '100%', padding: 8 }} />
-                        {typeof fieldError === 'string' && <span style={{ color: 'crimson' }}>{fieldError}</span>}
-                    </div>
-                )
-            }}
-        />
-    )
-}
-
-const MatchingGroupEditor = ({ control, register, namePrefix, errors }) => {
-    const { fields: columnFields, append: appendColumn, remove: removeColumn } = useFieldArray({ control, name: `${namePrefix}.columns` })
-    const { fields: rowFields, append: appendRow, remove: removeRow } = useFieldArray({ control, name: `${namePrefix}.rows` })
-    const { fields: answerFields, append: appendAnswer, remove: removeAnswer } = useFieldArray({ control, name: `${namePrefix}.answers` })
-
-    const columnsError = getNestedError(errors, `${namePrefix}.columns`)
-    const rowsError = getNestedError(errors, `${namePrefix}.rows`)
-    const answersError = getNestedError(errors, `${namePrefix}.answers`)
-
-    const addRowWithAnswer = () => {
-        appendRow('')
-        appendAnswer('')
-    }
-    const removeRowWithAnswer = (idx) => {
-        removeRow(idx)
-        removeAnswer(idx)
-    }
-
-    return (
-        <div style={{ marginTop: 12 }}>
-            <label style={{ display: 'block', fontWeight: 600 }}>Matching Group</label>
-
-            <div style={{ marginTop: 8 }}>
-                <label style={{ display: 'block', fontWeight: 600 }}>Display ID (optional)</label>
-                <input placeholder="e.g., 19–23" {...register(`${namePrefix}.displayId`)} style={{ width: '100%', padding: 8 }} />
-            </div>
-
-            <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
-                <div>
-                    <label style={{ display: 'block', fontWeight: 600 }}>Columns (Options)</label>
-                    {typeof columnsError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{columnsError}</div>}
-                    <div style={{ display: 'grid', gap: 8 }}>
-                        {columnFields.map((col, idx) => (
-                            <div key={col.id} style={{ display: 'flex', gap: 8 }}>
-                                <input placeholder={`Option ${idx + 1}`} {...register(`${namePrefix}.columns.${idx}`)} style={{ flex: 1, padding: 8 }} />
-                                <button type="button" onClick={() => removeColumn(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
-                            </div>
-                        ))}
-                    </div>
-                    <button type="button" onClick={() => appendColumn('')} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Column</button>
-                </div>
-
-                <div>
-                    <label style={{ display: 'block', fontWeight: 600 }}>Rows (Questions)</label>
-                    {typeof rowsError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{rowsError}</div>}
-                    <div style={{ display: 'grid', gap: 8 }}>
-                        {rowFields.map((row, idx) => (
-                            <div key={row.id} style={{ display: 'flex', gap: 8 }}>
-                                <input placeholder={`Row ${idx + 1}`} {...register(`${namePrefix}.rows.${idx}`)} style={{ flex: 1, padding: 8 }} />
-                                <button type="button" onClick={() => removeRowWithAnswer(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
-                            </div>
-                        ))}
-                    </div>
-                    <button type="button" onClick={addRowWithAnswer} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Row</button>
-                </div>
-
-                <div>
-                    <label style={{ display: 'block', fontWeight: 600 }}>Answers (match each Row)</label>
-                    {typeof answersError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>}
-                    <div style={{ display: 'grid', gap: 8 }}>
-                        {answerFields.map((ans, idx) => (
-                            <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
-                                <input placeholder={`Answer for Row ${idx + 1}`} {...register(`${namePrefix}.answers.${idx}`)} style={{ flex: 1, padding: 8 }} />
-                                <button type="button" onClick={() => removeRowWithAnswer(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
-                            </div>
-                        ))}
-                    </div>
-                    <button type="button" onClick={addRowWithAnswer} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Answer</button>
-                </div>
-            </div>
-        </div>
-    )
-}
-
-const MapLabelEditor = ({ control, register, namePrefix, errors, setValue }) => {
-    const { fields: columnFields, append: appendColumn, remove: removeColumn } = useFieldArray({ control, name: `${namePrefix}.columns` })
-    const { fields: rowFields, append: appendRow, remove: removeRow } = useFieldArray({ control, name: `${namePrefix}.rows` })
-    const { fields: answerFields, append: appendAnswer, remove: removeAnswer } = useFieldArray({ control, name: `${namePrefix}.answers` })
-
-    const columnsError = getNestedError(errors, `${namePrefix}.columns`)
-    const rowsError = getNestedError(errors, `${namePrefix}.rows`)
-    const answersError = getNestedError(errors, `${namePrefix}.answers`)
-
-    const addRowWithAnswer = () => {
-        appendRow('')
-        appendAnswer('')
-    }
-    const removeRowWithAnswer = (idx) => {
-        removeRow(idx)
-        removeAnswer(idx)
-    }
-
-    const [previewUrl, setPreviewUrl] = React.useState('')
-
-    return (
-        <div style={{ marginTop: 12 }}>
-            <label style={{ display: 'block', fontWeight: 600 }}>Plan/Map/Diagram Labelling</label>
-
-            <div style={{ marginTop: 8 }}>
-                <label style={{ display: 'block', fontWeight: 600 }}>Image URL (optional)</label>
-                <input placeholder="/images/map-1.png" {...register(`${namePrefix}.imageSrc`)} style={{ width: '100%', padding: 8 }} />
-                <small>Tip: Use the upload below to set this automatically to /images/&lt;filename&gt; and place the file in public/images/.</small>
-            </div>
-            <div style={{ marginTop: 8 }}>
-                <label style={{ display: 'block', fontWeight: 600 }}>Upload Image (optional)</label>
-                <input type="file" accept="image/*" onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (!file) return
-                    const url = URL.createObjectURL(file)
-                    setPreviewUrl(url)
-                    try { setValue(`${namePrefix}.imageSrc`, `/images/${file.name}`) } catch (_) { }
-                }} />
-                {(previewUrl) && (
-                    <div style={{ marginTop: 8 }}>
-                        <img src={previewUrl} alt="" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid #eee' }} />
-                    </div>
-                )}
-            </div>
-
-            <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
-                <div>
-                    <label style={{ display: 'block', fontWeight: 600 }}>Columns (A–H, etc.)</label>
-                    {typeof columnsError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{columnsError}</div>}
-                    <div style={{ display: 'grid', gap: 8 }}>
-                        {columnFields.map((col, idx) => (
-                            <div key={col.id} style={{ display: 'flex', gap: 8 }}>
-                                <input placeholder={`Letter ${idx + 1} (e.g., A)`} {...register(`${namePrefix}.columns.${idx}`)} style={{ flex: 1, padding: 8 }} />
-                                <button type="button" onClick={() => removeColumn(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
-                            </div>
-                        ))}
-                    </div>
-                    <button type="button" onClick={() => appendColumn('')} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Column</button>
-                </div>
-
-                <div>
-                    <label style={{ display: 'block', fontWeight: 600 }}>Rows (items to label)</label>
-                    {typeof rowsError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{rowsError}</div>}
-                    <div style={{ display: 'grid', gap: 8 }}>
-                        {rowFields.map((row, idx) => (
-                            <div key={row.id} style={{ display: 'flex', gap: 8 }}>
-                                <input placeholder={`Row ${idx + 1}`} {...register(`${namePrefix}.rows.${idx}`)} style={{ flex: 1, padding: 8 }} />
-                                <button type="button" onClick={() => removeRowWithAnswer(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
-                            </div>
-                        ))}
-                    </div>
-                    <button type="button" onClick={addRowWithAnswer} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Row</button>
-                </div>
-
-                <div>
-                    <label style={{ display: 'block', fontWeight: 600 }}>Answers (letter for each Row)</label>
-                    {typeof answersError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>}
-                    <div style={{ display: 'grid', gap: 8 }}>
-                        {answerFields.map((ans, idx) => (
-                            <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
-                                <input placeholder={`Letter for Row ${idx + 1}`} {...register(`${namePrefix}.answers.${idx}`)} style={{ flex: 1, padding: 8 }} />
-                                <button type="button" onClick={() => removeRowWithAnswer(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
-                            </div>
-                        ))}
-                    </div>
-                    <button type="button" onClick={addRowWithAnswer} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Answer</button>
-                </div>
-            </div>
-        </div>
-    )
-}
-
-const DragMatchEditor = ({ control, register, namePrefix, errors }) => {
-    const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({ control, name: `${namePrefix}.options` })
-    const { fields: rowFields, append: appendRow, remove: removeRow } = useFieldArray({ control, name: `${namePrefix}.rows` })
-    const { fields: answerFields, append: appendAnswer, remove: removeAnswer } = useFieldArray({ control, name: `${namePrefix}.answers` })
-
-    const optionsError = getNestedError(errors, `${namePrefix}.options`)
-    const rowsError = getNestedError(errors, `${namePrefix}.rows`)
-    const answersError = getNestedError(errors, `${namePrefix}.answers`)
-
-    const addRowWithAnswer = () => {
-        appendRow('')
-        appendAnswer('')
-    }
-    const removeRowWithAnswer = (idx) => {
-        removeRow(idx)
-        removeAnswer(idx)
-    }
-
-    return (
-        <div style={{ marginTop: 12 }}>
-            <label style={{ display: 'block', fontWeight: 600 }}>Matching Sentence Endings (Drag & Drop)</label>
-
-            <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
-                <div>
-                    <label style={{ display: 'block', fontWeight: 600 }}>Answer Bank (Endings)</label>
-                    {typeof optionsError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{optionsError}</div>}
-                    <div style={{ display: 'grid', gap: 8 }}>
-                        {optionFields.map((opt, idx) => (
-                            <div key={opt.id} style={{ display: 'flex', gap: 8 }}>
-                                <input placeholder={`Ending ${idx + 1}`} {...register(`${namePrefix}.options.${idx}`)} style={{ flex: 1, padding: 8 }} />
-                                <button type="button" onClick={() => removeOption(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
-                            </div>
-                        ))}
-                    </div>
-                    <button type="button" onClick={() => appendOption('')} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Option</button>
-                </div>
-
-                <div>
-                    <label style={{ display: 'block', fontWeight: 600 }}>Rows (Sentence starts)</label>
-                    {typeof rowsError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{rowsError}</div>}
-                    <div style={{ display: 'grid', gap: 8 }}>
-                        {rowFields.map((row, idx) => (
-                            <div key={row.id} style={{ display: 'flex', gap: 8 }}>
-                                <input placeholder={`Row ${idx + 1}`} {...register(`${namePrefix}.rows.${idx}`)} style={{ flex: 1, padding: 8 }} />
-                                <button type="button" onClick={() => removeRowWithAnswer(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
-                            </div>
-                        ))}
-                    </div>
-                    <button type="button" onClick={addRowWithAnswer} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Row</button>
-                </div>
-
-                <div>
-                    <label style={{ display: 'block', fontWeight: 600 }}>Answers (letter for each Row)</label>
-                    {typeof answersError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>}
-                    <div style={{ display: 'grid', gap: 8 }}>
-                        {answerFields.map((ans, idx) => (
-                            <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
-                                <input placeholder={`Letter for Row ${idx + 1}`} {...register(`${namePrefix}.answers.${idx}`)} style={{ flex: 1, padding: 8 }} />
-                                <button type="button" onClick={() => removeRowWithAnswer(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
-                            </div>
-                        ))}
-                    </div>
-                    <button type="button" onClick={addRowWithAnswer} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Answer</button>
-                </div>
-            </div>
-        </div>
-    )
-}
-
-const SummaryDragEditor = ({ control, register, namePrefix, errors }) => {
-    const { fields: optionFields, append: appendOption, remove: removeOption } = useFieldArray({ control, name: `${namePrefix}.options` })
-    const { fields: answerFields, append: appendAnswer, remove: removeAnswer } = useFieldArray({ control, name: `${namePrefix}.answers` })
-
-    const optionsError = getNestedError(errors, `${namePrefix}.options`)
-    const answersError = getNestedError(errors, `${namePrefix}.answers`)
-
-    return (
-        <div style={{ marginTop: 12 }}>
-            <div style={{ marginBottom: 8, color: '#555' }}>
-                Use three or more underscores ___ in the Question Text to mark each blank. Add the words below for the answer bank, and provide the correct answer for each blank in order.
-            </div>
-            <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
-                <div>
-                    <label style={{ display: 'block', fontWeight: 600 }}>Answer Bank (words/phrases)</label>
-                    {typeof optionsError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{optionsError}</div>}
-                    <div style={{ display: 'grid', gap: 8 }}>
-                        {optionFields.map((opt, idx) => (
-                            <div key={opt.id} style={{ display: 'flex', gap: 8 }}>
-                                <input placeholder={`Word ${idx + 1}`} {...register(`${namePrefix}.options.${idx}`)} style={{ flex: 1, padding: 8 }} />
-                                <button type="button" onClick={() => removeOption(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
-                            </div>
-                        ))}
-                    </div>
-                    <button type="button" onClick={() => appendOption('')} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Word</button>
-                </div>
-                <div>
-                    <label style={{ display: 'block', fontWeight: 600 }}>Answers (one per blank, in order)</label>
-                    {typeof answersError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>}
-                    <div style={{ display: 'grid', gap: 8 }}>
-                        {answerFields.map((ans, idx) => (
-                            <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
-                                <input placeholder={`Answer for blank ${idx + 1}`} {...register(`${namePrefix}.answers.${idx}`)} style={{ flex: 1, padding: 8 }} />
-                                <button type="button" onClick={() => removeAnswer(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
-                            </div>
-                        ))}
-                    </div>
-                    <button type="button" onClick={() => appendAnswer('')} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Answer</button>
-                </div>
-            </div>
-        </div>
-    )
-}
-
-const SentenceFillEditor = ({ control, register, namePrefix, errors }) => {
-    const { fields: answerFields, append: appendAnswer, remove: removeAnswer } = useFieldArray({ control, name: `${namePrefix}.answers` })
-    const answersError = getNestedError(errors, `${namePrefix}.answers`)
-
-    return (
-        <div style={{ marginTop: 12 }}>
-            <div style={{ marginBottom: 8, color: '#555' }}>
-                Use three or more underscores ___ in the Question Text to mark each blank. Provide the correct typed answer for each blank in order.
+          >
+            <div>
+              <label style={{ display: 'block', fontWeight: 600 }}>Test Title</label>
+              <input
+                placeholder="TEST — Title"
+                {...register('testMeta.title')}
+                style={{ width: '100%', padding: 8 }}
+              />
+              {errors.testMeta?.title && (
+                <span style={{ color: 'crimson' }}>{errors.testMeta?.title?.message}</span>
+              )}
             </div>
             <div>
-                <label style={{ display: 'block', fontWeight: 600 }}>Answers (one per blank, in order)</label>
-                {typeof answersError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>}
-                <div style={{ display: 'grid', gap: 8 }}>
-                    {answerFields.map((ans, idx) => (
-                        <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
-                            <input placeholder={`Answer for blank ${idx + 1}`} {...register(`${namePrefix}.answers.${idx}`)} style={{ flex: 1, padding: 8 }} />
-                            <button type="button" onClick={() => removeAnswer(idx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Remove</button>
-                        </div>
-                    ))}
-                </div>
-                <button type="button" onClick={() => appendAnswer('')} style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Answer</button>
+              <label style={{ display: 'block', fontWeight: 600 }}>Test Number</label>
+              <input
+                type="number"
+                placeholder="1"
+                {...register('testMeta.number')}
+                style={{ width: '100%', padding: 8 }}
+              />
+              {errors.testMeta?.number && (
+                <span style={{ color: 'crimson' }}>{errors.testMeta?.number?.message}</span>
+              )}
             </div>
+            <div>
+              <label style={{ display: 'block', fontWeight: 600 }}>Test Type</label>
+              <select {...register('testMeta.type')} style={{ width: '100%', padding: 8 }}>
+                <option value="non-audio">Non-audio</option>
+                <option value="audio">Audio</option>
+              </select>
+              {errors.testMeta?.type && (
+                <span style={{ color: 'crimson' }}>{errors.testMeta?.type?.message}</span>
+              )}
+            </div>
+          </div>
         </div>
-    )
-}
+        {errors.parts?.message && (
+          <div style={{ color: 'crimson', marginBottom: 12 }}>{errors.parts.message}</div>
+        )}
 
-const TableFillEditor = ({ control, register, namePrefix, errors, setValue }) => {
-    const answersError = getNestedError(errors, `${namePrefix}.answers`)
-    // helper to read current rows
-    const [_, force] = React.useState(0)
-    const getRows = () => {
-        try {
-            // react-hook-form watch is not available here; we will rely on setValue updates to force render
-            // Provide a fallback storage on window for simplicity
-            return []
-        } catch { return [] }
-    }
+        {isLoadingExisting ? (
+          <LoaderOverlay text="Loading test…" />
+        ) : (
+          partFields.map((part, partIndex) => (
+            <div
+              key={part.id}
+              style={{
+                border: '1px solid #e0e0e0',
+                borderRadius: 8,
+                padding: 16,
+                marginBottom: 20,
+              }}
+            >
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <h3 style={{ margin: 0 }}>Part {partIndex + 1}</h3>
+                <button
+                  type="button"
+                  onClick={() => removePart(partIndex)}
+                  style={{
+                    background: '#ffe6e6',
+                    border: '1px solid #ffcccc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove Part
+                </button>
+              </div>
 
-    const rowsRef = React.useRef([]) // we keep a mirror for ease
-    const ensureInit = () => {
-        const path = `${namePrefix}.table.rows`
-        try {
-            const current = rowsRef.current
-            if (!Array.isArray(current) || current.length === 0) {
-                rowsRef.current = [['']]
-                setValue(path, [['']])
-            }
-        } catch { }
-    }
-    React.useEffect(() => { ensureInit(); }, [])
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginTop: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontWeight: 600 }}>Title</label>
+                  <input
+                    placeholder="PASSAGE 1"
+                    {...register(`parts.${partIndex}.title`)}
+                    style={{ width: '100%', padding: 8 }}
+                  />
+                  {errors.parts?.[partIndex]?.title && (
+                    <span style={{ color: 'crimson' }}>
+                      {errors.parts?.[partIndex]?.title?.message}
+                    </span>
+                  )}
+                </div>
 
-    const getColCount = () => {
-        const rows = rowsRef.current || []
-        return rows.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0) || 1
-    }
+                <div>
+                  <label style={{ display: 'block', fontWeight: 600 }}>Passage</label>
+                  <textarea
+                    placeholder="Paste or write the passage text here"
+                    rows={8}
+                    {...register(`parts.${partIndex}.passage`)}
+                    style={{ width: '100%', padding: 8 }}
+                  />
+                  {errors.parts?.[partIndex]?.passage && (
+                    <span style={{ color: 'crimson' }}>
+                      {errors.parts?.[partIndex]?.passage?.message}
+                    </span>
+                  )}
+                </div>
 
-    const addRow = () => {
-        const cols = getColCount()
-        const next = [...(rowsRef.current || [])]
-        next.push(Array.from({ length: cols }, () => ''))
-        rowsRef.current = next
-        setValue(`${namePrefix}.table.rows`, next)
-        force(x => x + 1)
-    }
-    const addCol = () => {
-        const next = (rowsRef.current || []).map(r => {
-            const row = Array.isArray(r) ? [...r] : []
-            row.push('')
-            return row
-        })
-        if (next.length === 0) next.push([''])
-        rowsRef.current = next
-        setValue(`${namePrefix}.table.rows`, next)
-        force(x => x + 1)
-    }
-    const removeRow = (idx) => {
-        const next = [...(rowsRef.current || [])]
-        next.splice(idx, 1)
-        if (next.length === 0) next.push([''])
-        rowsRef.current = next
-        setValue(`${namePrefix}.table.rows`, next)
-        force(x => x + 1)
-    }
-    const removeCol = (idx) => {
-        const base = rowsRef.current || []
-        const next = base.map(r => {
-            const row = Array.isArray(r) ? [...r] : []
-            if (row.length > 1) row.splice(idx, 1)
-            return row.length === 0 ? [''] : row
-        })
-        rowsRef.current = next
-        setValue(`${namePrefix}.table.rows`, next)
-        force(x => x + 1)
-    }
-    const setCell = (r, c, v) => {
-        const next = (rowsRef.current || []).map((row, ri) => {
-            if (ri !== r) return row
-            const copy = Array.isArray(row) ? [...row] : []
-            copy[c] = v
-            return copy
-        })
-        rowsRef.current = next
-        setValue(`${namePrefix}.table.rows`, next)
-        force(x => x + 1)
-    }
+                {watch('testMeta.type') === 'audio' && (
+                  <>
+                    <div>
+                      <label style={{ display: 'block', fontWeight: 600 }}>Audio Src</label>
+                      <input
+                        placeholder="Will be set after upload"
+                        {...register(`parts.${partIndex}.audioSrc`)}
+                        style={{ width: '100%', padding: 8 }}
+                      />
+                      <small>
+                        Uploads to Firebase Storage and sets a streaming URL automatically.
+                      </small>
+                    </div>
 
-    // Count blanks
-    const getBlankCount = () => {
-        const rows = rowsRef.current || []
-        let blanks = 0
-        for (const row of rows) {
-            for (const cell of (row || [])) {
-                const m = String(cell || '').match(/_{3,}/g) || []
-                blanks += m.length
-            }
-        }
-        return blanks
-    }
-    const getBlankCoords = () => {
-        const rows = rowsRef.current || []
-        const coords = []
-        for (let r = 0; r < rows.length; r++) {
-            const row = rows[r] || []
-            for (let c = 0; c < row.length; c++) {
-                const cell = String(row[c] ?? '')
-                const m = cell.match(/_{3,}/g) || []
-                for (let k = 0; k < m.length; k++) {
-                    coords.push({ r: r + 1, c: c + 1, k: k + 1 })
-                }
-            }
-        }
-        return coords
-    }
+                    <div>
+                      <label style={{ display: 'block', fontWeight: 600 }}>
+                        Upload Audio (optional)
+                      </label>
+                      <input
+                        type="file"
+                        accept="audio/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          // show local preview immediately
+                          try {
+                            const localUrl = URL.createObjectURL(file);
+                            setAudioPreviews((prev) => ({ ...prev, [partIndex]: localUrl }));
+                          } catch {}
+                          // upload to Firebase Storage
+                          try {
+                            const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+                            const path = `tests/audio/${safeName}`;
+                            const ref = storageRef(storage, path);
+                            await uploadBytes(ref, file, {
+                              contentType: file.type || 'audio/mpeg',
+                            });
+                            const downloadURL = await getDownloadURL(ref);
+                            setValue(`parts.${partIndex}.audioSrc`, downloadURL);
+                            try {
+                              toast.success('Audio uploaded');
+                            } catch {}
+                          } catch (err) {
+                            console.error('Audio upload failed', err);
+                            try {
+                              toast.error('Audio upload failed');
+                            } catch {}
+                          }
+                        }}
+                      />
+                      {audioPreviews[partIndex] && (
+                        <audio
+                          controls
+                          style={{ marginTop: 8, width: '100%' }}
+                          src={audioPreviews[partIndex]}
+                        />
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
 
-    const syncAnswers = () => {
-        const count = getBlankCount()
-        const path = `${namePrefix}.answers`
-        // We do not have read; just set length
-        const arr = Array.from({ length: count }, () => '')
-        setValue(path, arr)
-        force(x => x + 1)
-    }
+              <QuestionsSection
+                control={control}
+                register={register}
+                watch={watch}
+                partIndex={partIndex}
+                errors={errors}
+                setValue={setValue}
+              />
+            </div>
+          ))
+        )}
 
-    const rows = rowsRef.current || []
-    const colCount = getColCount()
+        <button
+          type="button"
+          onClick={() => appendPart({ title: '', passage: '', audioSrc: '', questions: [] })}
+          style={{
+            background: '#f0f7ff',
+            border: '1px solid #cfe3ff',
+            padding: '8px 12px',
+            borderRadius: 6,
+            cursor: 'pointer',
+            marginRight: 8,
+          }}
+        >
+          + Add Part
+        </button>
+        <button
+          type="submit"
+          disabled={isSaving}
+          style={{
+            background: '#e8ffe8',
+            border: '1px solid #c1f0c1',
+            padding: '8px 12px',
+            borderRadius: 6,
+            cursor: 'pointer',
+            marginRight: 8,
+          }}
+        >
+          {isSaving ? 'Saving…' : 'Save Test'}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            reset(defaultValues);
+            setGeneratedQuestionsJson('');
+            setGeneratedAnswersJson('');
+          }}
+          style={{
+            background: '#fff8e6',
+            border: '1px solid #ffe8b3',
+            padding: '8px 12px',
+            borderRadius: 6,
+            cursor: 'pointer',
+          }}
+        >
+          Reset
+        </button>
+      </form>
+    </div>
+  );
+};
 
+const QuestionsSection = ({ control, register, watch, partIndex, errors, setValue }) => {
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: `parts.${partIndex}.questions`,
+  });
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h4 style={{ margin: 0 }}>Questions</h4>
+      </div>
+
+      {errors.parts?.[partIndex]?.questions?.message && (
+        <div style={{ color: 'crimson', marginTop: 8 }}>
+          {errors.parts?.[partIndex]?.questions?.message}
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+        {fields.map((q, qIndex) => (
+          <QuestionCard
+            key={q.id}
+            control={control}
+            register={register}
+            watch={watch}
+            partIndex={partIndex}
+            qIndex={qIndex}
+            errors={errors}
+            remove={remove}
+            setValue={setValue}
+          />
+        ))}
+      </div>
+
+      <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-start' }}>
+        <button
+          type="button"
+          onClick={() => {
+            append({ type: 'mcq', question: '', options: ['TRUE', 'FALSE', 'NOT GIVEN'] });
+          }}
+          style={{
+            background: '#f0fff9',
+            border: '1px solid #c7f7e3',
+            padding: '6px 10px',
+            borderRadius: 6,
+            cursor: 'pointer',
+          }}
+        >
+          + Add Question
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const QuestionCard = ({
+  control,
+  register,
+  watch,
+  partIndex,
+  qIndex,
+  errors,
+  remove,
+  setValue,
+}) => {
+  const fieldName = `parts.${partIndex}.questions.${qIndex}`;
+  const questionTypeError = errors.parts?.[partIndex]?.questions?.[qIndex]?.type?.message;
+  const questionTextError = errors.parts?.[partIndex]?.questions?.[qIndex]?.question?.message;
+
+  return (
+    <div style={{ border: '1px dashed #e2e8f0', borderRadius: 8, padding: 12 }}>
+      <div
+        style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center' }}
+      >
+        <div style={{ flex: 1 }}>
+          <label style={{ display: 'block', fontWeight: 600 }}>Type</label>
+          <Controller
+            control={control}
+            name={`${fieldName}.type`}
+            render={({ field }) => (
+              <select {...field} style={{ width: '100%', padding: 8 }}>
+                {QUESTION_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          />
+          {questionTypeError && <span style={{ color: 'crimson' }}>{questionTypeError}</span>}
+        </div>
+
+        <div style={{ width: 120, alignSelf: 'flex-end', textAlign: 'right' }}>
+          <button
+            type="button"
+            onClick={() => remove(qIndex)}
+            style={{
+              background: '#ffecec',
+              border: '1px solid #ffd4d4',
+              padding: '6px 10px',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <label style={{ display: 'block', fontWeight: 600 }}>Question Text</label>
+        <input
+          placeholder="Enter question/instruction text"
+          {...register(`${fieldName}.question`)}
+          style={{ width: '100%', padding: 8 }}
+        />
+        {questionTextError && <span style={{ color: 'crimson' }}>{questionTextError}</span>}
+      </div>
+
+      <OptionsSection
+        control={control}
+        register={register}
+        partIndex={partIndex}
+        qIndex={qIndex}
+        errors={errors}
+      />
+
+      <AnswerSection
+        control={control}
+        register={register}
+        watch={watch}
+        setValue={setValue}
+        partIndex={partIndex}
+        qIndex={qIndex}
+        errors={errors}
+      />
+    </div>
+  );
+};
+
+const OptionsSection = ({ control, register, partIndex, qIndex, errors }) => {
+  const namePrefix = `parts.${partIndex}.questions.${qIndex}`;
+
+  // Read the type via a hidden Controller to drive conditional UI without extra re-renders
+  return (
+    <Controller
+      control={control}
+      name={`${namePrefix}.type`}
+      render={({ field }) => {
+        const type = field.value;
+        if (!(type === 'mcq' || type === 'dropdown')) return null;
+
+        return (
+          <OptionsEditor
+            control={control}
+            register={register}
+            namePrefix={namePrefix}
+            errors={errors}
+          />
+        );
+      }}
+    />
+  );
+};
+
+const OptionsEditor = ({ control, register, namePrefix, errors }) => {
+  const { fields, append, remove } = useFieldArray({ control, name: `${namePrefix}.options` });
+  const optionsError = errors?.parts && getNestedError(errors, `${namePrefix}.options`);
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <label style={{ display: 'block', fontWeight: 600 }}>Options</label>
+      {typeof optionsError === 'string' && (
+        <div style={{ color: 'crimson', marginBottom: 8 }}>{optionsError}</div>
+      )}
+      <div style={{ display: 'grid', gap: 8 }}>
+        {fields.map((opt, idx) => (
+          <div key={opt.id} style={{ display: 'flex', gap: 8 }}>
+            <input
+              placeholder={`Option ${idx + 1}`}
+              {...register(`${namePrefix}.options.${idx}`)}
+              style={{ flex: 1, padding: 8 }}
+            />
+            <button
+              type="button"
+              onClick={() => remove(idx)}
+              style={{
+                background: '#fff2f2',
+                border: '1px solid #ffdcdc',
+                padding: '6px 10px',
+                borderRadius: 6,
+                cursor: 'pointer',
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={() => append('')}
+        style={{
+          marginTop: 8,
+          background: '#eefaff',
+          border: '1px solid #d7f0ff',
+          padding: '6px 10px',
+          borderRadius: 6,
+          cursor: 'pointer',
+        }}
+      >
+        + Add Option
+      </button>
+    </div>
+  );
+};
+
+const AnswerSection = ({ control, register, watch, setValue, partIndex, qIndex, errors }) => {
+  const namePrefix = `parts.${partIndex}.questions.${qIndex}`;
+  const fieldError = getNestedError(errors, `${namePrefix}.answer`);
+
+  const questionType = watch(`${namePrefix}.type`);
+  const options = watch(`${namePrefix}.options`) || [];
+
+  if (questionType === 'info') return null;
+
+  if (questionType === 'matchinggroup') {
     return (
-        <div style={{ marginTop: 12 }}>
-            <div style={{ marginBottom: 6, color: '#555' }}>
-                Use three or more underscores ___ inside any cell to mark a blank. Students will see inputs inline.
-            </div>
+      <MatchingGroupEditor
+        control={control}
+        register={register}
+        namePrefix={namePrefix}
+        errors={errors}
+      />
+    );
+  }
+  if (questionType === 'matchingdrag') {
+    return (
+      <DragMatchEditor
+        control={control}
+        register={register}
+        namePrefix={namePrefix}
+        errors={errors}
+      />
+    );
+  }
+  if (questionType === 'summarydrag') {
+    return (
+      <SummaryDragEditor
+        control={control}
+        register={register}
+        namePrefix={namePrefix}
+        errors={errors}
+      />
+    );
+  }
+  if (questionType === 'sentencefill') {
+    return (
+      <SentenceFillEditor
+        control={control}
+        register={register}
+        namePrefix={namePrefix}
+        errors={errors}
+      />
+    );
+  }
+  if (questionType === 'maplabel') {
+    return (
+      <MapLabelEditor
+        control={control}
+        register={register}
+        namePrefix={namePrefix}
+        errors={errors}
+        setValue={setValue}
+      />
+    );
+  }
+  if (questionType === 'tablefill') {
+    return (
+      <TableFillEditor
+        control={control}
+        register={register}
+        namePrefix={namePrefix}
+        errors={errors}
+        setValue={setValue}
+      />
+    );
+  }
 
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-                <button type="button" onClick={addRow} style={{ background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Row</button>
-                <button type="button" onClick={addCol} style={{ background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>+ Add Column</button>
-                <button type="button" onClick={syncAnswers} style={{ background: '#f0fff5', border: '1px solid #c8f0d2', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}>Sync Answers to Blanks</button>
-                <div style={{ fontSize: 13, color: '#555', alignSelf: 'center' }}>Blanks detected: {getBlankCount()}</div>
-            </div>
+  if (questionType === 'mcq' || questionType === 'dropdown') {
+    return (
+      <div style={{ marginTop: 12 }}>
+        <label style={{ display: 'block', fontWeight: 600 }}>Correct Answer</label>
+        <select {...register(`${namePrefix}.answer`)} style={{ width: '100%', padding: 8 }}>
+          <option value="">Select correct option…</option>
+          {options.map((opt, idx) => (
+            <option key={`${opt}-${idx}`} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+        {typeof fieldError === 'string' && <span style={{ color: 'crimson' }}>{fieldError}</span>}
+      </div>
+    );
+  }
 
-            <div style={{ overflowX: 'auto', border: '1px solid #eee', borderRadius: 8 }}>
-                <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-                    <thead>
-                        <tr>
-                            <th style={{ width: 50, textAlign: 'center', border: '1px solid #e3e3e3', background: '#fafafa' }}>r\\c</th>
-                            {Array.from({ length: colCount }).map((_, cIdx) => (
-                                <th key={cIdx} style={{ textAlign: 'center', border: '1px solid #e3e3e3', background: '#fafafa', padding: '6px 8px' }}>{cIdx + 1}</th>
-                            ))}
-                            <th style={{ width: 120, border: '1px solid #e3e3e3', background: '#fafafa' }}></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {rows.map((row, rIdx) => (
-                            <tr key={rIdx}>
-                                <td style={{ textAlign: 'center', border: '1px solid #e3e3e3', padding: '6px 8px', background: '#fafafa', fontWeight: 600 }}>{rIdx + 1}</td>
-                                {(Array.from({ length: Math.max(colCount, row?.length || 0) })).map((_, cIdx) => (
-                                    <td key={cIdx} style={{ border: '1px solid #e3e3e3', padding: 0 }}>
-                                        <input
-                                            value={String(row?.[cIdx] ?? '')}
-                                            onChange={(e) => setCell(rIdx, cIdx, e.target.value)}
-                                            placeholder="Cell"
-                                            style={{ width: '100%', padding: 8, border: 'none', outline: 'none' }}
-                                        />
-                                    </td>
-                                ))}
-                                <td style={{ padding: 6, whiteSpace: 'nowrap' }}>
-                                    <button type="button" onClick={() => removeRow(rIdx)} style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 8px', borderRadius: 6, cursor: 'pointer' }}>Remove Row</button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+  // written
+  return (
+    <div style={{ marginTop: 12 }}>
+      <label style={{ display: 'block', fontWeight: 600 }}>Answer</label>
+      <input
+        placeholder="Enter the correct answer"
+        {...register(`${namePrefix}.answer`)}
+        style={{ width: '100%', padding: 8 }}
+      />
+      {typeof fieldError === 'string' && <span style={{ color: 'crimson' }}>{fieldError}</span>}
+    </div>
+  );
+};
 
-            <div style={{ marginTop: 8 }}>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>Remove Column</div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {Array.from({ length: colCount }).map((_, idx) => (
-                        <button key={idx} type="button" onClick={() => removeCol(idx)} style={{ background: '#fff8e6', border: '1px solid #ffe8b3', padding: '6px 8px', borderRadius: 6, cursor: 'pointer' }}>
-                            Column {idx + 1}
-                        </button>
-                    ))}
-                </div>
-            </div>
+const MatchingGroupEditor = ({ control, register, namePrefix, errors }) => {
+  const {
+    fields: columnFields,
+    append: appendColumn,
+    remove: removeColumn,
+  } = useFieldArray({ control, name: `${namePrefix}.columns` });
+  const {
+    fields: rowFields,
+    append: appendRow,
+    remove: removeRow,
+  } = useFieldArray({ control, name: `${namePrefix}.rows` });
+  const {
+    fields: answerFields,
+    append: appendAnswer,
+    remove: removeAnswer,
+  } = useFieldArray({ control, name: `${namePrefix}.answers` });
 
-            <div style={{ marginTop: 12 }}>
-                <label style={{ display: 'block', fontWeight: 600 }}>Answers (row-major, one per blank)</label>
-                {typeof answersError === 'string' && <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>}
-                <div style={{ display: 'grid', gap: 8 }}>
-                    {(() => {
-                        const coords = getBlankCoords()
-                        return coords.map((pos, idx) => (
-                            <div key={`${pos.r}-${pos.c}-${pos.k}-${idx}`} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                <div style={{ width: 150, color: '#666' }}>Blank ({pos.r},{pos.c}){pos.k > 1 ? ` #${pos.k}` : ''}</div>
-                                <input
-                                    {...register(`${namePrefix}.answers.${idx}`)}
-                                    placeholder={`Answer (${pos.r},${pos.c})${pos.k > 1 ? ` #${pos.k}` : ''}`}
-                                    style={{ flex: 1, padding: 8 }}
-                                />
-                            </div>
-                        ))
-                    })()}
-                    <small style={{ color: '#666' }}>Order: row-major (left→right, top→bottom). Coordinates are 1-based (row,col).</small>
-                </div>
-            </div>
+  const columnsError = getNestedError(errors, `${namePrefix}.columns`);
+  const rowsError = getNestedError(errors, `${namePrefix}.rows`);
+  const answersError = getNestedError(errors, `${namePrefix}.answers`);
+
+  // State to manage column labels and descriptions separately
+  const [columnLabels, setColumnLabels] = React.useState(['A', 'B', 'C', 'D', 'E']);
+
+  const addRowWithAnswer = () => {
+    appendRow('');
+    appendAnswer('');
+  };
+  const removeRowWithAnswer = (idx) => {
+    removeRow(idx);
+    removeAnswer(idx);
+  };
+
+  const addColumnLabel = () => {
+    const nextLabel = String.fromCharCode(65 + columnLabels.length); // A=65, B=66, etc.
+    setColumnLabels([...columnLabels, nextLabel]);
+    appendColumn('');
+  };
+
+  const removeColumnLabel = (idx) => {
+    const newLabels = [...columnLabels];
+    newLabels.splice(idx, 1);
+    setColumnLabels(newLabels);
+    removeColumn(idx);
+  };
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>Matching Group</label>
+      <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+        Add column labels (A, B, C...) with their descriptions, then add rows (questions), and
+        finally specify which column is correct for each row.
+      </div>
+
+      <div style={{ display: 'grid', gap: 16, marginTop: 12 }}>
+        {/* Columns Section */}
+        <div
+          style={{
+            border: '1px solid #e0e0e0',
+            borderRadius: 8,
+            padding: 12,
+            background: '#fafafa',
+          }}
+        >
+          <label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>
+            Columns (Options)
+          </label>
+          {typeof columnsError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{columnsError}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {columnFields.map((col, idx) => (
+              <div key={col.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span
+                  style={{
+                    minWidth: 40,
+                    fontWeight: 600,
+                    fontSize: 16,
+                    color: '#333',
+                    textAlign: 'center',
+                  }}
+                >
+                  {columnLabels[idx] || String.fromCharCode(65 + idx)}
+                </span>
+                <input
+                  placeholder={`Description for ${columnLabels[idx] || String.fromCharCode(65 + idx)} (e.g., "the Chinese")`}
+                  {...register(`${namePrefix}.columns.${idx}`)}
+                  style={{ flex: 1, padding: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeColumnLabel(idx)}
+                  style={{
+                    background: '#fff2f2',
+                    border: '1px solid #ffdcdc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={addColumnLabel}
+            style={{
+              marginTop: 8,
+              background: '#eefaff',
+              border: '1px solid #d7f0ff',
+              padding: '6px 10px',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            + Add Column
+          </button>
         </div>
-    )
-}
+
+        {/* Rows Section */}
+        <div
+          style={{
+            border: '1px solid #e0e0e0',
+            borderRadius: 8,
+            padding: 12,
+            background: '#fafafa',
+          }}
+        >
+          <label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>
+            Rows (Questions/Items)
+          </label>
+          {typeof rowsError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{rowsError}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {rowFields.map((row, idx) => (
+              <div key={row.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span
+                  style={{
+                    minWidth: 40,
+                    fontWeight: 600,
+                    fontSize: 16,
+                    color: '#333',
+                    textAlign: 'center',
+                  }}
+                >
+                  {idx + 1}
+                </span>
+                <input
+                  placeholder={`Question ${idx + 1} (e.g., "black powder")`}
+                  {...register(`${namePrefix}.rows.${idx}`)}
+                  style={{ flex: 1, padding: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeRowWithAnswer(idx)}
+                  style={{
+                    background: '#fff2f2',
+                    border: '1px solid #ffdcdc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={addRowWithAnswer}
+            style={{
+              marginTop: 8,
+              background: '#eefaff',
+              border: '1px solid #d7f0ff',
+              padding: '6px 10px',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            + Add Row
+          </button>
+        </div>
+
+        {/* Answers Section */}
+        <div
+          style={{
+            border: '1px solid #e0e0e0',
+            borderRadius: 8,
+            padding: 12,
+            background: '#f0fff4',
+          }}
+        >
+          <label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>
+            Answers (Which column for each row?)
+          </label>
+          {typeof answersError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {answerFields.map((ans, idx) => (
+              <div key={ans.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{ minWidth: 100, color: '#666', fontWeight: 500 }}>
+                  Row {idx + 1}:
+                </span>
+                <input
+                  placeholder={`Enter column letter (e.g., ${columnLabels[0] || 'A'})`}
+                  {...register(`${namePrefix}.answers.${idx}`)}
+                  style={{ flex: 1, padding: 8, maxWidth: 200 }}
+                />
+                <span style={{ fontSize: 12, color: '#999' }}>
+                  Available: {columnLabels.slice(0, columnFields.length).join(', ')}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const MapLabelEditor = ({ control, register, namePrefix, errors, setValue }) => {
+  const {
+    fields: columnFields,
+    append: appendColumn,
+    remove: removeColumn,
+  } = useFieldArray({ control, name: `${namePrefix}.columns` });
+  const {
+    fields: rowFields,
+    append: appendRow,
+    remove: removeRow,
+  } = useFieldArray({ control, name: `${namePrefix}.rows` });
+  const {
+    fields: answerFields,
+    append: appendAnswer,
+    remove: removeAnswer,
+  } = useFieldArray({ control, name: `${namePrefix}.answers` });
+
+  const columnsError = getNestedError(errors, `${namePrefix}.columns`);
+  const rowsError = getNestedError(errors, `${namePrefix}.rows`);
+  const answersError = getNestedError(errors, `${namePrefix}.answers`);
+
+  const addRowWithAnswer = () => {
+    appendRow('');
+    appendAnswer('');
+  };
+  const removeRowWithAnswer = (idx) => {
+    removeRow(idx);
+    removeAnswer(idx);
+  };
+
+  const [previewUrl, setPreviewUrl] = React.useState('');
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <label style={{ display: 'block', fontWeight: 600 }}>Plan/Map/Diagram Labelling</label>
+
+      <div style={{ marginTop: 8 }}>
+        <label style={{ display: 'block', fontWeight: 600 }}>Image URL (optional)</label>
+        <input
+          placeholder="/images/map-1.png"
+          {...register(`${namePrefix}.imageSrc`)}
+          style={{ width: '100%', padding: 8 }}
+        />
+        <small>
+          Tip: Use the upload below to set this automatically to /images/&lt;filename&gt; and place
+          the file in public/images/.
+        </small>
+      </div>
+      <div style={{ marginTop: 8 }}>
+        <label style={{ display: 'block', fontWeight: 600 }}>Upload Image (optional)</label>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            setPreviewUrl(url);
+            try {
+              setValue(`${namePrefix}.imageSrc`, `/images/${file.name}`);
+            } catch (_) {}
+          }}
+        />
+        {previewUrl && (
+          <div style={{ marginTop: 8 }}>
+            <img
+              src={previewUrl}
+              alt=""
+              style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid #eee' }}
+            />
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+        <div>
+          <label style={{ display: 'block', fontWeight: 600 }}>Columns (A–H, etc.)</label>
+          {typeof columnsError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{columnsError}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {columnFields.map((col, idx) => (
+              <div key={col.id} style={{ display: 'flex', gap: 8 }}>
+                <input
+                  placeholder={`Letter ${idx + 1} (e.g., A)`}
+                  {...register(`${namePrefix}.columns.${idx}`)}
+                  style={{ flex: 1, padding: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeColumn(idx)}
+                  style={{
+                    background: '#fff2f2',
+                    border: '1px solid #ffdcdc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => appendColumn('')}
+            style={{
+              marginTop: 8,
+              background: '#eefaff',
+              border: '1px solid #d7f0ff',
+              padding: '6px 10px',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            + Add Column
+          </button>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontWeight: 600 }}>Rows (items to label)</label>
+          {typeof rowsError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{rowsError}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {rowFields.map((row, idx) => (
+              <div key={row.id} style={{ display: 'flex', gap: 8 }}>
+                <input
+                  placeholder={`Row ${idx + 1}`}
+                  {...register(`${namePrefix}.rows.${idx}`)}
+                  style={{ flex: 1, padding: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeRowWithAnswer(idx)}
+                  style={{
+                    background: '#fff2f2',
+                    border: '1px solid #ffdcdc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={addRowWithAnswer}
+            style={{
+              marginTop: 8,
+              background: '#eefaff',
+              border: '1px solid #d7f0ff',
+              padding: '6px 10px',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            + Add Row
+          </button>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontWeight: 600 }}>Answers (letter for each Row)</label>
+          {typeof answersError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {answerFields.map((ans, idx) => (
+              <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
+                <input
+                  placeholder={`Letter for Row ${idx + 1}`}
+                  {...register(`${namePrefix}.answers.${idx}`)}
+                  style={{ flex: 1, padding: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeRowWithAnswer(idx)}
+                  style={{
+                    background: '#fff2f2',
+                    border: '1px solid #ffdcdc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={addRowWithAnswer}
+            style={{
+              marginTop: 8,
+              background: '#eefaff',
+              border: '1px solid #d7f0ff',
+              padding: '6px 10px',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            + Add Answer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DragMatchEditor = ({ control, register, namePrefix, errors }) => {
+  const {
+    fields: optionFields,
+    append: appendOption,
+    remove: removeOption,
+  } = useFieldArray({ control, name: `${namePrefix}.options` });
+  const {
+    fields: rowFields,
+    append: appendRow,
+    remove: removeRow,
+  } = useFieldArray({ control, name: `${namePrefix}.rows` });
+  const {
+    fields: answerFields,
+    append: appendAnswer,
+    remove: removeAnswer,
+  } = useFieldArray({ control, name: `${namePrefix}.answers` });
+
+  const optionsError = getNestedError(errors, `${namePrefix}.options`);
+  const rowsError = getNestedError(errors, `${namePrefix}.rows`);
+  const answersError = getNestedError(errors, `${namePrefix}.answers`);
+
+  const addRowWithAnswer = () => {
+    appendRow('');
+    appendAnswer('');
+  };
+  const removeRowWithAnswer = (idx) => {
+    removeRow(idx);
+    removeAnswer(idx);
+  };
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <label style={{ display: 'block', fontWeight: 600 }}>
+        Matching Sentence Endings (Drag & Drop)
+      </label>
+
+      <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+        <div>
+          <label style={{ display: 'block', fontWeight: 600 }}>Answer Bank (Endings)</label>
+          {typeof optionsError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{optionsError}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {optionFields.map((opt, idx) => (
+              <div key={opt.id} style={{ display: 'flex', gap: 8 }}>
+                <input
+                  placeholder={`Ending ${idx + 1}`}
+                  {...register(`${namePrefix}.options.${idx}`)}
+                  style={{ flex: 1, padding: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeOption(idx)}
+                  style={{
+                    background: '#fff2f2',
+                    border: '1px solid #ffdcdc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => appendOption('')}
+            style={{
+              marginTop: 8,
+              background: '#eefaff',
+              border: '1px solid #d7f0ff',
+              padding: '6px 10px',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            + Add Option
+          </button>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontWeight: 600 }}>Rows (Sentence starts)</label>
+          {typeof rowsError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{rowsError}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {rowFields.map((row, idx) => (
+              <div key={row.id} style={{ display: 'flex', gap: 8 }}>
+                <input
+                  placeholder={`Row ${idx + 1}`}
+                  {...register(`${namePrefix}.rows.${idx}`)}
+                  style={{ flex: 1, padding: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeRowWithAnswer(idx)}
+                  style={{
+                    background: '#fff2f2',
+                    border: '1px solid #ffdcdc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={addRowWithAnswer}
+            style={{
+              marginTop: 8,
+              background: '#eefaff',
+              border: '1px solid #d7f0ff',
+              padding: '6px 10px',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            + Add Row
+          </button>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontWeight: 600 }}>Answers (letter for each Row)</label>
+          {typeof answersError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {answerFields.map((ans, idx) => (
+              <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
+                <input
+                  placeholder={`Letter for Row ${idx + 1}`}
+                  {...register(`${namePrefix}.answers.${idx}`)}
+                  style={{ flex: 1, padding: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeRowWithAnswer(idx)}
+                  style={{
+                    background: '#fff2f2',
+                    border: '1px solid #ffdcdc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={addRowWithAnswer}
+            style={{
+              marginTop: 8,
+              background: '#eefaff',
+              border: '1px solid #d7f0ff',
+              padding: '6px 10px',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            + Add Answer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SummaryDragEditor = ({ control, register, namePrefix, errors }) => {
+  const {
+    fields: optionFields,
+    append: appendOption,
+    remove: removeOption,
+  } = useFieldArray({ control, name: `${namePrefix}.options` });
+  const {
+    fields: answerFields,
+    append: appendAnswer,
+    remove: removeAnswer,
+  } = useFieldArray({ control, name: `${namePrefix}.answers` });
+
+  const optionsError = getNestedError(errors, `${namePrefix}.options`);
+  const answersError = getNestedError(errors, `${namePrefix}.answers`);
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ marginBottom: 8, color: '#555' }}>
+        Use three or more underscores ___ in the Question Text to mark each blank. Add the words
+        below for the answer bank, and provide the correct answer for each blank in order.
+      </div>
+      <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+        <div>
+          <label style={{ display: 'block', fontWeight: 600 }}>Answer Bank (words/phrases)</label>
+          {typeof optionsError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{optionsError}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {optionFields.map((opt, idx) => (
+              <div key={opt.id} style={{ display: 'flex', gap: 8 }}>
+                <input
+                  placeholder={`Word ${idx + 1}`}
+                  {...register(`${namePrefix}.options.${idx}`)}
+                  style={{ flex: 1, padding: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeOption(idx)}
+                  style={{
+                    background: '#fff2f2',
+                    border: '1px solid #ffdcdc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => appendOption('')}
+            style={{
+              marginTop: 8,
+              background: '#eefaff',
+              border: '1px solid #d7f0ff',
+              padding: '6px 10px',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            + Add Word
+          </button>
+        </div>
+        <div>
+          <label style={{ display: 'block', fontWeight: 600 }}>
+            Answers (one per blank, in order)
+          </label>
+          {typeof answersError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {answerFields.map((ans, idx) => (
+              <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
+                <input
+                  placeholder={`Answer for blank ${idx + 1}`}
+                  {...register(`${namePrefix}.answers.${idx}`)}
+                  style={{ flex: 1, padding: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeAnswer(idx)}
+                  style={{
+                    background: '#fff2f2',
+                    border: '1px solid #ffdcdc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => appendAnswer('')}
+            style={{
+              marginTop: 8,
+              background: '#eefaff',
+              border: '1px solid #d7f0ff',
+              padding: '6px 10px',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            + Add Answer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SentenceFillEditor = ({ control, register, namePrefix, errors }) => {
+  const {
+    fields: answerFields,
+    append: appendAnswer,
+    remove: removeAnswer,
+  } = useFieldArray({ control, name: `${namePrefix}.answers` });
+  const answersError = getNestedError(errors, `${namePrefix}.answers`);
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ marginBottom: 8, color: '#555' }}>
+        Use three or more underscores ___ in the Question Text to mark each blank. Provide the
+        correct typed answer for each blank in order.
+      </div>
+      <div>
+        <label style={{ display: 'block', fontWeight: 600 }}>
+          Answers (one per blank, in order)
+        </label>
+        {typeof answersError === 'string' && (
+          <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>
+        )}
+        <div style={{ display: 'grid', gap: 8 }}>
+          {answerFields.map((ans, idx) => (
+            <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
+              <input
+                placeholder={`Answer for blank ${idx + 1}`}
+                {...register(`${namePrefix}.answers.${idx}`)}
+                style={{ flex: 1, padding: 8 }}
+              />
+              <button
+                type="button"
+                onClick={() => removeAnswer(idx)}
+                style={{
+                  background: '#fff2f2',
+                  border: '1px solid #ffdcdc',
+                  padding: '6px 10px',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => appendAnswer('')}
+          style={{
+            marginTop: 8,
+            background: '#eefaff',
+            border: '1px solid #d7f0ff',
+            padding: '6px 10px',
+            borderRadius: 6,
+            cursor: 'pointer',
+          }}
+        >
+          + Add Answer
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const TableFillEditor = ({ register, namePrefix, errors, setValue }) => {
+  const answersError = getNestedError(errors, `${namePrefix}.answers`);
+  // helper to read current rows
+  const [_, force] = React.useState(0);
+
+  const rowsRef = React.useRef([]); // we keep a mirror for ease
+  const ensureInit = () => {
+    const path = `${namePrefix}.table.rows`;
+    try {
+      const current = rowsRef.current;
+      if (!Array.isArray(current) || current.length === 0) {
+        rowsRef.current = [['']];
+        setValue(path, [['']]);
+      }
+    } catch {}
+  };
+  React.useEffect(() => {
+    ensureInit();
+  }, []);
+
+  const getColCount = () => {
+    const rows = rowsRef.current || [];
+    return rows.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0) || 1;
+  };
+
+  const addRow = () => {
+    const cols = getColCount();
+    const next = [...(rowsRef.current || [])];
+    next.push(Array.from({ length: cols }, () => ''));
+    rowsRef.current = next;
+    setValue(`${namePrefix}.table.rows`, next);
+    force((x) => x + 1);
+  };
+  const addCol = () => {
+    const next = (rowsRef.current || []).map((r) => {
+      const row = Array.isArray(r) ? [...r] : [];
+      row.push('');
+      return row;
+    });
+    if (next.length === 0) next.push(['']);
+    rowsRef.current = next;
+    setValue(`${namePrefix}.table.rows`, next);
+    force((x) => x + 1);
+  };
+  const removeRow = (idx) => {
+    const next = [...(rowsRef.current || [])];
+    next.splice(idx, 1);
+    if (next.length === 0) next.push(['']);
+    rowsRef.current = next;
+    setValue(`${namePrefix}.table.rows`, next);
+    force((x) => x + 1);
+  };
+  const removeCol = (idx) => {
+    const base = rowsRef.current || [];
+    const next = base.map((r) => {
+      const row = Array.isArray(r) ? [...r] : [];
+      if (row.length > 1) row.splice(idx, 1);
+      return row.length === 0 ? [''] : row;
+    });
+    rowsRef.current = next;
+    setValue(`${namePrefix}.table.rows`, next);
+    force((x) => x + 1);
+  };
+  const setCell = (r, c, v) => {
+    const next = (rowsRef.current || []).map((row, ri) => {
+      if (ri !== r) return row;
+      const copy = Array.isArray(row) ? [...row] : [];
+      copy[c] = v;
+      return copy;
+    });
+    rowsRef.current = next;
+    setValue(`${namePrefix}.table.rows`, next);
+    force((x) => x + 1);
+  };
+
+  // Count blanks
+  const getBlankCount = () => {
+    const rows = rowsRef.current || [];
+    let blanks = 0;
+    for (const row of rows) {
+      for (const cell of row || []) {
+        const m = String(cell || '').match(/_{3,}/g) || [];
+        blanks += m.length;
+      }
+    }
+    return blanks;
+  };
+  const getBlankCoords = () => {
+    const rows = rowsRef.current || [];
+    const coords = [];
+    for (let r = 0; r < rows.length; r++) {
+      const row = rows[r] || [];
+      for (let c = 0; c < row.length; c++) {
+        const cell = String(row[c] ?? '');
+        const m = cell.match(/_{3,}/g) || [];
+        for (let k = 0; k < m.length; k++) {
+          coords.push({ r: r + 1, c: c + 1, k: k + 1 });
+        }
+      }
+    }
+    return coords;
+  };
+
+  const syncAnswers = () => {
+    const count = getBlankCount();
+    const path = `${namePrefix}.answers`;
+    // We do not have read; just set length
+    const arr = Array.from({ length: count }, () => '');
+    setValue(path, arr);
+    force((x) => x + 1);
+  };
+
+  const rows = rowsRef.current || [];
+  const colCount = getColCount();
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ marginBottom: 6, color: '#555' }}>
+        Use three or more underscores ___ inside any cell to mark a blank. Students will see inputs
+        inline.
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+        <button
+          type="button"
+          onClick={addRow}
+          style={{
+            background: '#eefaff',
+            border: '1px solid #d7f0ff',
+            padding: '6px 10px',
+            borderRadius: 6,
+            cursor: 'pointer',
+          }}
+        >
+          + Add Row
+        </button>
+        <button
+          type="button"
+          onClick={addCol}
+          style={{
+            background: '#eefaff',
+            border: '1px solid #d7f0ff',
+            padding: '6px 10px',
+            borderRadius: 6,
+            cursor: 'pointer',
+          }}
+        >
+          + Add Column
+        </button>
+        <button
+          type="button"
+          onClick={syncAnswers}
+          style={{
+            background: '#f0fff5',
+            border: '1px solid #c8f0d2',
+            padding: '6px 10px',
+            borderRadius: 6,
+            cursor: 'pointer',
+          }}
+        >
+          Sync Answers to Blanks
+        </button>
+        <div style={{ fontSize: 13, color: '#555', alignSelf: 'center' }}>
+          Blanks detected: {getBlankCount()}
+        </div>
+      </div>
+
+      <div style={{ overflowX: 'auto', border: '1px solid #eee', borderRadius: 8 }}>
+        <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+          <thead>
+            <tr>
+              <th
+                style={{
+                  width: 50,
+                  textAlign: 'center',
+                  border: '1px solid #e3e3e3',
+                  background: '#fafafa',
+                }}
+              >
+                r\\c
+              </th>
+              {Array.from({ length: colCount }).map((_, cIdx) => (
+                <th
+                  key={cIdx}
+                  style={{
+                    textAlign: 'center',
+                    border: '1px solid #e3e3e3',
+                    background: '#fafafa',
+                    padding: '6px 8px',
+                  }}
+                >
+                  {cIdx + 1}
+                </th>
+              ))}
+              <th style={{ width: 120, border: '1px solid #e3e3e3', background: '#fafafa' }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, rIdx) => (
+              <tr key={rIdx}>
+                <td
+                  style={{
+                    textAlign: 'center',
+                    border: '1px solid #e3e3e3',
+                    padding: '6px 8px',
+                    background: '#fafafa',
+                    fontWeight: 600,
+                  }}
+                >
+                  {rIdx + 1}
+                </td>
+                {Array.from({ length: Math.max(colCount, row?.length || 0) }).map((_, cIdx) => (
+                  <td key={cIdx} style={{ border: '1px solid #e3e3e3', padding: 0 }}>
+                    <input
+                      value={String(row?.[cIdx] ?? '')}
+                      onChange={(e) => setCell(rIdx, cIdx, e.target.value)}
+                      placeholder="Cell"
+                      style={{ width: '100%', padding: 8, border: 'none', outline: 'none' }}
+                    />
+                  </td>
+                ))}
+                <td style={{ padding: 6, whiteSpace: 'nowrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => removeRow(rIdx)}
+                    style={{
+                      background: '#fff2f2',
+                      border: '1px solid #ffdcdc',
+                      padding: '6px 8px',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Remove Row
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ marginTop: 8 }}>
+        <div style={{ fontWeight: 600, marginBottom: 6 }}>Remove Column</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {Array.from({ length: colCount }).map((_, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => removeCol(idx)}
+              style={{
+                background: '#fff8e6',
+                border: '1px solid #ffe8b3',
+                padding: '6px 8px',
+                borderRadius: 6,
+                cursor: 'pointer',
+              }}
+            >
+              Column {idx + 1}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <label style={{ display: 'block', fontWeight: 600 }}>
+          Answers (row-major, one per blank)
+        </label>
+        {typeof answersError === 'string' && (
+          <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>
+        )}
+        <div style={{ display: 'grid', gap: 8 }}>
+          {(() => {
+            const coords = getBlankCoords();
+            return coords.map((pos, idx) => (
+              <div
+                key={`${pos.r}-${pos.c}-${pos.k}-${idx}`}
+                style={{ display: 'flex', gap: 8, alignItems: 'center' }}
+              >
+                <div style={{ width: 150, color: '#666' }}>
+                  Blank ({pos.r},{pos.c}){pos.k > 1 ? ` #${pos.k}` : ''}
+                </div>
+                <input
+                  {...register(`${namePrefix}.answers.${idx}`)}
+                  placeholder={`Answer (${pos.r},${pos.c})${pos.k > 1 ? ` #${pos.k}` : ''}`}
+                  style={{ flex: 1, padding: 8 }}
+                />
+              </div>
+            ));
+          })()}
+          <small style={{ color: '#666' }}>
+            Order: row-major (left→right, top→bottom). Coordinates are 1-based (row,col).
+          </small>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 function getNestedError(obj, path) {
-    const keys = path.split('.')
-    let current = obj
-    for (let i = 0; i < keys.length; i++) {
-        const key = keys[i]
-        if (current == null) return undefined
-        current = current[key]
-    }
-    if (typeof current === 'object' && current?.message) return current.message
-    return current
+  const keys = path.split('.');
+  let current = obj;
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    if (current == null) return undefined;
+    current = current[key];
+  }
+  if (typeof current === 'object' && current?.message) return current.message;
+  return current;
 }
 
-export default Admin
+export default Admin;

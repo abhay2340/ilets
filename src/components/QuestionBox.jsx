@@ -145,13 +145,16 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
         const cols = Array.isArray(question.columns) ? question.columns : [];
 
         // Parse columns into letter + label
-        const parsedCols = React.useMemo(() => cols.map((c) => {
+        const parsedCols = React.useMemo(() => cols.map((c, idx) => {
           const text = String(c ?? '').trim();
           const [first, ...rest] = text.split(' ');
+          // If author provided "A the Chinese" pattern, use it
           if (first && first.length === 1 && /[A-Z]/i.test(first)) {
             return { letter: first.toUpperCase(), label: rest.join(' ').trim() };
           }
-          return { letter: text, label: '' };
+          // Otherwise, auto-assign letters A, B, C... and treat whole text as label
+          const autoLetter = String.fromCharCode(65 + idx);
+          return { letter: autoLetter, label: text };
         }), [cols.join('|')]);
 
         // Parse existing answer string like "B|A|C|E" into per-row selections
@@ -237,6 +240,19 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
                 </table>
               </div>
             )}
+
+            {/* Extra prompt box under matrix as requested */}
+            <div style={{ marginTop: '14px', border: '1px solid #e5e5e5', borderRadius: 8, padding: 10, background: '#fafafa' }}>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>{String(question.question || '')}</div>
+              <div style={{ display: 'grid', gap: 6 }}>
+                {parsedCols.map((c, i) => (
+                  <div key={`legend-inline-${i}`} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <span style={{ fontWeight: 800, width: 22, textAlign: 'center' }}>{c.letter}</span>
+                    <span>{c.label || ''}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div style={{ marginTop: '8px', color: '#666', fontSize: '12px' }}>
               Your selections: {localSel.filter(Boolean).length > 0 ? localSel.join(' | ') : 'None'}
