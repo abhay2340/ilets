@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { useForm, useFieldArray, Controller, useWatch } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import { db, storage } from './firebaseConfig';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -150,7 +150,7 @@ const buildValidationSchema = () =>
                   },
                   then: (s) =>
                     s
-                      .of(yup.string().trim().required('Answer cannot be empty'))
+                      .of(yup.string().trim().notRequired()) // Allow empty answers - they'll be filtered out during save
                       .test('answers-length', 'Answers must match number of items', function (val) {
                         const type = this.parent.type;
                         if (
@@ -216,6 +216,7 @@ const Admin = () => {
     reset,
     setValue,
     trigger,
+    getValues,
     formState: { errors },
   } = useForm({
     defaultValues,
@@ -238,7 +239,7 @@ const Admin = () => {
   });
 
   const [generatedQuestionsJson, setGeneratedQuestionsJson] = useState('');
-  const [generatedAnswersJson, setGeneratedAnswersJson] = useState('');
+  const [, setGeneratedAnswersJson] = useState('');
   const [audioPreviews, setAudioPreviews] = useState({});
   const [isSaving, setIsSaving] = useState(false);
   const { testId } = useParams();
@@ -269,11 +270,11 @@ const Admin = () => {
       title: testMeta.title,
       number: testMeta.number,
       type: testMeta.type,
-      parts: values.parts.map((part, partIndex) => ({
+      parts: values.parts.map((part, partIdx) => ({
         title: part.title,
         passage: part.passage,
         ...(part.audioSrc ? { audioSrc: part.audioSrc } : {}),
-        questions: part.questions.map((q) => {
+        questions: part.questions.map((q, qIdx) => {
           if (q.type === 'matchinggroup') {
             const rowCount = Array.isArray(q.rows) ? q.rows.length : 0;
             const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i);
@@ -374,27 +375,57 @@ const Admin = () => {
           }
           if (q.type === 'tablefill') {
             const rows = q.table?.rows || [];
+            // Sanitize rows: ensure all cells are strings, filter out undefined/null
+            const sanitizedRows = rows.map((row) => {
+              if (!Array.isArray(row)) return [];
+              return row.map((cell) => String(cell ?? ''));
+            });
+            // Firestore doesn't support nested arrays, so serialize each row as JSON string
+            const serializedRows = sanitizedRows.map((row) => JSON.stringify(row));
             let count = 0;
-            for (const rr of rows) {
+            for (const rr of sanitizedRows) {
               for (const cell of rr || []) {
                 const matches = String(cell || '').match(/_{3,}/g) || [];
                 count += matches.length;
               }
             }
             const subIds = Array.from({ length: count }, (_, i) => nextId + i);
-            if (Array.isArray(q.answers)) {
-              q.answers.forEach((ans, idx) => {
+
+            // Read answers directly from form values using getValues (q.answers might not be in values object)
+            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+            const formAnswers = getValues(answersPath);
+            const answers = Array.isArray(formAnswers) ? formAnswers : (Array.isArray(q.answers) ? q.answers : []);
+
+            console.log('Tablefill question:', q.question);
+            console.log('Answers path:', answersPath);
+            console.log('Answers from getValues:', formAnswers);
+            console.log('Answers from q.answers:', q.answers);
+            console.log('Final answers array:', answers);
+            console.log('Blank count:', count, 'SubIds:', subIds);
+
+            // Save answers to answerMap - only save non-empty answers
+            if (answers.length > 0) {
+              answers.forEach((ans, idx) => {
                 const subId = subIds[idx];
-                if (subId != null) answerMap[subId] = ans;
+                if (subId != null && ans != null && String(ans).trim() !== '') {
+                  answerMap[subId] = String(ans).trim();
+                  console.log(`Saved answer for subId ${subId}:`, String(ans).trim());
+                }
               });
+              console.log('Final answerMap for this question:', Object.fromEntries(Object.entries(answerMap).filter(([k]) => subIds.includes(Number(k)))));
+            } else {
+              console.warn('Tablefill question has no answers array or it is empty. Question:', q.question);
+              console.warn('Tried to read from path:', answersPath);
+              console.warn('Full question object keys:', Object.keys(q));
             }
+
             nextId += count;
             return {
               id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
               type: 'tablefill',
               subIds,
-              question: q.question,
-              table: { rows: rows },
+              question: q.question || '',
+              table: { rows: serializedRows }, // Store as array of JSON strings
             };
           }
 
@@ -433,7 +464,8 @@ const Admin = () => {
       });
       toast.success(isEditing ? 'Test updated' : 'Test created');
     } catch (e) {
-      toast.error('Failed to save to Firebase');
+      console.error('Firebase save error:', e);
+      toast.error(`Failed to save to Firebase: ${e.message || String(e)}`);
     } finally {
       setIsSaving(false);
     }
@@ -460,7 +492,7 @@ const Admin = () => {
             const a = ansSnap.data();
             answersMap = a?.answers || {};
           }
-        } catch {}
+        } catch { }
 
         const populatedParts = (testData.parts || []).map((part) => ({
           title: part.title || '',
@@ -481,6 +513,26 @@ const Admin = () => {
             ) {
               const subIds = Array.isArray(q.subIds) ? q.subIds : [];
               const answers = subIds.map((sid) => answersMap[sid] || '');
+              // For tablefill, deserialize rows from JSON strings back to nested arrays
+              if (q.type === 'tablefill' && q.table?.rows) {
+                try {
+                  const deserializedRows = q.table.rows.map((rowStr) => {
+                    if (typeof rowStr === 'string') {
+                      try {
+                        return JSON.parse(rowStr);
+                      } catch {
+                        return [];
+                      }
+                    }
+                    // If already an array (legacy data), return as-is
+                    if (Array.isArray(rowStr)) return rowStr;
+                    return [];
+                  });
+                  return { ...q, answers, table: { rows: deserializedRows } };
+                } catch {
+                  return { ...q, answers, table: { rows: [] } };
+                }
+              }
               return { ...q, answers };
             }
             if (q.type === 'mcq' || q.type === 'dropdown') {
@@ -514,19 +566,6 @@ const Admin = () => {
     loadExisting();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing, testId]);
-
-  const handleDownload = (content, filename) => {
-    if (!content) return;
-    const blob = new Blob([content], { type: 'application/javascript;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div style={{ padding: '16px', maxWidth: 1100, margin: '0 auto' }}>
@@ -677,7 +716,7 @@ const Admin = () => {
                           try {
                             const localUrl = URL.createObjectURL(file);
                             setAudioPreviews((prev) => ({ ...prev, [partIndex]: localUrl }));
-                          } catch {}
+                          } catch { }
                           // upload to Firebase Storage
                           try {
                             const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
@@ -690,12 +729,12 @@ const Admin = () => {
                             setValue(`parts.${partIndex}.audioSrc`, downloadURL);
                             try {
                               toast.success('Audio uploaded');
-                            } catch {}
+                            } catch { }
                           } catch (err) {
                             console.error('Audio upload failed', err);
                             try {
                               toast.error('Audio upload failed');
-                            } catch {}
+                            } catch { }
                           }
                         }}
                       />
@@ -1004,6 +1043,7 @@ const AnswerSection = ({ control, register, watch, setValue, partIndex, qIndex, 
       <MatchingGroupEditor
         control={control}
         register={register}
+        watch={watch}
         namePrefix={namePrefix}
         errors={errors}
       />
@@ -1093,7 +1133,7 @@ const AnswerSection = ({ control, register, watch, setValue, partIndex, qIndex, 
   );
 };
 
-const MatchingGroupEditor = ({ control, register, namePrefix, errors }) => {
+const MatchingGroupEditor = ({ control, register, watch, namePrefix, errors }) => {
   const {
     fields: columnFields,
     append: appendColumn,
@@ -1105,7 +1145,7 @@ const MatchingGroupEditor = ({ control, register, namePrefix, errors }) => {
     remove: removeRow,
   } = useFieldArray({ control, name: `${namePrefix}.rows` });
   const {
-    fields: answerFields,
+    // Used via appendAnswer/removeAnswer
     append: appendAnswer,
     remove: removeAnswer,
   } = useFieldArray({ control, name: `${namePrefix}.answers` });
@@ -1143,12 +1183,12 @@ const MatchingGroupEditor = ({ control, register, namePrefix, errors }) => {
     <div style={{ marginTop: 12 }}>
       <label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>Matching Group</label>
       <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
-        Add column labels (A, B, C...) with their descriptions, then add rows (questions), and
-        finally specify which column is correct for each row.
+        Add a heading for the options table, column labels (A, B, C...) with their descriptions,
+        then add rows (questions), and finally specify which column is correct for each row.
       </div>
 
       <div style={{ display: 'grid', gap: 16, marginTop: 12 }}>
-        {/* Columns Section */}
+        {/* Columns Section with Heading */}
         <div
           style={{
             border: '1px solid #e0e0e0',
@@ -1157,61 +1197,81 @@ const MatchingGroupEditor = ({ control, register, namePrefix, errors }) => {
             background: '#fafafa',
           }}
         >
-          <label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>
-            Columns (Options)
-          </label>
-          {typeof columnsError === 'string' && (
-            <div style={{ color: 'crimson', marginBottom: 8 }}>{columnsError}</div>
-          )}
-          <div style={{ display: 'grid', gap: 8 }}>
-            {columnFields.map((col, idx) => (
-              <div key={col.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span
-                  style={{
-                    minWidth: 40,
-                    fontWeight: 600,
-                    fontSize: 16,
-                    color: '#333',
-                    textAlign: 'center',
-                  }}
-                >
-                  {columnLabels[idx] || String.fromCharCode(65 + idx)}
-                </span>
-                <input
-                  placeholder={`Description for ${columnLabels[idx] || String.fromCharCode(65 + idx)} (e.g., "the Chinese")`}
-                  {...register(`${namePrefix}.columns.${idx}`)}
-                  style={{ flex: 1, padding: 8 }}
-                />
-                <button
-                  type="button"
-                  onClick={() => removeColumnLabel(idx)}
-                  style={{
-                    background: '#fff2f2',
-                    border: '1px solid #ffdcdc',
-                    padding: '6px 10px',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
+          <label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>Options</label>
+
+          {/* Options Table Heading Field */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontWeight: 500, marginBottom: 4, fontSize: 14 }}>
+              Table Heading (optional)
+            </label>
+            <input
+              placeholder="e.g., First invented or used by"
+              {...register(`${namePrefix}.displayId`)}
+              style={{ width: '100%', padding: 8 }}
+            />
+            <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>
+              This heading will appear above the options table
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={addColumnLabel}
-            style={{
-              marginTop: 8,
-              background: '#eefaff',
-              border: '1px solid #d7f0ff',
-              padding: '6px 10px',
-              borderRadius: 6,
-              cursor: 'pointer',
-            }}
-          >
-            + Add Column
-          </button>
+
+          {/* Column Options */}
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ display: 'block', fontWeight: 500, marginBottom: 8, fontSize: 14 }}>
+              Column Options
+            </label>
+            {typeof columnsError === 'string' && (
+              <div style={{ color: 'crimson', marginBottom: 8 }}>{columnsError}</div>
+            )}
+            <div style={{ display: 'grid', gap: 8 }}>
+              {columnFields.map((col, idx) => (
+                <div key={col.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span
+                    style={{
+                      minWidth: 40,
+                      fontWeight: 600,
+                      fontSize: 16,
+                      color: '#333',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {columnLabels[idx] || String.fromCharCode(65 + idx)}
+                  </span>
+                  <input
+                    placeholder={`Description for ${columnLabels[idx] || String.fromCharCode(65 + idx)} (e.g., "the Chinese")`}
+                    {...register(`${namePrefix}.columns.${idx}`)}
+                    style={{ flex: 1, padding: 8 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeColumnLabel(idx)}
+                    style={{
+                      background: '#fff2f2',
+                      border: '1px solid #ffdcdc',
+                      padding: '6px 10px',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={addColumnLabel}
+              style={{
+                marginTop: 8,
+                background: '#eefaff',
+                border: '1px solid #d7f0ff',
+                padding: '6px 10px',
+                borderRadius: 6,
+                cursor: 'pointer',
+              }}
+            >
+              + Add Column
+            </button>
+          </div>
         </div>
 
         {/* Rows Section */}
@@ -1280,6 +1340,81 @@ const MatchingGroupEditor = ({ control, register, namePrefix, errors }) => {
           </button>
         </div>
 
+        {/* Table Heading Preview Section */}
+        {(watch(`${namePrefix}.displayId`) || columnFields.length > 0) && (
+          <div
+            style={{
+              border: '1px solid #e0e0e0',
+              borderRadius: 8,
+              padding: 12,
+              background: '#fff9f0',
+            }}
+          >
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>
+              Table Heading Preview
+            </label>
+            <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+              This is how the options table will appear in the test
+            </div>
+
+            {watch(`${namePrefix}.displayId`) && (
+              <div
+                style={{
+                  fontWeight: 600,
+                  fontSize: 15,
+                  marginBottom: 12,
+                  padding: 8,
+                  background: '#fff',
+                  border: '1px solid #e0e0e0',
+                  borderRadius: 4,
+                }}
+              >
+                {watch(`${namePrefix}.displayId`)}
+              </div>
+            )}
+
+            {columnFields.length > 0 && (
+              <div
+                style={{
+                  border: '1px solid #ddd',
+                  borderRadius: 4,
+                  overflow: 'hidden',
+                  background: '#fff',
+                }}
+              >
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <tbody>
+                    {columnFields.map((col, idx) => (
+                      <tr key={col.id}>
+                        <td
+                          style={{
+                            padding: '8px 12px',
+                            border: '1px solid #ddd',
+                            fontWeight: 600,
+                            width: 60,
+                            textAlign: 'center',
+                            background: '#f9f9f9',
+                          }}
+                        >
+                          {columnLabels[idx] || String.fromCharCode(65 + idx)}
+                        </td>
+                        <td
+                          style={{
+                            padding: '8px 12px',
+                            border: '1px solid #ddd',
+                          }}
+                        >
+                          {watch(`${namePrefix}.columns.${idx}`) || '(empty)'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Answers Section */}
         <div
           style={{
@@ -1295,23 +1430,29 @@ const MatchingGroupEditor = ({ control, register, namePrefix, errors }) => {
           {typeof answersError === 'string' && (
             <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>
           )}
-          <div style={{ display: 'grid', gap: 8 }}>
-            {answerFields.map((ans, idx) => (
-              <div key={ans.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span style={{ minWidth: 100, color: '#666', fontWeight: 500 }}>
-                  Row {idx + 1}:
-                </span>
-                <input
-                  placeholder={`Enter column letter (e.g., ${columnLabels[0] || 'A'})`}
-                  {...register(`${namePrefix}.answers.${idx}`)}
-                  style={{ flex: 1, padding: 8, maxWidth: 200 }}
-                />
-                <span style={{ fontSize: 12, color: '#999' }}>
-                  Available: {columnLabels.slice(0, columnFields.length).join(', ')}
-                </span>
-              </div>
-            ))}
-          </div>
+          {rowFields.length === 0 ? (
+            <div style={{ color: '#999', fontStyle: 'italic', padding: 8 }}>
+              Add rows above to specify answers
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {rowFields.map((row, idx) => (
+                <div key={row.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ minWidth: 100, color: '#666', fontWeight: 500 }}>
+                    Row {idx + 1}:
+                  </span>
+                  <input
+                    placeholder={`Enter column letter (e.g., ${columnLabels[0] || 'A'})`}
+                    {...register(`${namePrefix}.answers.${idx}`)}
+                    style={{ flex: 1, padding: 8, maxWidth: 200 }}
+                  />
+                  <span style={{ fontSize: 12, color: '#999' }}>
+                    Available: {columnLabels.slice(0, columnFields.length).join(', ')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1378,7 +1519,7 @@ const MapLabelEditor = ({ control, register, namePrefix, errors, setValue }) => 
             setPreviewUrl(url);
             try {
               setValue(`${namePrefix}.imageSrc`, `/images/${file.name}`);
-            } catch (_) {}
+            } catch (_) { }
           }}
         />
         {previewUrl && (
@@ -1889,25 +2030,160 @@ const SentenceFillEditor = ({ control, register, namePrefix, errors }) => {
   );
 };
 
-const TableFillEditor = ({ register, namePrefix, errors, setValue }) => {
+const TableFillEditor = ({ register, namePrefix, errors, setValue, control }) => {
   const answersError = getNestedError(errors, `${namePrefix}.answers`);
   // helper to read current rows
   const [_, force] = React.useState(0);
 
   const rowsRef = React.useRef([]); // we keep a mirror for ease
+  const initializedRef = React.useRef(false);
+
+  // Watch the form values to sync when editing existing questions
+  const watchedRows = useWatch({ control, name: `${namePrefix}.table.rows` });
+  const watchedAnswers = useWatch({ control, name: `${namePrefix}.answers` });
+
+  const getBlankCount = () => {
+    const rows = rowsRef.current || [];
+    let blanks = 0;
+    for (const row of rows) {
+      for (const cell of row || []) {
+        const m = String(cell || '').match(/_{3,}/g) || [];
+        blanks += m.length;
+      }
+    }
+    return blanks;
+  };
+
   const ensureInit = () => {
     const path = `${namePrefix}.table.rows`;
     try {
-      const current = rowsRef.current;
-      if (!Array.isArray(current) || current.length === 0) {
-        rowsRef.current = [['']];
-        setValue(path, [['']]);
+      // First, try to read from watched form values (for editing)
+      if (watchedRows && Array.isArray(watchedRows) && watchedRows.length > 0) {
+        // Deserialize if stored as JSON strings from Firestore
+        const deserialized = watchedRows.map((row) => {
+          if (typeof row === 'string') {
+            try {
+              return JSON.parse(row);
+            } catch {
+              return [];
+            }
+          }
+          if (Array.isArray(row)) return row;
+          return [];
+        });
+
+        // Only update if we have valid data and it's different from current
+        if (deserialized.length > 0 && deserialized.some(r => Array.isArray(r) && r.length > 0)) {
+          const currentStr = JSON.stringify(rowsRef.current);
+          const newStr = JSON.stringify(deserialized);
+          if (currentStr !== newStr) {
+            rowsRef.current = deserialized;
+            setValue(path, deserialized, { shouldValidate: false });
+            force((x) => x + 1);
+            initializedRef.current = true;
+            return;
+          }
+        }
       }
-    } catch {}
+
+      // Otherwise, initialize with empty table if not already initialized
+      if (!initializedRef.current) {
+        const current = rowsRef.current;
+        if (!Array.isArray(current) || current.length === 0) {
+          rowsRef.current = [['']];
+          setValue(path, [['']], { shouldValidate: false });
+          initializedRef.current = true;
+        }
+      }
+    } catch { }
   };
+
+  const lastBlankCountRef = React.useRef(-1);
+  const hasSeenAnswersWithValuesRef = React.useRef(false);
+
   React.useEffect(() => {
     ensureInit();
-  }, []);
+
+    // Track blank count changes (but don't auto-sync answers on initial load)
+    if (initializedRef.current && rowsRef.current.length > 0) {
+      const count = getBlankCount();
+      // Only sync if blank count changed AND we've already initialized once
+      // This prevents overwriting answers on initial load
+      if (lastBlankCountRef.current >= 0 && count !== lastBlankCountRef.current && count > 0) {
+        const currentAnswers = watchedAnswers;
+        if (Array.isArray(currentAnswers)) {
+          // Preserve existing answers, adjust length
+          const newAnswers = Array.from({ length: count }, (_, i) =>
+            (i < currentAnswers.length && currentAnswers[i] != null) ? currentAnswers[i] : ''
+          );
+          setValue(`${namePrefix}.answers`, newAnswers, { shouldValidate: false });
+        }
+      }
+      // Initialize the ref after first render (don't sync on first render)
+      if (lastBlankCountRef.current === -1) {
+        lastBlankCountRef.current = count;
+      }
+    }
+  }, [namePrefix, watchedRows]);
+
+  // Separate effect to handle answers being loaded from form (when editing)
+  // Track if we've seen answers with actual values - never overwrite them
+  React.useEffect(() => {
+    if (initializedRef.current && rowsRef.current.length > 0) {
+      const count = getBlankCount();
+      if (count > 0) {
+        // Check if answers have actual non-empty values
+        const hasValues = Array.isArray(watchedAnswers) &&
+          watchedAnswers.some(ans => ans != null && String(ans).trim() !== '');
+
+        if (hasValues) {
+          hasSeenAnswersWithValuesRef.current = true;
+          // Answers with values exist - only sync length if needed, preserve all values
+          if (watchedAnswers.length !== count) {
+            const newAnswers = Array.from({ length: count }, (_, i) =>
+              (i < watchedAnswers.length && watchedAnswers[i] != null)
+                ? watchedAnswers[i]
+                : ''
+            );
+            setValue(`${namePrefix}.answers`, newAnswers, { shouldValidate: false });
+          }
+          if (lastBlankCountRef.current === -1) {
+            lastBlankCountRef.current = count;
+          }
+        } else if (!hasSeenAnswersWithValuesRef.current) {
+          // Never seen answers with values - might be new question or still loading
+          // Wait a bit for form to load, then check again
+          const timer = setTimeout(() => {
+            const finalAnswers = watchedAnswers;
+            const finalHasValues = Array.isArray(finalAnswers) &&
+              finalAnswers.some(ans => ans != null && String(ans).trim() !== '');
+
+            if (finalHasValues) {
+              // Answers loaded! Preserve them
+              hasSeenAnswersWithValuesRef.current = true;
+              if (finalAnswers.length !== count) {
+                const newAnswers = Array.from({ length: count }, (_, i) =>
+                  (i < finalAnswers.length && finalAnswers[i] != null)
+                    ? finalAnswers[i]
+                    : ''
+                );
+                setValue(`${namePrefix}.answers`, newAnswers, { shouldValidate: false });
+              }
+            } else {
+              // Truly no answers - only create empty array if this is a new question
+              // (we can tell because we've never seen answers with values)
+              const newAnswers = Array.from({ length: count }, () => '');
+              setValue(`${namePrefix}.answers`, newAnswers, { shouldValidate: false });
+            }
+            if (lastBlankCountRef.current === -1) {
+              lastBlankCountRef.current = count;
+            }
+          }, 1000); // Wait longer for form to fully load
+          return () => clearTimeout(timer);
+        }
+      }
+    }
+  }, [namePrefix, watchedAnswers, watchedRows]);
 
   const getColCount = () => {
     const rows = rowsRef.current || [];
@@ -1964,18 +2240,6 @@ const TableFillEditor = ({ register, namePrefix, errors, setValue }) => {
     force((x) => x + 1);
   };
 
-  // Count blanks
-  const getBlankCount = () => {
-    const rows = rowsRef.current || [];
-    let blanks = 0;
-    for (const row of rows) {
-      for (const cell of row || []) {
-        const m = String(cell || '').match(/_{3,}/g) || [];
-        blanks += m.length;
-      }
-    }
-    return blanks;
-  };
   const getBlankCoords = () => {
     const rows = rowsRef.current || [];
     const coords = [];
@@ -1995,10 +2259,16 @@ const TableFillEditor = ({ register, namePrefix, errors, setValue }) => {
   const syncAnswers = () => {
     const count = getBlankCount();
     const path = `${namePrefix}.answers`;
-    // We do not have read; just set length
-    const arr = Array.from({ length: count }, () => '');
+    // Preserve existing answers when syncing
+    const currentAnswers = watchedAnswers;
+    const arr = Array.from({ length: count }, (_, i) =>
+      (Array.isArray(currentAnswers) && i < currentAnswers.length && currentAnswers[i] != null)
+        ? currentAnswers[i]
+        : ''
+    );
     setValue(path, arr);
     force((x) => x + 1);
+    lastBlankCountRef.current = count; // Update ref so we don't auto-sync again
   };
 
   const rows = rowsRef.current || [];
@@ -2201,3 +2471,4 @@ function getNestedError(obj, path) {
 }
 
 export default Admin;
+

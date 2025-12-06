@@ -241,18 +241,12 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
               </div>
             )}
 
-            {/* Extra prompt box under matrix as requested */}
-            <div style={{ marginTop: '14px', border: '1px solid #e5e5e5', borderRadius: 8, padding: 10, background: '#fafafa' }}>
-              <div style={{ fontWeight: 800, marginBottom: 8 }}>{String(question.question || '')}</div>
-              <div style={{ display: 'grid', gap: 6 }}>
-                {parsedCols.map((c, i) => (
-                  <div key={`legend-inline-${i}`} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <span style={{ fontWeight: 800, width: 22, textAlign: 'center' }}>{c.letter}</span>
-                    <span>{c.label || ''}</span>
-                  </div>
-                ))}
+            {/* Display heading if provided (displayId) */}
+            {question.displayId && (
+              <div style={{ marginTop: '14px', fontWeight: 700, fontSize: '15px', color: '#333' }}>
+                {String(question.displayId || '')}
               </div>
-            </div>
+            )}
 
             <div style={{ marginTop: '8px', color: '#666', fontSize: '12px' }}>
               Your selections: {localSel.filter(Boolean).length > 0 ? localSel.join(' | ') : 'None'}
@@ -666,7 +660,22 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
       {/* Table fill - blanks inside table cells */}
       {question.type === 'tablefill' && (() => {
         const table = question.table || {};
-        const rows = Array.isArray(table.rows) ? table.rows : [];
+        // Deserialize rows if stored as JSON strings (Firestore doesn't support nested arrays)
+        let rows = [];
+        if (Array.isArray(table.rows)) {
+          rows = table.rows.map((row) => {
+            if (typeof row === 'string') {
+              try {
+                return JSON.parse(row);
+              } catch {
+                return [];
+              }
+            }
+            // If already an array (legacy or deserialized), return as-is
+            if (Array.isArray(row)) return row;
+            return [];
+          });
+        }
         // Build selections array from joined answer "a|b|c" pattern
         // We will maintain row-major blank order
         const computeBlankCount = React.useCallback(() => {
