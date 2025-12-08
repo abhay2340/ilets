@@ -357,16 +357,26 @@ const Admin = () => {
           }
           if (q.type === 'multiselect') {
             const opts = Array.isArray(q.options) ? q.options : [];
-            const answers = Array.isArray(q.answers) ? q.answers.filter(Boolean) : [];
+
+            // Fetch latest answers from form state
+            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+            const formAnswers = getValues(answersPath);
+            const answers = Array.isArray(formAnswers) ? formAnswers.filter(Boolean) : (Array.isArray(q.answers) ? q.answers.filter(Boolean) : []);
+
             const sorted = [...answers].sort((a, b) => String(a).localeCompare(String(b)));
             const ansString = sorted.join(',');
-            answerMap[nextId] = ansString;
+
+            if (ansString) {
+              answerMap[nextId] = ansString;
+            }
+
             const base = {
               id: nextId,
               type: 'multiselect',
               question: q.question,
               options: opts,
               answer: ansString,
+              answers: sorted, // Persist array as well for easier loading
             };
             nextId += 1;
             return base;
@@ -618,6 +628,25 @@ const Admin = () => {
           passage: part.passage || '',
           audioSrc: part.audioSrc || '',
           questions: (part.questions || []).map((q) => {
+            if (q.type === 'multiselect') {
+              const ansStr = answersMap[q.id] || q.answer || '';
+              const answers = ansStr ? ansStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+              return {
+                ...q,
+                options: Array.isArray(q.options) ? q.options : [],
+                answers,
+              };
+            }
+
+            if (q.type === 'mcq' || q.type === 'dropdown') {
+              const ans = answersMap[q.id] || '';
+              return {
+                ...q,
+                options: Array.isArray(q.options) ? q.options : [],
+                answer: ans,
+              };
+            }
+
             if (q.type === 'matchinggroup') {
               const subIds = Array.isArray(q.subIds) ? q.subIds : [];
               const answers = subIds.map((sid) => answersMap[sid] || '');
@@ -629,8 +658,7 @@ const Admin = () => {
               q.type === 'flowchart' ||
               q.type === 'sentencefill' ||
               q.type === 'maplabel' ||
-              q.type === 'tablefill' ||
-              q.type === 'multiselect'
+              q.type === 'tablefill'
             ) {
               const subIds = Array.isArray(q.subIds) ? q.subIds : [];
               const answers = subIds.map((sid) => answersMap[sid] || '');
@@ -679,14 +707,6 @@ const Admin = () => {
                 }
               }
               return { ...q, answers };
-            }
-            if (q.type === 'mcq' || q.type === 'dropdown') {
-              const ans = answersMap[q.id] || '';
-              return {
-                ...q,
-                options: Array.isArray(q.options) ? q.options : [],
-                answer: ans,
-              };
             }
             if (q.type === 'info') return { ...q };
             const ans = answersMap[q.id] || '';

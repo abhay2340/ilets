@@ -1,17 +1,55 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig.jsx';
 import { FaCalendarAlt, FaClock, FaBullseye, FaCheckCircle, FaTimesCircle, FaMinusCircle } from 'react-icons/fa';
 
 const HistorySection = ({ user }) => {
   const [results, setResults] = useState([]);
+  const [testTitles, setTestTitles] = useState({});
 
   useEffect(() => {
     const fetchResults = async () => {
       const q = query(collection(db, 'results'), where('user', '==', user.uid));
       const snapshot = await getDocs(q);
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setResults(data.sort((a, b) => b.submittedAt?.seconds - a.submittedAt?.seconds));
+      const sorted = data.sort((a, b) => b.submittedAt?.seconds - a.submittedAt?.seconds);
+      setResults(sorted);
+
+      // Fetch titles for unique test IDs
+      const uniqueTestIds = [...new Set(sorted.map(r => r.test))];
+      const titles = {};
+
+      await Promise.all(uniqueTestIds.map(async (testId) => {
+        // Check if it's a static test ID (e.g. test1, test2...)
+        if (String(testId).toLowerCase().startsWith('test') && String(testId).length < 10) {
+          // It's likely a static test. We could import distinct files, but for now specific labeling or a generic fallback is okay.
+          // Or better: try to fetch from DB anyway, if not found, use a formatter.
+          // Actually, static tests might NOT be in the DB 'tests' collection if they are hardcoded.
+          // For now, let's try to fetch everything from DB 'tests' collection.
+          // If the document doesn't exist, we fallback to the ID or a formatter.
+        }
+
+        try {
+          const testDoc = await getDoc(doc(db, 'tests', testId));
+          if (testDoc.exists()) {
+            titles[testId] = testDoc.data().title;
+          } else {
+            // Fallback for static tests not in DB or deleted tests
+            // If it looks like 'test1', format it nicely
+            if (String(testId).toLowerCase().startsWith('test')) {
+              const num = String(testId).replace(/test/i, '');
+              titles[testId] = `Practice Test ${num}`;
+            } else {
+              titles[testId] = testId;
+            }
+          }
+        } catch (e) {
+          console.error('Error fetching test title', e);
+          titles[testId] = testId;
+        }
+      }));
+
+      setTestTitles(titles);
     };
 
     if (user?.uid) fetchResults();
@@ -50,7 +88,7 @@ const HistorySection = ({ user }) => {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <div style={{ fontWeight: 800 }}>{r.test}</div>
+                <div style={{ fontWeight: 800 }}>{testTitles[r.test] || r.test}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151' }}>
                   <FaCalendarAlt /> {formatDate(r.submittedAt)}
                 </div>
