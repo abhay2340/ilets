@@ -16,6 +16,7 @@ const QUESTION_TYPES = [
   { value: 'matchinggroup', label: 'Matching Group (Rows ↔ Columns)' },
   { value: 'matchingdrag', label: 'Matching Sentence Endings (Drag & Drop)' },
   { value: 'summarydrag', label: 'Summary Completion (Drag words into blanks)' },
+  { value: 'flowchart', label: 'Flowchart (drag words into boxes)' },
   { value: 'sentencefill', label: 'Sentence Completion (typed words into blanks)' },
   { value: 'maplabel', label: 'Plan/Map/Diagram Labelling (matrix + image)' },
   { value: 'tablefill', label: 'Table Fill (typed blanks in table)' },
@@ -57,6 +58,7 @@ const buildValidationSchema = () =>
                     'matchinggroup',
                     'matchingdrag',
                     'summarydrag',
+                    'flowchart',
                     'sentencefill',
                     'maplabel',
                     'tablefill',
@@ -78,7 +80,11 @@ const buildValidationSchema = () =>
                   }),
                 options: yup.array().when('type', {
                   is: (t) =>
-                    t === 'mcq' || t === 'dropdown' || t === 'matchingdrag' || t === 'summarydrag',
+                    t === 'mcq' ||
+                    t === 'dropdown' ||
+                    t === 'matchingdrag' ||
+                    t === 'summarydrag' ||
+                    t === 'flowchart',
                   then: (schema) =>
                     schema
                       .min(2, 'Provide at least 2 options')
@@ -129,7 +135,11 @@ const buildValidationSchema = () =>
                   otherwise: (s) => s.strip(),
                 }),
                 rows: yup.array().when('type', {
-                  is: (t) => t === 'matchinggroup' || t === 'matchingdrag' || t === 'maplabel',
+                  is: (t) =>
+                    t === 'matchinggroup' ||
+                    t === 'matchingdrag' ||
+                    t === 'maplabel' ||
+                    t === 'flowchart',
                   then: (s) =>
                     s
                       .min(1, 'Add at least 1 row')
@@ -143,6 +153,7 @@ const buildValidationSchema = () =>
                       type === 'matchinggroup' ||
                       type === 'matchingdrag' ||
                       type === 'summarydrag' ||
+                      type === 'flowchart' ||
                       type === 'sentencefill' ||
                       type === 'maplabel' ||
                       type === 'tablefill'
@@ -164,6 +175,15 @@ const buildValidationSchema = () =>
                         if (type === 'summarydrag') {
                           const qtext = this.parent.question || '';
                           const blanks = (qtext.match(/_{3,}/g) || []).length;
+                          return Array.isArray(val) && val.length === blanks;
+                        }
+                        if (type === 'flowchart') {
+                          const rows = this.parent.rows || [];
+                          let blanks = 0;
+                          for (const row of rows || []) {
+                            const matches = String(row || '').match(/_{3,}/g) || [];
+                            blanks += matches.length;
+                          }
                           return Array.isArray(val) && val.length === blanks;
                         }
                         if (type === 'sentencefill') {
@@ -355,6 +375,43 @@ const Admin = () => {
               options: Array.isArray(q.options) ? q.options : [],
             };
           }
+          if (q.type === 'flowchart') {
+            const rows = Array.isArray(q.rows) ? q.rows : [];
+            let count = 0;
+            for (const row of rows) {
+              const matches = String(row || '').match(/_{3,}/g) || [];
+              count += matches.length;
+            }
+            const subIds = Array.from({ length: count }, (_, i) => nextId + i);
+
+            // Read answers directly from form values
+            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+            const formAnswers = getValues(answersPath);
+            const answers = Array.isArray(formAnswers)
+              ? formAnswers
+              : Array.isArray(q.answers)
+                ? q.answers
+                : [];
+
+            if (answers.length > 0) {
+              answers.forEach((ans, idx) => {
+                const subId = subIds[idx];
+                if (subId != null && ans != null && String(ans).trim() !== '') {
+                  answerMap[subId] = String(ans).trim();
+                }
+              });
+            }
+
+            nextId += count;
+            return {
+              id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
+              type: 'flowchart',
+              subIds,
+              question: q.question,
+              rows,
+              options: Array.isArray(q.options) ? q.options : [],
+            };
+          }
           if (q.type === 'sentencefill') {
             const blanks = (String(q.question || '').match(/_{3,}/g) || []).length;
             const count = Math.max(0, blanks);
@@ -507,6 +564,7 @@ const Admin = () => {
             if (
               q.type === 'matchingdrag' ||
               q.type === 'summarydrag' ||
+              q.type === 'flowchart' ||
               q.type === 'sentencefill' ||
               q.type === 'maplabel' ||
               q.type === 'tablefill'
@@ -1069,6 +1127,17 @@ const AnswerSection = ({ control, register, watch, setValue, partIndex, qIndex, 
       />
     );
   }
+  if (questionType === 'flowchart') {
+    return (
+      <FlowchartEditor
+        control={control}
+        register={register}
+        namePrefix={namePrefix}
+        errors={errors}
+        setValue={setValue}
+      />
+    );
+  }
   if (questionType === 'sentencefill') {
     return (
       <SentenceFillEditor
@@ -1490,6 +1559,13 @@ const MapLabelEditor = ({ control, register, namePrefix, errors, setValue }) => 
   };
 
   const [previewUrl, setPreviewUrl] = React.useState('');
+  const [isImageUploading, setIsImageUploading] = React.useState(false);
+  const watchedImageSrc = useWatch({ control, name: `${namePrefix}.imageSrc` });
+  const displayImageSrc =
+    previewUrl ||
+    (typeof watchedImageSrc === 'string' && watchedImageSrc.trim().length > 0
+      ? watchedImageSrc.trim()
+      : '');
 
   return (
     <div style={{ marginTop: 12 }}>
@@ -1512,26 +1588,37 @@ const MapLabelEditor = ({ control, register, namePrefix, errors, setValue }) => 
         <input
           type="file"
           accept="image/*"
-          onChange={(e) => {
+          onChange={async (e) => {
             const file = e.target.files?.[0];
             if (!file) return;
-            const url = URL.createObjectURL(file);
-            setPreviewUrl(url);
+            setIsImageUploading(true);
             try {
-              setValue(`${namePrefix}.imageSrc`, `/images/${file.name}`);
-            } catch (_) { }
+              const storagePath = `maps/${Date.now()}_${file.name}`;
+              const ref = storageRef(storage, storagePath);
+              await uploadBytes(ref, file);
+              const downloadUrl = await getDownloadURL(ref);
+              setPreviewUrl(downloadUrl);
+              setValue(`${namePrefix}.imageSrc`, downloadUrl, { shouldDirty: true });
+            } catch (_) {
+              toast.error('Failed to upload image');
+            } finally {
+              setIsImageUploading(false);
+            }
           }}
         />
-        {previewUrl && (
-          <div style={{ marginTop: 8 }}>
-            <img
-              src={previewUrl}
-              alt=""
-              style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid #eee' }}
-            />
-          </div>
-        )}
+        {isImageUploading && <div style={{ marginTop: 6, color: '#555' }}>Uploading…</div>}
       </div>
+
+      {displayImageSrc && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>Image preview</div>
+          <img
+            src={displayImageSrc}
+            alt=""
+            style={{ maxWidth: 260, borderRadius: 8, border: '1px solid #eee' }}
+          />
+        </div>
+      )}
 
       <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
         <div>
@@ -1669,7 +1756,7 @@ const MapLabelEditor = ({ control, register, namePrefix, errors, setValue }) => 
           </button>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 
@@ -1960,6 +2047,182 @@ const SummaryDragEditor = ({ control, register, namePrefix, errors }) => {
           >
             + Add Answer
           </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const FlowchartEditor = ({ control, register, namePrefix, errors, setValue }) => {
+  const {
+    fields: optionFields,
+    append: appendOption,
+    remove: removeOption,
+  } = useFieldArray({ control, name: `${namePrefix}.options` });
+  const {
+    fields: rowFields,
+    append: appendRow,
+    remove: removeRow,
+  } = useFieldArray({ control, name: `${namePrefix}.rows` });
+  const {
+    fields: answerFields,
+    replace: replaceAnswers,
+  } = useFieldArray({ control, name: `${namePrefix}.answers` });
+
+  const optionsError = getNestedError(errors, `${namePrefix}.options`);
+  const rowsError = getNestedError(errors, `${namePrefix}.rows`);
+  const answersError = getNestedError(errors, `${namePrefix}.answers`);
+
+  const watchedRows = useWatch({ control, name: `${namePrefix}.rows` });
+  const watchedAnswers = useWatch({ control, name: `${namePrefix}.answers` });
+
+  const blankCount = React.useMemo(() => {
+    const rows = Array.isArray(watchedRows) ? watchedRows : [];
+    let blanks = 0;
+    for (const row of rows) {
+      blanks += (String(row || '').match(/_{3,}/g) || []).length;
+    }
+    return blanks;
+  }, [JSON.stringify(watchedRows)]);
+
+  React.useEffect(() => {
+    const current = Array.isArray(watchedAnswers) ? watchedAnswers : [];
+    if (blankCount === current.length && answerFields.length === blankCount) return;
+    const next = Array.from({ length: blankCount }, (_, i) => current[i] || '');
+    replaceAnswers(next);
+    try {
+      setValue(`${namePrefix}.answers`, next, {
+        shouldDirty: true,
+        shouldTouch: false,
+        shouldValidate: false,
+      });
+    } catch (_) { }
+  }, [blankCount, replaceAnswers, watchedAnswers, answerFields.length, namePrefix, setValue]);
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ marginBottom: 8, color: '#555' }}>
+        Add each flow-chart box below. Use three or more underscores ___ inside a box to mark a
+        blank. Add the answer bank words, and answers will auto-sync to the number of blanks.
+      </div>
+
+      <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+        <div>
+          <label style={{ display: 'block', fontWeight: 600 }}>Answer Bank (words/phrases)</label>
+          {typeof optionsError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{optionsError}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {optionFields.map((opt, idx) => (
+              <div key={opt.id} style={{ display: 'flex', gap: 8 }}>
+                <input
+                  placeholder={`Word ${idx + 1}`}
+                  {...register(`${namePrefix}.options.${idx}`)}
+                  style={{ flex: 1, padding: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeOption(idx)}
+                  style={{
+                    background: '#fff2f2',
+                    border: '1px solid #ffdcdc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => appendOption('')}
+            style={{
+              marginTop: 8,
+              background: '#eefaff',
+              border: '1px solid #d7f0ff',
+              padding: '6px 10px',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            + Add Word
+          </button>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontWeight: 600 }}>Flowchart boxes</label>
+          {typeof rowsError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{rowsError}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {rowFields.map((row, idx) => (
+              <div key={row.id} style={{ display: 'flex', gap: 8 }}>
+                <input
+                  placeholder={`Box ${idx + 1} text (use ___ for blanks)`}
+                  {...register(`${namePrefix}.rows.${idx}`)}
+                  style={{ flex: 1, padding: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeRow(idx)}
+                  style={{
+                    background: '#fff2f2',
+                    border: '1px solid #ffdcdc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => appendRow('')}
+            style={{
+              marginTop: 8,
+              background: '#eefaff',
+              border: '1px solid #d7f0ff',
+              padding: '6px 10px',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            + Add Box
+          </button>
+        </div>
+
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label style={{ display: 'block', fontWeight: 600 }}>Answers (auto-synced)</label>
+            <span style={{ color: '#555', fontSize: 13 }}>Blanks detected: {blankCount}</span>
+          </div>
+          {typeof answersError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>
+          )}
+          {blankCount === 0 ? (
+            <div style={{ color: '#999', fontStyle: 'italic', padding: 8 }}>
+              Add ___ placeholders in the boxes to enable answers.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {answerFields.map((ans, idx) => (
+                <div key={ans.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ width: 110, color: '#666' }}>Blank {idx + 1}</div>
+                  <input
+                    placeholder={`Answer for blank ${idx + 1}`}
+                    {...register(`${namePrefix}.answers.${idx}`)}
+                    style={{ flex: 1, padding: 8 }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

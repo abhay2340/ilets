@@ -260,6 +260,11 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
         const rows = Array.isArray(question.rows) ? question.rows : [];
         const cols = Array.isArray(question.columns) ? question.columns : [];
 
+        // Debug: log image source for maplabel
+        try {
+          console.log('maplabel imageSrc:', question.imageSrc);
+        } catch { }
+
         const parsedCols = React.useMemo(() => cols.map((c) => {
           const text = String(c ?? '').trim();
           const [first, ...rest] = text.split(' ');
@@ -296,44 +301,50 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
 
         return (
           <div style={{ marginTop: '10px' }}>
-            {question.imageSrc ? (
-              <div style={{ marginBottom: 12 }}>
-                <img src={question.imageSrc} alt="" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid #eee' }} />
+            {/* Question text (if any) */}
+            {question.question ? (
+              <div style={{ marginBottom: 10, fontWeight: 600, color: '#111' }}>
+                {question.question}
               </div>
             ) : null}
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ borderCollapse: 'collapse', minWidth: '420px' }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: 'left', padding: '8px', borderBottom: '2px solid #000' }}></th>
-                    {parsedCols.map((c, i) => (
-                      <th key={i} style={{ width: 36, textAlign: 'center', padding: '6px', borderBottom: '2px solid #000' }}>{c.letter}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((label, rIdx) => (
-                    <tr key={rIdx}>
-                      <td style={{ padding: '8px 6px', borderBottom: '1px solid #ccc', fontWeight: 600 }}>
-                        {Array.isArray(question.subIds) ? `${question.subIds[rIdx]}. ` : `${rIdx + 1} `}
-                        {typeof label === 'string' ? label : (label?.label ?? '')}
-                      </td>
-                      {parsedCols.map((c, cIdx) => (
-                        <td key={cIdx} style={{ textAlign: 'center', padding: '6px 4px', borderBottom: '1px solid #eee', cursor: 'pointer' }}>
-                          <input
-                            type="radio"
-                            name={`q-${question.id}-row-${rIdx}`}
-                            value={c.letter}
-                            checked={localSel[rIdx] === c.letter}
-                            onChange={() => choose(rIdx, c.letter)}
-                            style={{ transform: 'scale(0.9)', cursor: 'pointer' }}
-                          />
-                        </td>
+
+            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+
+
+              <div style={{ overflowX: 'auto', flex: 1, minWidth: 320 }}>
+                <table style={{ borderCollapse: 'collapse', minWidth: '420px' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: '8px', borderBottom: '2px solid #000' }}></th>
+                      {parsedCols.map((c, i) => (
+                        <th key={i} style={{ width: 36, textAlign: 'center', padding: '6px', borderBottom: '2px solid #000' }}>{c.letter}</th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {rows.map((label, rIdx) => (
+                      <tr key={rIdx}>
+                        <td style={{ padding: '8px 6px', borderBottom: '1px solid #ccc', fontWeight: 600 }}>
+                          {Array.isArray(question.subIds) ? `${question.subIds[rIdx]}. ` : `${rIdx + 1} `}
+                          {typeof label === 'string' ? label : (label?.label ?? '')}
+                        </td>
+                        {parsedCols.map((c, cIdx) => (
+                          <td key={cIdx} style={{ textAlign: 'center', padding: '6px 4px', borderBottom: '1px solid #eee', cursor: 'pointer' }}>
+                            <input
+                              type="radio"
+                              name={`q-${question.id}-row-${rIdx}`}
+                              value={c.letter}
+                              checked={localSel[rIdx] === c.letter}
+                              onChange={() => choose(rIdx, c.letter)}
+                              style={{ transform: 'scale(0.9)', cursor: 'pointer' }}
+                            />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         );
@@ -596,6 +607,230 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
                     {w}
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Flowchart - drag words into boxed blanks */}
+      {question.type === 'flowchart' && (() => {
+        const rows = Array.isArray(question.rows) ? question.rows : [];
+        const bank = Array.isArray(question.options) ? question.options.map((t) => String(t ?? '')) : [];
+
+        const partsPerRow = React.useMemo(() => {
+          return rows.map((row) => {
+            const splits = String(row || '').split(/_{3,}/);
+            const blanks = Math.max(0, splits.length - 1);
+            return { splits, blanks };
+          });
+        }, [rows]);
+
+        const totalBlanks = partsPerRow.reduce((sum, r) => sum + r.blanks, 0);
+
+        const selections = React.useMemo(() => {
+          const initial = Array(totalBlanks).fill('');
+          if (typeof answer === 'string' && answer.length > 0) {
+            const arr = answer.split('|');
+            for (let i = 0; i < initial.length; i++) initial[i] = arr[i] || '';
+          }
+          return initial;
+        }, [answer, totalBlanks]);
+
+        const [localSel, setLocalSel] = React.useState(selections);
+
+        React.useEffect(() => {
+          setLocalSel(selections);
+        }, [selections.join('|')]);
+
+        const assigned = new Set(localSel.filter(Boolean));
+        const bankRemaining = bank.filter((w) => !assigned.has(w));
+
+        const onDropToBlank = (globalIdx, word) => {
+          const next = [...localSel];
+          const otherIdx = next.findIndex((w, i) => i !== globalIdx && w === word);
+          if (otherIdx >= 0) next[otherIdx] = '';
+          next[globalIdx] = word;
+          setLocalSel(next);
+          setAnswer(next.join('|'));
+          try {
+            if (Array.isArray(question.subIds) && question.subIds[globalIdx] != null) {
+              setAnswerForId?.(question.subIds[globalIdx], word);
+              onVisited?.(question.subIds[globalIdx]);
+            } else {
+              onVisited?.(question.id);
+            }
+          } catch { }
+        };
+
+        const clearBlank = (globalIdx) => {
+          const next = [...localSel];
+          next[globalIdx] = '';
+          setLocalSel(next);
+          setAnswer(next.join('|'));
+          try {
+            if (Array.isArray(question.subIds) && question.subIds[globalIdx] != null) {
+              setAnswerForId?.(question.subIds[globalIdx], '');
+            }
+          } catch { }
+        };
+
+        return (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: 'grid', gap: 16 }}>
+              {partsPerRow.map((rowMeta, rowIdx) => {
+                let runningBlank = 0;
+                return (
+                  <React.Fragment key={`flow-row-${rowIdx}`}>
+                    <div
+                      style={{
+                        position: 'relative',
+                        border: '1px solid #dfe3e8',
+                        borderRadius: 10,
+                        padding: '14px 16px',
+                        background: '#fff',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                        <div
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            background: '#eef2ff',
+                            color: '#3730a3',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 700,
+                            flexShrink: 0,
+                            border: '1px solid #cbd5ff',
+                          }}
+                        >
+                          {rowIdx + 1}
+                        </div>
+                        <div style={{ lineHeight: 1.7, flex: 1, minHeight: 32 }}>
+                          {rowMeta.splits.map((chunk, idx) => {
+                            if (idx === rowMeta.splits.length - 1) {
+                              return <span key={`chunk-${idx}-${rowIdx}`}>{chunk}</span>;
+                            }
+                            const globalIdx =
+                              partsPerRow
+                                .slice(0, rowIdx)
+                                .reduce((acc, r) => acc + r.blanks, 0) + runningBlank;
+                            const word = localSel[globalIdx] || '';
+                            runningBlank += 1;
+                            return (
+                              <React.Fragment key={`chunk-${idx}-${rowIdx}`}>
+                                <span>{chunk}</span>
+                                <span
+                                  data-dnd="dropzone"
+                                  onDragOver={(e) => e.preventDefault()}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    const w = e.dataTransfer.getData('text/plain');
+                                    if (!bank.includes(w)) return;
+                                    onDropToBlank(globalIdx, w);
+                                  }}
+                                  style={{
+                                    display: 'inline-flex',
+                                    minWidth: 90,
+                                    minHeight: 32,
+                                    padding: '4px 8px',
+                                    border: '2px dashed #bbb',
+                                    borderRadius: 8,
+                                    margin: '0 6px',
+                                    verticalAlign: 'middle',
+                                    background: '#fff',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                  }}
+                                  title="Drop here"
+                                >
+                                  {word ? (
+                                    <>
+                                      <span>{word}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => clearBlank(globalIdx)}
+                                        style={{
+                                          marginLeft: 6,
+                                          background: '#ffecec',
+                                          border: '1px solid #ffd4d4',
+                                          padding: '2px 6px',
+                                          borderRadius: 6,
+                                          cursor: 'pointer',
+                                        }}
+                                      >
+                                        ×
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span style={{ color: '#777' }}>Drop word</span>
+                                  )}
+                                </span>
+                              </React.Fragment>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                    {rowIdx < partsPerRow.length - 1 && (
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <div
+                          style={{
+                            width: 2,
+                            height: 18,
+                            background: '#cbd5e1',
+                            marginTop: 4,
+                            marginBottom: 4,
+                          }}
+                        />
+                        <div
+                          style={{
+                            width: 0,
+                            height: 0,
+                            borderLeft: '7px solid transparent',
+                            borderRight: '7px solid transparent',
+                            borderTop: '9px solid #cbd5e1',
+                            marginLeft: -7,
+                            marginTop: 0,
+                          }}
+                        />
+                      </div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>Answer bank</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {bankRemaining.map((w, idx) => (
+                  <div
+                    key={`${w}-${idx}`}
+                    draggable
+                    data-dnd="chip"
+                    onDragStart={(e) => {
+                      e.stopPropagation();
+                      e.dataTransfer.setData('text/plain', w);
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      border: '1px solid #bbb',
+                      borderRadius: 16,
+                      background: '#f8fafc',
+                      cursor: 'grab',
+                    }}
+                  >
+                    {w}
+                  </div>
+                ))}
+                {bankRemaining.length === 0 && (
+                  <span style={{ color: '#999', fontStyle: 'italic' }}>All words used</span>
+                )}
               </div>
             </div>
           </div>

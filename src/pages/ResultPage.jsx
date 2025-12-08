@@ -136,8 +136,9 @@ const ResultPage = () => {
     else wrong++;
   });
 
-  const total = correct + wrong + missed;
-  const accuracy = Math.round((correct / total) * 100);
+  const rawTotal = correct + wrong + missed;
+  const total = rawTotal || questionIds.length || Object.keys(userAnswers || {}).length || 0;
+  const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
 
   return (
     <>
