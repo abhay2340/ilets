@@ -353,9 +353,29 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
               </div>
             ) : null}
 
-            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div style={{ width: '100%', display: 'flex', gap: 206, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'nowrap' }}>
+              {/* Image on the left */}
+              {question.imageSrc && (
+                <div style={{ flex: '0 0 auto', minWidth: 300, maxWidth: 400 }}>
+                  <img
+                    src={question.imageSrc}
+                    alt="Map/Plan/Diagram"
+                    style={{
+                      width: '100%',
+                      height: 'auto',
+                      borderRadius: 8,
+                      border: '1px solid #ddd',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}
+                    onError={(e) => {
+                      console.error('Failed to load maplabel image:', question.imageSrc);
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
 
-
+              {/* Table on the right */}
               <div style={{ overflowX: 'auto', flex: 1, minWidth: 320 }}>
                 <table style={{ borderCollapse: 'collapse', minWidth: '420px' }}>
                   <thead>

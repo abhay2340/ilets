@@ -328,12 +328,22 @@ const Admin = () => {
           if (q.type === 'maplabel') {
             const rowCount = Array.isArray(q.rows) ? q.rows.length : 0;
             const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i);
-            if (Array.isArray(q.answers)) {
-              q.answers.forEach((ans, idx) => {
+
+            // Read answers directly from form values using getValues (q.answers might not be in values object)
+            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+            const formAnswers = getValues(answersPath);
+            const answers = Array.isArray(formAnswers) ? formAnswers : (Array.isArray(q.answers) ? q.answers : []);
+
+            // Save answers to answerMap
+            if (answers.length > 0) {
+              answers.forEach((ans, idx) => {
                 const subId = subIds[idx];
-                if (subId != null) answerMap[subId] = ans;
+                if (subId != null && ans != null && String(ans).trim() !== '') {
+                  answerMap[subId] = String(ans).trim();
+                }
               });
             }
+
             nextId += rowCount;
             return {
               id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
@@ -397,12 +407,27 @@ const Admin = () => {
             const blanks = (String(q.question || '').match(/_{3,}/g) || []).length;
             const count = Math.max(0, blanks);
             const subIds = Array.from({ length: count }, (_, i) => nextId + i);
-            if (Array.isArray(q.answers)) {
-              q.answers.forEach((ans, idx) => {
+
+            // Read answers directly from form values using getValues (q.answers might not be in values object)
+            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+            const formAnswers = getValues(answersPath);
+            const answers = Array.isArray(formAnswers) ? formAnswers : (Array.isArray(q.answers) ? q.answers : []);
+
+
+
+            // Save answers to answerMap
+            if (answers.length > 0) {
+              answers.forEach((ans, idx) => {
                 const subId = subIds[idx];
-                if (subId != null) answerMap[subId] = ans;
+                if (subId != null && ans != null && String(ans).trim() !== '') {
+                  answerMap[subId] = String(ans).trim();
+                  console.log(`  ✓ Saved answer for subId ${subId}:`, String(ans).trim());
+                }
               });
+            } else {
+              console.warn('  ⚠️ No answers found for summarydrag question:', q.question);
             }
+
             nextId += count;
             return {
               id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
@@ -617,6 +642,18 @@ const Admin = () => {
                   answersFromMap: subIds.map((sid) => ({ subId: sid, answer: answersMap[sid] })),
                   finalAnswers: answers,
                   rowsCount: q.rows?.length || 0,
+                  answersCount: answers.length
+                });
+              }
+
+              if (q.type === 'summarydrag') {
+                const blankCount = (String(q.question || '').match(/_{3,}/g) || []).length;
+                console.log('📥 Admin: Loading summarydrag question', {
+                  question: q.question,
+                  subIds,
+                  blankCount,
+                  answersFromMap: subIds.map((sid) => ({ subId: sid, answer: answersMap[sid] })),
+                  finalAnswers: answers,
                   answersCount: answers.length
                 });
               }
@@ -1187,6 +1224,8 @@ const AnswerSection = ({ control, register, watch, setValue, partIndex, qIndex, 
         register={register}
         namePrefix={namePrefix}
         errors={errors}
+        watch={watch}
+        setValue={setValue}
       />
     );
   }
@@ -1198,6 +1237,7 @@ const AnswerSection = ({ control, register, watch, setValue, partIndex, qIndex, 
         namePrefix={namePrefix}
         errors={errors}
         setValue={setValue}
+        watch={watch}
       />
     );
   }
@@ -1219,6 +1259,7 @@ const AnswerSection = ({ control, register, watch, setValue, partIndex, qIndex, 
         namePrefix={namePrefix}
         errors={errors}
         setValue={setValue}
+        watch={watch}
       />
     );
   }
@@ -1591,7 +1632,7 @@ const MatchingGroupEditor = ({ control, register, watch, namePrefix, errors }) =
   );
 };
 
-const MapLabelEditor = ({ control, register, namePrefix, errors, setValue }) => {
+const MapLabelEditor = ({ control, register, namePrefix, errors, setValue, watch }) => {
   const {
     fields: columnFields,
     append: appendColumn,
@@ -1604,21 +1645,45 @@ const MapLabelEditor = ({ control, register, namePrefix, errors, setValue }) => 
   } = useFieldArray({ control, name: `${namePrefix}.rows` });
   const {
     fields: answerFields,
-    append: appendAnswer,
-    remove: removeAnswer,
+    replace: replaceAnswers,
   } = useFieldArray({ control, name: `${namePrefix}.answers` });
 
   const columnsError = getNestedError(errors, `${namePrefix}.columns`);
   const rowsError = getNestedError(errors, `${namePrefix}.rows`);
   const answersError = getNestedError(errors, `${namePrefix}.answers`);
 
+  // Watch current columns for dropdowns
+  const currentColumns = watch(`${namePrefix}.columns`) || [];
+
+  // Watch rows to sync answers array length
+  const watchedRows = useWatch({ control, name: `${namePrefix}.rows` });
+  const watchedAnswers = useWatch({ control, name: `${namePrefix}.answers` });
+
+  // Sync answers array length with rows array length
+  React.useEffect(() => {
+    const rowCount = Array.isArray(watchedRows) ? watchedRows.length : 0;
+    const currentAnswers = Array.isArray(watchedAnswers) ? watchedAnswers : [];
+
+    if (rowCount !== currentAnswers.length) {
+      const newAnswers = Array(rowCount).fill('');
+      // Preserve existing answers if they exist
+      currentAnswers.forEach((ans, idx) => {
+        if (idx < newAnswers.length) {
+          newAnswers[idx] = ans || '';
+        }
+      });
+      replaceAnswers(newAnswers);
+      setValue(`${namePrefix}.answers`, newAnswers, { shouldDirty: true, shouldValidate: true });
+    }
+  }, [watchedRows?.length, answerFields.length, namePrefix, setValue, replaceAnswers]);
+
   const addRowWithAnswer = () => {
     appendRow('');
-    appendAnswer('');
+    // Answer will be auto-added by the useEffect above
   };
   const removeRowWithAnswer = (idx) => {
     removeRow(idx);
-    removeAnswer(idx);
+    // Answer will be auto-removed by the useEffect above
   };
 
   const [previewUrl, setPreviewUrl] = React.useState('');
@@ -1735,28 +1800,46 @@ const MapLabelEditor = ({ control, register, namePrefix, errors, setValue }) => 
             <div style={{ color: 'crimson', marginBottom: 8 }}>{rowsError}</div>
           )}
           <div style={{ display: 'grid', gap: 8 }}>
-            {rowFields.map((row, idx) => (
-              <div key={row.id} style={{ display: 'flex', gap: 8 }}>
-                <input
-                  placeholder={`Row ${idx + 1}`}
-                  {...register(`${namePrefix}.rows.${idx}`)}
-                  style={{ flex: 1, padding: 8 }}
-                />
-                <button
-                  type="button"
-                  onClick={() => removeRowWithAnswer(idx)}
-                  style={{
-                    background: '#fff2f2',
-                    border: '1px solid #ffdcdc',
-                    padding: '6px 10px',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
+            {rowFields.map((row, idx) => {
+              const currentAnswer = watch(`${namePrefix}.answers.${idx}`) || '';
+              return (
+                <div key={row.id} style={{ display: 'flex', gap: 32, alignItems: 'flex-start', justifyContent: 'flex-start' }}>
+                  <input
+                    placeholder={`Row ${idx + 1}`}
+                    {...register(`${namePrefix}.rows.${idx}`)}
+                    style={{ flex: 1, padding: 8 }}
+                  />
+                  <select
+                    {...register(`${namePrefix}.answers.${idx}`)}
+                    style={{ width: 150, padding: 8 }}
+                  >
+                    <option value="">Select answer...</option>
+                    {currentColumns.map((col, colIdx) => {
+                      const colVal = String(col || '').trim();
+                      if (!colVal) return null;
+                      return (
+                        <option key={`col-${colIdx}`} value={colVal}>
+                          {colVal}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => removeRowWithAnswer(idx)}
+                    style={{
+                      background: '#fff2f2',
+                      border: '1px solid #ffdcdc',
+                      padding: '6px 10px',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              );
+            })}
           </div>
           <button
             type="button"
@@ -1771,51 +1854,6 @@ const MapLabelEditor = ({ control, register, namePrefix, errors, setValue }) => 
             }}
           >
             + Add Row
-          </button>
-        </div>
-
-        <div>
-          <label style={{ display: 'block', fontWeight: 600 }}>Answers (letter for each Row)</label>
-          {typeof answersError === 'string' && (
-            <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>
-          )}
-          <div style={{ display: 'grid', gap: 8 }}>
-            {answerFields.map((ans, idx) => (
-              <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
-                <input
-                  placeholder={`Letter for Row ${idx + 1}`}
-                  {...register(`${namePrefix}.answers.${idx}`)}
-                  style={{ flex: 1, padding: 8 }}
-                />
-                <button
-                  type="button"
-                  onClick={() => removeRowWithAnswer(idx)}
-                  style={{
-                    background: '#fff2f2',
-                    border: '1px solid #ffdcdc',
-                    padding: '6px 10px',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={addRowWithAnswer}
-            style={{
-              marginTop: 8,
-              background: '#eefaff',
-              border: '1px solid #d7f0ff',
-              padding: '6px 10px',
-              borderRadius: 6,
-              cursor: 'pointer',
-            }}
-          >
-            + Add Answer
           </button>
         </div>
       </div>
@@ -2051,7 +2089,7 @@ const MultiSelectEditor = ({ control, namePrefix, errors, setValue }) => {
   );
 };
 
-const SummaryDragEditor = ({ control, register, namePrefix, errors }) => {
+const SummaryDragEditor = ({ control, register, namePrefix, errors, watch, setValue }) => {
   const {
     fields: optionFields,
     append: appendOption,
@@ -2066,11 +2104,55 @@ const SummaryDragEditor = ({ control, register, namePrefix, errors }) => {
   const optionsError = getNestedError(errors, `${namePrefix}.options`);
   const answersError = getNestedError(errors, `${namePrefix}.answers`);
 
+  // Watch question text to count blanks
+  const questionText = watch(`${namePrefix}.question`) || '';
+  const blankCount = (String(questionText).match(/_{3,}/g) || []).length;
+
+  // Watch current options for dropdowns
+  const currentOptions = watch(`${namePrefix}.options`) || [];
+
+  // Track if we've seen answers with values (to avoid overwriting on initial load)
+  const answersInitializedRef = React.useRef(false);
+
+  // Sync answers array length with blank count
+  React.useEffect(() => {
+    if (blankCount > 0) {
+      // Check if we have any existing answers with values
+      const hasAnswers = answerFields.some((_, idx) => {
+        const val = watch(`${namePrefix}.answers.${idx}`) || '';
+        return String(val).trim() !== '';
+      });
+
+      if (hasAnswers) {
+        answersInitializedRef.current = true;
+      }
+
+      // Only sync length if blank count changed or if we haven't initialized yet
+      if (answerFields.length !== blankCount) {
+        const newAnswers = Array(blankCount).fill('');
+        // Preserve existing answers if they exist
+        answerFields.forEach((ans, idx) => {
+          if (idx < newAnswers.length) {
+            const existingValue = watch(`${namePrefix}.answers.${idx}`) || '';
+            newAnswers[idx] = existingValue;
+          }
+        });
+        // Only update if we have values or if this is the first time
+        if (hasAnswers || !answersInitializedRef.current) {
+          setValue(`${namePrefix}.answers`, newAnswers, { shouldDirty: true, shouldValidate: true });
+          if (hasAnswers) {
+            answersInitializedRef.current = true;
+          }
+        }
+      }
+    }
+  }, [blankCount, answerFields.length, namePrefix, setValue, watch]);
+
   return (
     <div style={{ marginTop: 12 }}>
       <div style={{ marginBottom: 8, color: '#555' }}>
         Use three or more underscores ___ in the Question Text to mark each blank. Add the words
-        below for the answer bank, and provide the correct answer for each blank in order.
+        below for the answer bank, and select the correct answer for each blank from the dropdown.
       </div>
       <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
         <div>
@@ -2119,56 +2201,51 @@ const SummaryDragEditor = ({ control, register, namePrefix, errors }) => {
         </div>
         <div>
           <label style={{ display: 'block', fontWeight: 600 }}>
-            Answers (one per blank, in order)
+            Answers (select from Answer Bank for each blank, in order)
           </label>
           {typeof answersError === 'string' && (
             <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>
           )}
-          <div style={{ display: 'grid', gap: 8 }}>
-            {answerFields.map((ans, idx) => (
-              <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
-                <input
-                  placeholder={`Answer for blank ${idx + 1}`}
-                  {...register(`${namePrefix}.answers.${idx}`)}
-                  style={{ flex: 1, padding: 8 }}
-                />
-                <button
-                  type="button"
-                  onClick={() => removeAnswer(idx)}
-                  style={{
-                    background: '#fff2f2',
-                    border: '1px solid #ffdcdc',
-                    padding: '6px 10px',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => appendAnswer('')}
-            style={{
-              marginTop: 8,
-              background: '#eefaff',
-              border: '1px solid #d7f0ff',
-              padding: '6px 10px',
-              borderRadius: 6,
-              cursor: 'pointer',
-            }}
-          >
-            + Add Answer
-          </button>
+          {blankCount === 0 ? (
+            <div style={{ color: '#999', fontStyle: 'italic', padding: 8 }}>
+              Add underscores (___) in the Question Text to create blanks
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {answerFields.map((ans, idx) => {
+                const currentAnswer = watch(`${namePrefix}.answers.${idx}`) || '';
+                return (
+                  <div key={ans.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <label style={{ minWidth: 120, fontWeight: 500 }}>
+                      Blank {idx + 1}:
+                    </label>
+                    <select
+                      {...register(`${namePrefix}.answers.${idx}`)}
+                      style={{ flex: 1, padding: 8 }}
+                    >
+                      <option value="">Select answer...</option>
+                      {currentOptions.map((opt, optIdx) => {
+                        const optVal = String(opt || '').trim();
+                        if (!optVal) return null;
+                        return (
+                          <option key={`opt-${optIdx}`} value={optVal}>
+                            {optVal}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-const FlowchartEditor = ({ control, register, namePrefix, errors, setValue }) => {
+const FlowchartEditor = ({ control, register, namePrefix, errors, setValue, watch }) => {
   const {
     fields: optionFields,
     append: appendOption,
@@ -2190,6 +2267,9 @@ const FlowchartEditor = ({ control, register, namePrefix, errors, setValue }) =>
 
   const watchedRows = useWatch({ control, name: `${namePrefix}.rows` });
   const watchedAnswers = useWatch({ control, name: `${namePrefix}.answers` });
+
+  // Watch current options for dropdowns
+  const currentOptions = watch(`${namePrefix}.options`) || [];
 
   const blankCount = React.useMemo(() => {
     const rows = Array.isArray(watchedRows) ? watchedRows : [];
@@ -2218,55 +2298,11 @@ const FlowchartEditor = ({ control, register, namePrefix, errors, setValue }) =>
     <div style={{ marginTop: 12 }}>
       <div style={{ marginBottom: 8, color: '#555' }}>
         Add each flow-chart box below. Use three or more underscores ___ inside a box to mark a
-        blank. Add the answer bank words, and answers will auto-sync to the number of blanks.
+        blank. Add the answer bank words, and select answers from the dropdown for each blank.
       </div>
 
       <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
-        <div>
-          <label style={{ display: 'block', fontWeight: 600 }}>Answer Bank (words/phrases)</label>
-          {typeof optionsError === 'string' && (
-            <div style={{ color: 'crimson', marginBottom: 8 }}>{optionsError}</div>
-          )}
-          <div style={{ display: 'grid', gap: 8 }}>
-            {optionFields.map((opt, idx) => (
-              <div key={opt.id} style={{ display: 'flex', gap: 8 }}>
-                <input
-                  placeholder={`Word ${idx + 1}`}
-                  {...register(`${namePrefix}.options.${idx}`)}
-                  style={{ flex: 1, padding: 8 }}
-                />
-                <button
-                  type="button"
-                  onClick={() => removeOption(idx)}
-                  style={{
-                    background: '#fff2f2',
-                    border: '1px solid #ffdcdc',
-                    padding: '6px 10px',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => appendOption('')}
-            style={{
-              marginTop: 8,
-              background: '#eefaff',
-              border: '1px solid #d7f0ff',
-              padding: '6px 10px',
-              borderRadius: 6,
-              cursor: 'pointer',
-            }}
-          >
-            + Add Word
-          </button>
-        </div>
-
+        {/* Flowchart boxes - First */}
         <div>
           <label style={{ display: 'block', fontWeight: 600 }}>Flowchart boxes</label>
           {typeof rowsError === 'string' && (
@@ -2312,6 +2348,53 @@ const FlowchartEditor = ({ control, register, namePrefix, errors, setValue }) =>
           </button>
         </div>
 
+        {/* Answer Bank - Second */}
+        <div>
+          <label style={{ display: 'block', fontWeight: 600 }}>Answer Bank (words/phrases)</label>
+          {typeof optionsError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{optionsError}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {optionFields.map((opt, idx) => (
+              <div key={opt.id} style={{ display: 'flex', gap: 8 }}>
+                <input
+                  placeholder={`Word ${idx + 1}`}
+                  {...register(`${namePrefix}.options.${idx}`)}
+                  style={{ flex: 1, padding: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeOption(idx)}
+                  style={{
+                    background: '#fff2f2',
+                    border: '1px solid #ffdcdc',
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => appendOption('')}
+            style={{
+              marginTop: 8,
+              background: '#eefaff',
+              border: '1px solid #d7f0ff',
+              padding: '6px 10px',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            + Add Word
+          </button>
+        </div>
+
+        {/* Answers - Third */}
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <label style={{ display: 'block', fontWeight: 600 }}>Answers (auto-synced)</label>
@@ -2326,16 +2409,31 @@ const FlowchartEditor = ({ control, register, namePrefix, errors, setValue }) =>
             </div>
           ) : (
             <div style={{ display: 'grid', gap: 8 }}>
-              {answerFields.map((ans, idx) => (
-                <div key={ans.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <div style={{ width: 110, color: '#666' }}>Blank {idx + 1}</div>
-                  <input
-                    placeholder={`Answer for blank ${idx + 1}`}
-                    {...register(`${namePrefix}.answers.${idx}`)}
-                    style={{ flex: 1, padding: 8 }}
-                  />
-                </div>
-              ))}
+              {answerFields.map((ans, idx) => {
+                const currentAnswer = watch(`${namePrefix}.answers.${idx}`) || '';
+                return (
+                  <div key={ans.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-end', justifyContent: 'flex-start' }}>
+                    <label style={{ width: 110, color: '#666', fontWeight: 500 }}>
+                      Blank {idx + 1}:
+                    </label>
+                    <select
+                      {...register(`${namePrefix}.answers.${idx}`)}
+                      style={{ flex: 1, padding: 8 }}
+                    >
+                      <option value="">Select answer...</option>
+                      {currentOptions.map((opt, optIdx) => {
+                        const optVal = String(opt || '').trim();
+                        if (!optVal) return null;
+                        return (
+                          <option key={`opt-${optIdx}`} value={optVal}>
+                            {optVal}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

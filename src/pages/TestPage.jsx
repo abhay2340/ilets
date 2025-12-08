@@ -984,24 +984,6 @@ const TestPage = () => {
           >
             <h3>{currentPart.title}</h3>
             <p style={{ whiteSpace: 'pre-wrap' }}>{currentPart.passage}</p>
-            {/* If any map/plan/diagram questions have images, show them below the passage */}
-            {currentPart.questions
-              .filter((q) => q.type === 'maplabel' && q.imageSrc)
-              .map((q, idx) => (
-                <div key={`map-img-${q.id}-${idx}`} style={{ marginTop: 12 }}>
-                  <img
-                    src={q.imageSrc}
-                    alt=""
-                    style={{
-                      width: '100%',
-                      maxWidth: 520,
-                      borderRadius: 8,
-                      border: '1px solid #eee'
-                    }}
-                    loading="lazy"
-                  />
-                </div>
-              ))}
           </div>
 
           {/* Vertical splitter */}
