@@ -37,7 +37,6 @@ const AccountContent = ({ selectedTab, user, onLogout }) => {
       (snapshot) => {
         const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
         setUploadProgress(progress);
-        console.log('Upload is ' + progress + '% done');
       },
       (error) => {
         console.error("Error uploading profile picture:", error);

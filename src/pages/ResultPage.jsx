@@ -23,8 +23,19 @@ const ResultPage = () => {
 
   const { state } = useLocation();
   const { userAnswers = {}, testId = 'test1', timeTaken = 0 } = state || {};
+
+  console.log('🔵 ResultPage: Page loaded', {
+    hasState: !!state,
+    testId,
+    timeTaken,
+    userAnswersCount: Object.keys(userAnswers).length,
+    userAnswers: userAnswers,
+    userAnswerIds: Object.keys(userAnswers).map(Number).sort((a, b) => a - b)
+  });
+
   // If no state (e.g., user navigated back), send them to dashboard to avoid reopening test
   if (!state) {
+    console.warn('⚠️ ResultPage: No state found, redirecting to dashboard');
     window.location.replace('/dashboard');
     return null;
   }
@@ -107,15 +118,47 @@ const ResultPage = () => {
 
   // If db mode, fetch test + answers
   React.useEffect(() => {
-    if (!isDbMode) return;
+    if (!isDbMode) {
+      console.log('🔵 ResultPage: Not in DB mode, using local answer key', { testId });
+      return;
+    }
     let active = true;
     (async () => {
       try {
+        console.log('🔵 ResultPage: Loading test and answers from Firestore...', { testId, isDbMode });
         const snap = await getDoc(doc(db, 'tests', testId));
-        if (active && snap.exists()) setDbTest(snap.data());
+        if (active && snap.exists()) {
+          const testData = snap.data();
+          console.log('✅ ResultPage: Test loaded from Firestore API', {
+            testId,
+            testTitle: testData?.title,
+            partsCount: testData?.parts?.length || 0,
+            totalQuestions: testData?.parts?.reduce((sum, p) => sum + (p.questions?.length || 0), 0) || 0,
+            testData: testData
+          });
+          setDbTest(testData);
+        } else {
+          console.warn('⚠️ ResultPage: Test not found in Firestore API', { testId });
+        }
         const ans = await getDoc(doc(db, 'answers', testId));
-        if (active && ans.exists()) setDbAnswers((ans.data() || {}).answers || {});
-      } catch { }
+        if (active && ans.exists()) {
+          const answerData = ans.data();
+          const answersMap = answerData?.answers || {};
+          console.log('✅ ResultPage: Correct answers loaded from Firestore API', {
+            testId,
+            apiResponse: answerData,
+            answersCount: Object.keys(answersMap).length,
+            answerKeys: Object.keys(answersMap).map(Number).sort((a, b) => a - b),
+            answers: answersMap
+          });
+          setDbAnswers(answersMap);
+        } else {
+          console.warn('⚠️ ResultPage: Answers not found in Firestore API', { testId });
+          setDbAnswers({});
+        }
+      } catch (error) {
+        console.error('❌ ResultPage: Error loading from Firestore API', { testId, error });
+      }
       if (active) setLoadingDb(false);
     })();
     return () => { active = false };
@@ -123,22 +166,95 @@ const ResultPage = () => {
 
   const correctAnswers = isDbMode ? (dbAnswers || {}) : (answerKey[testId] || {});
 
-  const questionIds = Object.keys(correctAnswers || {}).map(Number).sort((a, b) => a - b);
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🔍 ResultPage: Debug summary', {
+      testId,
+      isDbMode,
+      dbAnswersCount: Object.keys(dbAnswers || {}).length,
+      dbAnswers: dbAnswers,
+      correctAnswersCount: Object.keys(correctAnswers).length,
+      correctAnswers: correctAnswers,
+      userAnswersCount: Object.keys(userAnswers || {}).length,
+      userAnswers: userAnswers,
+      testDataParts: testData?.parts?.length || 0,
+      testData: testData
+    });
+  }, [isDbMode, testId, dbAnswers, correctAnswers, userAnswers, testData]);
+
+  // Get question IDs from multiple sources to ensure we don't miss any
+  const correctAnswerIds = Object.keys(correctAnswers || {}).map(Number);
+  const userAnswerIds = Object.keys(userAnswers || {}).map(Number);
+  // Also get IDs from test structure (including subIds)
+  const testQuestionIds = React.useMemo(() => {
+    const ids = [];
+    (testData?.parts || []).forEach(part => {
+      (part.questions || []).forEach(q => {
+        if (Array.isArray(q.subIds)) {
+          ids.push(...q.subIds);
+        } else if (typeof q.id === 'number') {
+          ids.push(q.id);
+        }
+      });
+    });
+    return ids;
+  }, [testData]);
+
+  // Combine all sources and remove duplicates
+  const allQuestionIds = [...new Set([...correctAnswerIds, ...userAnswerIds, ...testQuestionIds])]
+    .filter(id => typeof id === 'number' && !isNaN(id))
+    .sort((a, b) => a - b);
+
+  const questionIds = allQuestionIds.length > 0 ? allQuestionIds : correctAnswerIds;
+
+  console.log('📊 ResultPage: Question ID collection', {
+    correctAnswerIds,
+    userAnswerIds,
+    testQuestionIds,
+    allQuestionIds,
+    finalQuestionIds: questionIds,
+    correctAnswers: correctAnswers,
+    userAnswers: userAnswers
+  });
 
   let correct = 0;
   let wrong = 0;
   let missed = 0;
+  const scoringDetails = [];
 
   questionIds.forEach(id => {
     const ua = userAnswers[id];
-    if (!String(ua ?? '').trim()) missed++;
-    else if (compareAnswers(ua, correctAnswers[id])) correct++;
-    else wrong++;
+    const ca = correctAnswers[id];
+    const uaStr = String(ua ?? '').trim();
+    const caStr = String(ca ?? '').trim();
+
+    if (!uaStr) {
+      missed++;
+      scoringDetails.push({ id, status: 'missed', userAnswer: uaStr, correctAnswer: caStr });
+    } else if (caStr && compareAnswers(ua, ca)) {
+      correct++;
+      scoringDetails.push({ id, status: 'correct', userAnswer: uaStr, correctAnswer: caStr });
+    } else if (caStr) {
+      wrong++;
+      scoringDetails.push({ id, status: 'wrong', userAnswer: uaStr, correctAnswer: caStr });
+    } else {
+      // If no correct answer defined, count as answered but not scored
+      scoringDetails.push({ id, status: 'no_key', userAnswer: uaStr, correctAnswer: caStr });
+    }
   });
 
   const rawTotal = correct + wrong + missed;
-  const total = rawTotal || questionIds.length || Object.keys(userAnswers || {}).length || 0;
+  const total = rawTotal > 0 ? rawTotal : (questionIds.length || Object.keys(userAnswers || {}).length || 0);
   const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+  console.log('✅ ResultPage: Scoring complete', {
+    correct,
+    wrong,
+    missed,
+    total,
+    accuracy,
+    scoringDetails
+  });
 
   return (
     <>

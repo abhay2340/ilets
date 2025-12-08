@@ -98,11 +98,38 @@ const TestPage = () => {
     let active = true;
     (async () => {
       try {
+        console.log('🔵 TestPage: Loading test and answers from Firestore...', { dbId, isDbMode });
         const snap = await getDoc(doc(db, 'tests', dbId));
-        if (active && snap.exists()) setDbTest(snap.data());
+        if (active && snap.exists()) {
+          const testData = snap.data();
+          console.log('✅ TestPage: Test loaded from Firestore', {
+            testId: dbId,
+            testTitle: testData?.title,
+            partsCount: testData?.parts?.length || 0,
+            totalQuestions: testData?.parts?.reduce((sum, p) => sum + (p.questions?.length || 0), 0) || 0
+          });
+          setDbTest(testData);
+        } else {
+          console.warn('⚠️ TestPage: Test not found in Firestore', { dbId });
+        }
         const ans = await getDoc(doc(db, 'answers', dbId));
-        if (active && ans.exists()) setDbAnswers((ans.data() || {}).answers || {});
-      } catch { }
+        if (active && ans.exists()) {
+          const answerData = ans.data();
+          const answersMap = answerData?.answers || {};
+          console.log('✅ TestPage: Correct answers loaded from Firestore', {
+            testId: dbId,
+            answersCount: Object.keys(answersMap).length,
+            answerKeys: Object.keys(answersMap).map(Number).sort((a, b) => a - b),
+            answers: answersMap
+          });
+          setDbAnswers(answersMap);
+        } else {
+          console.warn('⚠️ TestPage: Answers not found in Firestore', { dbId });
+          setDbAnswers({});
+        }
+      } catch (error) {
+        console.error('❌ TestPage: Error loading from Firestore', { dbId, error });
+      }
     })();
     return () => { active = false };
   }, [isDbMode, dbId]);
@@ -269,30 +296,95 @@ const TestPage = () => {
 
     const allQuestions = parts.flatMap(p => p.questions);
     const correctAnswers = isDbMode ? (dbAnswers || {}) : (answerKey[currentTestId] || {});
+
+    console.log('🔵 TestPage: Starting submission...', {
+      testId: isDbMode ? dbId : currentTestId,
+      isDbMode,
+      correctAnswersCount: Object.keys(correctAnswers).length,
+      correctAnswers: correctAnswers,
+      allAnswersCount: Object.keys(answers).length,
+      allAnswers: answers
+    });
+
     const userAnswers = {};
-    // Build userAnswers directly from the ids that will be scored (handles subIds)
+
+    // Build userAnswers from all answers (not just those in correctAnswers)
+    // This ensures we capture all user responses even if answer key is incomplete
+    Object.keys(answers).forEach((k) => {
+      const id = Number(k);
+      if (!isNaN(id) && answers[id] != null) {
+        userAnswers[id] = answers[id];
+      }
+    });
+
+    // Also include any IDs from correctAnswers that might not be in answers yet
     Object.keys(correctAnswers).forEach((k) => {
       const id = Number(k);
-      userAnswers[id] = answers[id];
+      if (!isNaN(id) && !(id in userAnswers)) {
+        userAnswers[id] = answers[id] || '';
+      }
     });
+
+    console.log('📝 TestPage: User answers collected', {
+      userAnswersCount: Object.keys(userAnswers).length,
+      userAnswers: userAnswers,
+      userAnswerIds: Object.keys(userAnswers).map(Number).sort((a, b) => a - b)
+    });
+
     let correct = 0, wrong = 0;
     const qIds = Object.keys(correctAnswers).map(Number);
     const total = qIds.length || allQuestions.filter(q => typeof q.id === 'number').length;
 
+    console.log('📊 TestPage: Starting scoring...', {
+      questionIds: qIds,
+      totalQuestions: total,
+      correctAnswersKeys: Object.keys(correctAnswers).map(Number).sort((a, b) => a - b)
+    });
+
+    const scoringDetails = [];
     qIds.forEach(id => {
       const userAns = (userAnswers[id] || '')?.trim();
       const keyAns = (correctAnswers[id] || '')?.trim();
 
-      if (!userAns) return;
+      if (!userAns) {
+        scoringDetails.push({ id, status: 'unanswered', userAnswer: userAns, correctAnswer: keyAns });
+        return;
+      }
       // simple normalization for two-letter multi answers like "B,D"
-      const norm = s => s.toUpperCase().replace(/\s+/g, '').split(',').sort().join(',');
-      if (norm(userAns) === norm(keyAns)) correct++;
-      else wrong++;
+      const norm = s => s.toUpperCase().replace(/\s+/g, '').split(',').filter(Boolean).sort().join(',');
+      const normalizedUser = norm(userAns);
+      const normalizedKey = norm(keyAns);
+      const isMatch = normalizedUser === normalizedKey;
+
+      if (isMatch) {
+        correct++;
+        scoringDetails.push({ id, status: 'correct', userAnswer: userAns, correctAnswer: keyAns, normalized: { user: normalizedUser, key: normalizedKey } });
+      } else {
+        wrong++;
+        scoringDetails.push({ id, status: 'wrong', userAnswer: userAns, correctAnswer: keyAns, normalized: { user: normalizedUser, key: normalizedKey } });
+      }
+    });
+
+    console.log('✅ TestPage: Scoring complete', {
+      correct,
+      wrong,
+      unanswered: qIds.length - correct - wrong,
+      total,
+      scoringDetails
     });
 
     const answered = correct + wrong;
     const unanswered = Math.max(total - answered, 0);
     const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+    console.log('📈 TestPage: Final results', {
+      correct,
+      wrong,
+      unanswered,
+      total,
+      accuracy,
+      timeTaken
+    });
 
     // 🔥 Save to Firestore
     if (auth?.currentUser) {
@@ -305,11 +397,20 @@ const TestPage = () => {
         total,
         score: correct,
         accuracy,
-        timeTaken,          // <-- add this
+        timeTaken,
         submittedAt: new Date()
       };
       const resultId = `${auth.currentUser.uid}_${isDbMode ? dbId : currentTestId}_${Date.now()}`;
-      await setDoc(doc(db, 'results', resultId), resultData);
+      console.log('💾 TestPage: Saving result to Firestore', {
+        resultId,
+        resultData
+      });
+      try {
+        await setDoc(doc(db, 'results', resultId), resultData);
+        console.log('✅ TestPage: Result saved successfully to Firestore', { resultId });
+      } catch (error) {
+        console.error('❌ TestPage: Error saving result to Firestore', { resultId, error });
+      }
     }
 
     // Exit fullscreen before leaving the test page
@@ -323,12 +424,18 @@ const TestPage = () => {
     } catch (_) { }
 
     // 👉 Navigate to result page
+    const navigationState = {
+      userAnswers,
+      testId: isDbMode ? dbId : currentTestId,
+      timeTaken
+    };
+    console.log('🚀 TestPage: Navigating to results page', {
+      navigationState,
+      userAnswersCount: Object.keys(userAnswers).length,
+      userAnswers: userAnswers
+    });
     navigate('/results', {
-      state: {
-        userAnswers,
-        testId: isDbMode ? dbId : currentTestId,
-        timeTaken           // <-- add this
-      },
+      state: navigationState,
       replace: true
     });
 

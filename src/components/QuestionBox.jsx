@@ -73,6 +73,56 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
         });
       })()}
 
+      {/* Multi select (checkboxes, multiple correct) */}
+      {question.type === 'multiselect' && (() => {
+        const opts = Array.isArray(question.options) ? question.options : [];
+        const selections = React.useMemo(() => {
+          if (typeof answer === 'string' && answer.length > 0) {
+            return answer.split(',').filter(Boolean);
+          }
+          return [];
+        }, [answer]);
+        const [localSel, setLocalSel] = React.useState(selections);
+        React.useEffect(() => { setLocalSel(selections); }, [selections.join(',')]);
+
+        const toggle = (opt) => {
+          const next = new Set(localSel);
+          if (next.has(opt)) next.delete(opt);
+          else next.add(opt);
+          const arr = Array.from(next);
+          const joined = arr.join(',');
+          setLocalSel(arr);
+          setAnswer(joined);
+          try {
+            if (Array.isArray(question.subIds) && typeof question.subIds[0] === 'number') {
+              // store also on base id
+              setAnswerForId?.(question.subIds[0], joined);
+            }
+          } catch { }
+        };
+
+        return (
+          <div style={{ marginTop: 10 }}>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {opts.map((opt, idx) => {
+                const checked = localSel.includes(opt);
+                return (
+                  <label key={`${opt}-${idx}`} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggle(opt)}
+                      style={{ transform: 'scale(1.05)' }}
+                    />
+                    <span>{opt}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Fill in the blank (supports inline blanks like ______) */}
       {question.type === 'written' && (() => {
         const blankRegex = /_{3,}/g; // three or more underscores, global
@@ -259,11 +309,6 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
       {question.type === 'maplabel' && (() => {
         const rows = Array.isArray(question.rows) ? question.rows : [];
         const cols = Array.isArray(question.columns) ? question.columns : [];
-
-        // Debug: log image source for maplabel
-        try {
-          console.log('maplabel imageSrc:', question.imageSrc);
-        } catch { }
 
         const parsedCols = React.useMemo(() => cols.map((c) => {
           const text = String(c ?? '').trim();
@@ -676,8 +721,8 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
         };
 
         return (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ display: 'grid', gap: 16 }}>
+          <div style={{ marginTop: 10 }}>
+            <div style={{ display: 'grid', gap: 12 }}>
               {partsPerRow.map((rowMeta, rowIdx) => {
                 let runningBlank = 0;
                 return (
@@ -692,7 +737,7 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
                         boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
                       }}
                     >
-                      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                         <div
                           style={{
                             width: 28,
@@ -710,7 +755,7 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
                         >
                           {rowIdx + 1}
                         </div>
-                        <div style={{ lineHeight: 1.7, flex: 1, minHeight: 32 }}>
+                        <div style={{ lineHeight: 1.6, flex: 1, minHeight: 32, display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                           {rowMeta.splits.map((chunk, idx) => {
                             if (idx === rowMeta.splits.length - 1) {
                               return <span key={`chunk-${idx}-${rowIdx}`}>{chunk}</span>;
@@ -735,9 +780,9 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
                                   }}
                                   style={{
                                     display: 'inline-flex',
-                                    minWidth: 90,
-                                    minHeight: 32,
-                                    padding: '4px 8px',
+                                    minWidth: 80,
+                                    minHeight: 30,
+                                    padding: '3px 8px',
                                     border: '2px dashed #bbb',
                                     borderRadius: 8,
                                     margin: '0 6px',
@@ -777,14 +822,20 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
                       </div>
                     </div>
                     {rowIdx < partsPerRow.length - 1 && (
-                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 2,
+                          margin: '6px 0'
+                        }}
+                      >
                         <div
                           style={{
                             width: 2,
-                            height: 18,
-                            background: '#cbd5e1',
-                            marginTop: 4,
-                            marginBottom: 4,
+                            height: 12,
+                            background: '#cbd5e1'
                           }}
                         />
                         <div
@@ -793,9 +844,7 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
                             height: 0,
                             borderLeft: '7px solid transparent',
                             borderRight: '7px solid transparent',
-                            borderTop: '9px solid #cbd5e1',
-                            marginLeft: -7,
-                            marginTop: 0,
+                            borderTop: '9px solid #cbd5e1'
                           }}
                         />
                       </div>

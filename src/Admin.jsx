@@ -11,6 +11,7 @@ import LoaderOverlay from './components/LoaderOverlay.jsx';
 
 const QUESTION_TYPES = [
   { value: 'mcq', label: 'Multiple Choice (TRUE/FALSE/NOT GIVEN or options)' },
+  { value: 'multiselect', label: 'Multi Select (checkboxes, multiple correct)' },
   { value: 'written', label: 'Written (Short Text Answer)' },
   { value: 'dropdown', label: 'Dropdown (Choose One)' },
   { value: 'matchinggroup', label: 'Matching Group (Rows ↔ Columns)' },
@@ -54,6 +55,7 @@ const buildValidationSchema = () =>
                   .oneOf([
                     'mcq',
                     'written',
+                    'multiselect',
                     'dropdown',
                     'matchinggroup',
                     'matchingdrag',
@@ -81,6 +83,7 @@ const buildValidationSchema = () =>
                 options: yup.array().when('type', {
                   is: (t) =>
                     t === 'mcq' ||
+                    t === 'multiselect' ||
                     t === 'dropdown' ||
                     t === 'matchingdrag' ||
                     t === 'summarydrag' ||
@@ -146,13 +149,14 @@ const buildValidationSchema = () =>
                       .of(yup.string().trim().required('Row cannot be empty')),
                   otherwise: (s) => s.strip(),
                 }),
-                answers: yup.array().when(['type', 'rows', 'question', 'table'], {
+                answers: yup.array().when(['type', 'rows', 'question', 'table', 'options'], {
                   is: (vals) => {
                     const [type] = Array.isArray(vals) ? vals : [];
                     return (
                       type === 'matchinggroup' ||
                       type === 'matchingdrag' ||
                       type === 'summarydrag' ||
+                      type === 'multiselect' ||
                       type === 'flowchart' ||
                       type === 'sentencefill' ||
                       type === 'maplabel' ||
@@ -171,6 +175,11 @@ const buildValidationSchema = () =>
                         ) {
                           const rows = this.parent.rows || [];
                           return Array.isArray(val) && val.length === rows.length;
+                        }
+                        if (type === 'multiselect') {
+                          // require at least one correct option
+                          const options = this.parent.options || [];
+                          return Array.isArray(val) && val.length >= 1 && val.length <= options.length;
                         }
                         if (type === 'summarydrag') {
                           const qtext = this.parent.question || '';
@@ -235,7 +244,6 @@ const Admin = () => {
     watch,
     reset,
     setValue,
-    trigger,
     getValues,
     formState: { errors },
   } = useForm({
@@ -337,15 +345,54 @@ const Admin = () => {
               ...(q.imageSrc ? { imageSrc: q.imageSrc } : {}),
             };
           }
+          if (q.type === 'multiselect') {
+            const opts = Array.isArray(q.options) ? q.options : [];
+            const answers = Array.isArray(q.answers) ? q.answers.filter(Boolean) : [];
+            const sorted = [...answers].sort((a, b) => String(a).localeCompare(String(b)));
+            const ansString = sorted.join(',');
+            answerMap[nextId] = ansString;
+            const base = {
+              id: nextId,
+              type: 'multiselect',
+              question: q.question,
+              options: opts,
+              answer: ansString,
+            };
+            nextId += 1;
+            return base;
+          }
           if (q.type === 'matchingdrag') {
             const rowCount = Array.isArray(q.rows) ? q.rows.length : 0;
             const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i);
-            if (Array.isArray(q.answers)) {
-              q.answers.forEach((ans, idx) => {
+
+            // Read answers directly from form values using getValues (q.answers might not be in values object)
+            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+            const formAnswers = getValues(answersPath);
+            const answers = Array.isArray(formAnswers) ? formAnswers : (Array.isArray(q.answers) ? q.answers : []);
+
+            console.log('💾 Admin: Saving matchingdrag question', {
+              question: q.question,
+              answersPath,
+              answersFromForm: formAnswers,
+              answersFromQ: q.answers,
+              finalAnswers: answers,
+              rowCount,
+              subIds
+            });
+
+            // Save answers to answerMap
+            if (answers.length > 0) {
+              answers.forEach((ans, idx) => {
                 const subId = subIds[idx];
-                if (subId != null) answerMap[subId] = ans;
+                if (subId != null && ans != null && String(ans).trim() !== '') {
+                  answerMap[subId] = String(ans).trim();
+                  console.log(`  ✓ Saved answer for subId ${subId}:`, String(ans).trim());
+                }
               });
+            } else {
+              console.warn('  ⚠️ No answers found for matchingdrag question:', q.question);
             }
+
             nextId += rowCount;
             return {
               id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
@@ -567,10 +614,23 @@ const Admin = () => {
               q.type === 'flowchart' ||
               q.type === 'sentencefill' ||
               q.type === 'maplabel' ||
-              q.type === 'tablefill'
+              q.type === 'tablefill' ||
+              q.type === 'multiselect'
             ) {
               const subIds = Array.isArray(q.subIds) ? q.subIds : [];
               const answers = subIds.map((sid) => answersMap[sid] || '');
+
+              if (q.type === 'matchingdrag') {
+                console.log('📥 Admin: Loading matchingdrag question', {
+                  question: q.question,
+                  subIds,
+                  answersFromMap: subIds.map((sid) => ({ subId: sid, answer: answersMap[sid] })),
+                  finalAnswers: answers,
+                  rowsCount: q.rows?.length || 0,
+                  answersCount: answers.length
+                });
+              }
+
               // For tablefill, deserialize rows from JSON strings back to nested arrays
               if (q.type === 'tablefill' && q.table?.rows) {
                 try {
@@ -1020,7 +1080,7 @@ const OptionsSection = ({ control, register, partIndex, qIndex, errors }) => {
       name={`${namePrefix}.type`}
       render={({ field }) => {
         const type = field.value;
-        if (!(type === 'mcq' || type === 'dropdown')) return null;
+        if (!(type === 'mcq' || type === 'dropdown' || type === 'multiselect')) return null;
 
         return (
           <OptionsEditor
@@ -1114,6 +1174,19 @@ const AnswerSection = ({ control, register, watch, setValue, partIndex, qIndex, 
         register={register}
         namePrefix={namePrefix}
         errors={errors}
+        watch={watch}
+        setValue={setValue}
+      />
+    );
+  }
+  if (questionType === 'multiselect') {
+    return (
+      <MultiSelectEditor
+        control={control}
+        register={register}
+        namePrefix={namePrefix}
+        errors={errors}
+        setValue={setValue}
       />
     );
   }
@@ -1760,7 +1833,7 @@ const MapLabelEditor = ({ control, register, namePrefix, errors, setValue }) => 
   );
 };
 
-const DragMatchEditor = ({ control, register, namePrefix, errors }) => {
+const DragMatchEditor = ({ control, register, namePrefix, errors, watch, setValue }) => {
   const {
     fields: optionFields,
     append: appendOption,
@@ -1781,6 +1854,29 @@ const DragMatchEditor = ({ control, register, namePrefix, errors }) => {
   const rowsError = getNestedError(errors, `${namePrefix}.rows`);
   const answersError = getNestedError(errors, `${namePrefix}.answers`);
 
+  // Watch current options for dropdowns
+  const currentOptions = watch(`${namePrefix}.options`) || [];
+  const watchedRows = watch(`${namePrefix}.rows`) || [];
+  const watchedAnswers = watch(`${namePrefix}.answers`) || [];
+
+  // Sync answers array length with rows when loading existing data
+  React.useEffect(() => {
+    const rowsCount = watchedRows.length;
+    const answersCount = watchedAnswers.length;
+
+    if (rowsCount > answersCount) {
+      // Add missing answer fields
+      for (let i = answersCount; i < rowsCount; i++) {
+        appendAnswer('');
+      }
+    } else if (rowsCount < answersCount) {
+      // Remove extra answer fields (shouldn't happen, but handle it)
+      for (let i = answersCount - 1; i >= rowsCount; i--) {
+        removeAnswer(i);
+      }
+    }
+  }, [watchedRows.length, watchedAnswers.length, appendAnswer, removeAnswer]);
+
   const addRowWithAnswer = () => {
     appendRow('');
     appendAnswer('');
@@ -1797,6 +1893,71 @@ const DragMatchEditor = ({ control, register, namePrefix, errors }) => {
       </label>
 
       <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+        {/* Rows (Sentence starts) - First */}
+        <div>
+          <label style={{ display: 'block', fontWeight: 600 }}>Rows (Sentence starts)</label>
+          {typeof rowsError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{rowsError}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {rowFields.map((row, idx) => {
+              const currentAnswer = watch(`${namePrefix}.answers.${idx}`) || '';
+              return (
+                <div key={row.id} style={{ display: 'flex', gap: 8, justifyContent: 'flex-start', alignItems: 'flex-start' }}>
+                  <input
+                    placeholder={`Row ${idx + 1}`}
+                    {...register(`${namePrefix}.rows.${idx}`)}
+                    style={{ width: '70%', padding: 8 }}
+                  />
+                  <select
+                    {...register(`${namePrefix}.answers.${idx}`)}
+                    style={{ width: '30%', padding: 8 }}
+                  >
+                    <option value="">Select ending...</option>
+                    {currentOptions.map((opt, optIdx) => {
+                      const optVal = String(opt || '').trim();
+                      if (!optVal) return null;
+                      return (
+                        <option key={`opt-${optIdx}`} value={optVal}>
+                          {optVal}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => removeRowWithAnswer(idx)}
+                    style={{
+                      background: '#fff2f2',
+                      border: '1px solid #ffdcdc',
+                      padding: '6px 10px',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={addRowWithAnswer}
+            style={{
+              marginTop: 8,
+              background: '#eefaff',
+              border: '1px solid #d7f0ff',
+              padding: '6px 10px',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            + Add Row
+          </button>
+        </div>
+
+        {/* Answer Bank (Endings) - Last */}
         <div>
           <label style={{ display: 'block', fontWeight: 600 }}>Answer Bank (Endings)</label>
           {typeof optionsError === 'string' && (
@@ -1841,95 +2002,59 @@ const DragMatchEditor = ({ control, register, namePrefix, errors }) => {
             + Add Option
           </button>
         </div>
+      </div>
+    </div>
+  );
+};
 
-        <div>
-          <label style={{ display: 'block', fontWeight: 600 }}>Rows (Sentence starts)</label>
-          {typeof rowsError === 'string' && (
-            <div style={{ color: 'crimson', marginBottom: 8 }}>{rowsError}</div>
-          )}
-          <div style={{ display: 'grid', gap: 8 }}>
-            {rowFields.map((row, idx) => (
-              <div key={row.id} style={{ display: 'flex', gap: 8 }}>
-                <input
-                  placeholder={`Row ${idx + 1}`}
-                  {...register(`${namePrefix}.rows.${idx}`)}
-                  style={{ flex: 1, padding: 8 }}
-                />
-                <button
-                  type="button"
-                  onClick={() => removeRowWithAnswer(idx)}
-                  style={{
-                    background: '#fff2f2',
-                    border: '1px solid #ffdcdc',
-                    padding: '6px 10px',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={addRowWithAnswer}
-            style={{
-              marginTop: 8,
-              background: '#eefaff',
-              border: '1px solid #d7f0ff',
-              padding: '6px 10px',
-              borderRadius: 6,
-              cursor: 'pointer',
-            }}
-          >
-            + Add Row
-          </button>
-        </div>
+const MultiSelectEditor = ({ control, namePrefix, errors, setValue }) => {
+  const options = useWatch({ control, name: `${namePrefix}.options` }) || [];
+  const answersError = getNestedError(errors, `${namePrefix}.answers`);
+  const selected = useWatch({ control, name: `${namePrefix}.answers` }) || [];
 
-        <div>
-          <label style={{ display: 'block', fontWeight: 600 }}>Answers (letter for each Row)</label>
-          {typeof answersError === 'string' && (
-            <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>
+  const toggle = (opt) => {
+    const current = Array.isArray(selected) ? selected : [];
+    const next = [...current];
+    const idx = next.indexOf(opt);
+    if (idx >= 0) {
+      next.splice(idx, 1);
+    } else {
+      next.push(opt);
+    }
+    setValue(`${namePrefix}.answers`, next, { shouldDirty: true, shouldValidate: true });
+  };
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <label style={{ display: 'block', fontWeight: 600 }}>Multi Select (Checkboxes)</label>
+
+      <div style={{ marginTop: 12 }}>
+        <label style={{ display: 'block', fontWeight: 600 }}>Correct Answers (select all that apply)</label>
+        {typeof answersError === 'string' && (
+          <div style={{ color: 'crimson' }}>{answersError}</div>
+        )}
+        <div style={{ display: 'flex', gap: 1, alignItems: 'flex-start', justifyContent: 'center', flexDirection: 'column' }}>
+          {options.length === 0 && (
+            <div style={{ color: '#888', fontStyle: 'italic' }}>Add options first in the Options section above.</div>
           )}
-          <div style={{ display: 'grid', gap: 8 }}>
-            {answerFields.map((ans, idx) => (
-              <div key={ans.id} style={{ display: 'flex', gap: 8 }}>
+          {options.map((opt, idx) => {
+            const optVal = opt || '';
+            const checked = Array.isArray(selected) && selected.includes(optVal);
+            return (
+              <label
+                key={`${optVal}-${idx}`}
+                style={{ display: 'flex', gap: 16, justifyContent: 'flex-start' }}
+              >
                 <input
-                  placeholder={`Letter for Row ${idx + 1}`}
-                  {...register(`${namePrefix}.answers.${idx}`)}
-                  style={{ flex: 1, padding: 8 }}
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggle(optVal)}
+                  style={{ transform: 'scale(1.05)' }}
                 />
-                <button
-                  type="button"
-                  onClick={() => removeRowWithAnswer(idx)}
-                  style={{
-                    background: '#fff2f2',
-                    border: '1px solid #ffdcdc',
-                    padding: '6px 10px',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={addRowWithAnswer}
-            style={{
-              marginTop: 8,
-              background: '#eefaff',
-              border: '1px solid #d7f0ff',
-              padding: '6px 10px',
-              borderRadius: 6,
-              cursor: 'pointer',
-            }}
-          >
-            + Add Answer
-          </button>
+                <span>{optVal || `(option ${idx + 1})`}</span>
+              </label>
+            );
+          })}
         </div>
       </div>
     </div>
