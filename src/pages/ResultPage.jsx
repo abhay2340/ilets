@@ -66,21 +66,64 @@ const ResultPage = () => {
     return toNorm(aStr) === toNorm(bStr);
   };
 
-  // build parts from testData (real question ids per part)
-  const parts = (testData?.parts || []).map((p, idx) => {
-    const ids = (p.questions || [])
-      .map(q => q?.id)
-      .filter(id => typeof id === 'number')
-      .sort((a, b) => a - b);
-    return {
-      title: p.title || `Part ${idx + 1}`,
-      ids,
-    };
-  }).filter(p => p.ids.length > 0);
+  // build parts from testData (real question ids per part, including subIds)
+  const parts = React.useMemo(() => {
+    const result = (testData?.parts || []).map((p, idx) => {
+      const allIds = [];
+      const questionsWithDetails = [];
+
+      (p.questions || []).forEach(q => {
+        if (Array.isArray(q.subIds)) {
+          // For questions with subIds, add each subId and store question details
+          q.subIds.forEach((subId, subIdx) => {
+            allIds.push(subId);
+            questionsWithDetails.push({
+              id: subId,
+              parentId: q.id,
+              question: q.question,
+              type: q.type,
+              options: q.options,
+              rows: q.rows,
+              rowIndex: subIdx,
+              rowText: Array.isArray(q.rows) && q.rows[subIdx] ? q.rows[subIdx] : undefined,
+              isSubQuestion: true
+            });
+          });
+        } else if (typeof q.id === 'number') {
+          // For regular questions, add the question ID
+          allIds.push(q.id);
+          questionsWithDetails.push({
+            id: q.id,
+            question: q.question,
+            type: q.type,
+            options: q.options,
+            isSubQuestion: false
+          });
+        }
+      });
+
+      return {
+        title: p.title || `Part ${idx + 1}`,
+        ids: allIds.sort((a, b) => a - b),
+        questionsWithDetails
+      };
+    }).filter(p => p.ids.length > 0);
+
+    console.log('📋 ResultPage: Parts with question details', {
+      partsCount: result.length,
+      parts: result.map(p => ({
+        title: p.title,
+        idsCount: p.ids.length,
+        questionsCount: p.questionsWithDetails?.length || 0
+      }))
+    });
+
+    return result;
+  }, [testData]);
 
   // accordion state: open first part by default
   const [openPart, setOpenPart] = React.useState(0);
-  const ResultRow = ({ id, correctAnswers, userAnswers }) => {
+  const ResultRow = ({ id, correctAnswers, userAnswers, questionDetails }) => {
     const correctAns = correctAnswers[id];
     const userAns = userAnswers[id];
     const isCorrect = compareAnswers(userAns, correctAns);
@@ -88,24 +131,89 @@ const ResultPage = () => {
     const bar = !userAns ? '#ff9800' : (isCorrect ? '#4CAF50' : '#f44336');
     const text = !userAns ? '#ff9800' : (isCorrect ? '#2e7d32' : '#c62828');
 
+    // Get question text and options if available
+    const qDetail = questionDetails || {};
+    const questionText = qDetail.question || '';
+    const questionType = qDetail.type || '';
+    const options = Array.isArray(qDetail.options) ? qDetail.options : [];
+    const rows = Array.isArray(qDetail.rows) ? qDetail.rows : [];
+    const isSubQuestion = qDetail.isSubQuestion || false;
+    const parentId = qDetail.parentId;
+
+    // Format answer display based on question type
+    const formatAnswer = (ans, isCorrectAnswer = false) => {
+      if (!ans || String(ans).trim() === '') return 'Unanswered';
+
+      const ansStr = String(ans).trim();
+
+      // For matchingdrag, the answer IS the option text (selected from dropdown)
+      if (questionType === 'matchingdrag') {
+        // Check if answer matches an option
+        const matchingOption = options.find(opt => String(opt).trim() === ansStr);
+        if (matchingOption) {
+          return matchingOption;
+        }
+        // If not found in options, just return the answer as-is
+        return ansStr;
+      }
+
+      return ansStr;
+    };
+
     return (
       <div
         key={id}
         style={{
           margin: '8px 0',
-          padding: '10px 16px',
+          padding: '12px 16px',
           backgroundColor: bg,
           borderLeft: `6px solid ${bar}`,
           borderRadius: 4
         }}
       >
-        <strong>Q{id}:</strong>{' '}
-        Your Answer:
-        <span style={{ fontWeight: 'bold', color: text }}>
-          {userAns || 'Unanswered'}
-        </span>{' '}
-        | Correct:
-        <strong>{correctAns}</strong>
+        <div style={{ marginBottom: 6 }}>
+          <strong>Q{id}</strong>
+          {isSubQuestion && parentId && (
+            <span style={{ fontSize: 12, color: '#666', marginLeft: 6 }}>
+              (Part of Q{parentId})
+            </span>
+          )}
+        </div>
+        {(questionText || (isSubQuestion && qDetail.rowText)) && (
+          <div style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>
+            {isSubQuestion && qDetail.rowText ? (
+              <div>
+                <span style={{ fontStyle: 'italic' }}>{questionText}</span>
+                <div style={{ marginTop: 4, fontWeight: 600 }}>
+                  {qDetail.rowText}
+                </div>
+              </div>
+            ) : (
+              <span style={{ fontStyle: 'italic' }}>{questionText}</span>
+            )}
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div>
+            <strong>Your Answer:</strong>{' '}
+            <span style={{ fontWeight: 'bold', color: text }}>
+              {formatAnswer(userAns)}
+            </span>
+          </div>
+          {correctAns && (
+            <div>
+              <strong>Correct Answer:</strong>{' '}
+              <span style={{ fontWeight: 'bold', color: '#2e7d32' }}>
+                {formatAnswer(correctAns, true)}
+              </span>
+            </div>
+          )}
+          {!correctAns && (
+            <div style={{ fontSize: 12, color: '#999', fontStyle: 'italic' }}>
+              No correct answer defined
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -409,14 +517,26 @@ const ResultPage = () => {
                     {/* Part body (only when open) */}
                     {opened && (
                       <div style={{ padding: '14px 16px', background: '#fff' }}>
-                        {p.ids.map(id => (
-                          <ResultRow
-                            key={id}
-                            id={id}
-                            correctAnswers={correctAnswers}
-                            userAnswers={userAnswers}
-                          />
-                        ))}
+                        {p.ids.length === 0 ? (
+                          <div style={{ color: '#999', fontStyle: 'italic', padding: 12 }}>
+                            No questions found in this part
+                          </div>
+                        ) : (
+                          p.ids.map(id => {
+                            // Find question details for this ID
+                            const questionDetail = p.questionsWithDetails?.find(q => q.id === id);
+
+                            return (
+                              <ResultRow
+                                key={id}
+                                id={id}
+                                correctAnswers={correctAnswers}
+                                userAnswers={userAnswers}
+                                questionDetails={questionDetail}
+                              />
+                            );
+                          })
+                        )}
                       </div>
                     )}
                   </div>

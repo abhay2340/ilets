@@ -370,16 +370,6 @@ const Admin = () => {
             const formAnswers = getValues(answersPath);
             const answers = Array.isArray(formAnswers) ? formAnswers : (Array.isArray(q.answers) ? q.answers : []);
 
-            console.log('💾 Admin: Saving matchingdrag question', {
-              question: q.question,
-              answersPath,
-              answersFromForm: formAnswers,
-              answersFromQ: q.answers,
-              finalAnswers: answers,
-              rowCount,
-              subIds
-            });
-
             // Save answers to answerMap
             if (answers.length > 0) {
               answers.forEach((ans, idx) => {

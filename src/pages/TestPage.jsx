@@ -296,16 +296,6 @@ const TestPage = () => {
 
     const allQuestions = parts.flatMap(p => p.questions);
     const correctAnswers = isDbMode ? (dbAnswers || {}) : (answerKey[currentTestId] || {});
-
-    console.log('🔵 TestPage: Starting submission...', {
-      testId: isDbMode ? dbId : currentTestId,
-      isDbMode,
-      correctAnswersCount: Object.keys(correctAnswers).length,
-      correctAnswers: correctAnswers,
-      allAnswersCount: Object.keys(answers).length,
-      allAnswers: answers
-    });
-
     const userAnswers = {};
 
     // Build userAnswers from all answers (not just those in correctAnswers)
