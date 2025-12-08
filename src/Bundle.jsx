@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { db } from './firebaseConfig'
-import { collection, getDocs, setDoc, doc, serverTimestamp } from 'firebase/firestore'
+import { collection, getDocs, setDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore'
 import { toast } from 'react-toastify'
 import LoaderOverlay from './components/LoaderOverlay.jsx'
 
@@ -142,6 +142,17 @@ const Bundle = () => {
         }
     }
 
+    const deleteBundle = async (bundleId) => {
+        if (!window.confirm('Are you sure you want to delete this bundle? This cannot be undone.')) return
+        try {
+            await deleteDoc(doc(db, 'bundles', bundleId))
+            setBundles(prev => prev.filter(b => b.id !== bundleId))
+            toast.success('Bundle deleted')
+        } catch (e) {
+            toast.error('Failed to delete bundle')
+        }
+    }
+
     return (
         <>
             <div style={{ padding: '16px', maxWidth: 1100, margin: '0 auto' }}>
@@ -161,14 +172,33 @@ const Bundle = () => {
                             <h3 style={{ marginTop: 0, marginBottom: 12, fontSize: 18, color: '#28a745' }}>Free Bundles</h3>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
                                 {bundles.filter(b => Number(b.price || 0) === 0).map(b => (
-                                    <div key={b.id} style={{ border: '1px solid #e0e0e0', borderRadius: 8, padding: 12 }}>
-                                        <div style={{ fontWeight: 700 }}>{b.name}</div>
+                                    <div key={b.id} style={{ border: '1px solid #e0e0e0', borderRadius: 8, padding: 12, position: 'relative' }}>
+                                        <button
+                                            onClick={() => deleteBundle(b.id)}
+                                            style={{
+                                                position: 'absolute',
+                                                top: 8,
+                                                right: 8,
+                                                border: 'none',
+                                                background: 'transparent',
+                                                cursor: 'pointer',
+                                                padding: 4,
+                                                color: '#dc3545'
+                                            }}
+                                            title="Delete Bundle"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
+                                                <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z" />
+                                            </svg>
+                                        </button>
+                                        <div style={{ fontWeight: 700, paddingRight: 24 }}>{b.name}</div>
                                         <div style={{ marginTop: 6 }}>Price: ₹{Number(b.price).toLocaleString()}</div>
                                         {b.externalId ? <div style={{ marginTop: 4, fontSize: 12, color: '#444' }}>Ext ID: {b.externalId}</div> : null}
                                         <div style={{ marginTop: 6, fontSize: 12, color: '#555' }}>Tests: {Array.isArray(b.testIds) ? b.testIds.length : 0}</div>
                                         <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-                                            <button onClick={() => openManageTests(b)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer' }}>Manage Tests</button>
-                                            <button onClick={() => { setIsEditOpen(true); setActiveBundle(b); setEditName(b.name || ''); setEditPrice(String(b.price ?? '')); setEditExternalId(b.externalId || ''); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer' }}>Edit</button>
+                                            <button onClick={() => openManageTests(b)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer', background: '#e3f2fd', color: '#0d47a1' }}>Manage Tests</button>
+                                            <button onClick={() => { setIsEditOpen(true); setActiveBundle(b); setEditName(b.name || ''); setEditPrice(String(b.price ?? '')); setEditExternalId(b.externalId || ''); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer', background: '#fff3e0', color: '#e65100' }}>Edit</button>
                                         </div>
                                     </div>
                                 ))}
@@ -182,14 +212,33 @@ const Bundle = () => {
                             <h3 style={{ marginTop: 0, marginBottom: 12, fontSize: 18, color: '#b30000' }}>Premium Bundles</h3>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
                                 {bundles.filter(b => Number(b.price || 0) > 0).map(b => (
-                                    <div key={b.id} style={{ border: '1px solid #e0e0e0', borderRadius: 8, padding: 12 }}>
-                                        <div style={{ fontWeight: 700 }}>{b.name}</div>
+                                    <div key={b.id} style={{ border: '1px solid #e0e0e0', borderRadius: 8, padding: 12, position: 'relative' }}>
+                                        <button
+                                            onClick={() => deleteBundle(b.id)}
+                                            style={{
+                                                position: 'absolute',
+                                                top: 8,
+                                                right: 8,
+                                                border: 'none',
+                                                background: 'transparent',
+                                                cursor: 'pointer',
+                                                padding: 4,
+                                                color: '#dc3545'
+                                            }}
+                                            title="Delete Bundle"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
+                                                <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z" />
+                                            </svg>
+                                        </button>
+                                        <div style={{ fontWeight: 700, paddingRight: 24 }}>{b.name}</div>
                                         <div style={{ marginTop: 6 }}>Price: ₹{Number(b.price).toLocaleString()}</div>
                                         {b.externalId ? <div style={{ marginTop: 4, fontSize: 12, color: '#444' }}>Ext ID: {b.externalId}</div> : null}
                                         <div style={{ marginTop: 6, fontSize: 12, color: '#555' }}>Tests: {Array.isArray(b.testIds) ? b.testIds.length : 0}</div>
                                         <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-                                            <button onClick={() => openManageTests(b)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer' }}>Manage Tests</button>
-                                            <button onClick={() => { setIsEditOpen(true); setActiveBundle(b); setEditName(b.name || ''); setEditPrice(String(b.price ?? '')); setEditExternalId(b.externalId || ''); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer' }}>Edit</button>
+                                            <button onClick={() => openManageTests(b)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer', background: '#e3f2fd', color: '#0d47a1' }}>Manage Tests</button>
+                                            <button onClick={() => { setIsEditOpen(true); setActiveBundle(b); setEditName(b.name || ''); setEditPrice(String(b.price ?? '')); setEditExternalId(b.externalId || ''); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer', background: '#fff3e0', color: '#e65100' }}>Edit</button>
                                         </div>
                                     </div>
                                 ))}

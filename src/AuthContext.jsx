@@ -30,14 +30,17 @@ export const AuthProvider = ({ children }) => {
             setRole('USER');
           } else {
             // live subscribe to role changes
-            roleUnsub = onSnapshot(userRef, (docSnap) => {
-              const data = docSnap.data() || {};
-              const r = (data.role === 'ADMIN' || data.role === 'USER') ? data.role : 'USER';
-              // If legacy doc missing role, backfill to USER
-              if (!data.role) {
-                setDoc(userRef, { role: 'USER', updatedAt: serverTimestamp() }, { merge: true });
-              }
-              setRole(r);
+            await new Promise((resolve) => {
+              roleUnsub = onSnapshot(userRef, (docSnap) => {
+                const data = docSnap.data() || {};
+                const r = (data.role === 'ADMIN' || data.role === 'USER') ? data.role : 'USER';
+                // If legacy doc missing role, backfill to USER
+                if (!data.role) {
+                  setDoc(userRef, { role: 'USER', updatedAt: serverTimestamp() }, { merge: true });
+                }
+                setRole(r);
+                resolve();
+              });
             });
           }
         } catch (e) {
