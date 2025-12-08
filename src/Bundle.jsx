@@ -62,8 +62,8 @@ const Bundle = () => {
             return
         }
         const p = Number(price)
-        if (!Number.isFinite(p) || p <= 0) {
-            toast.error('Price must be a positive number')
+        if (!Number.isFinite(p) || p < 0) {
+            toast.error('Price must be a non-negative number')
             return
         }
         const generatedId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`
@@ -229,7 +229,7 @@ const Bundle = () => {
                                     const n = editName.trim()
                                     const p = Number(editPrice)
                                     if (!n) { toast.error('Bundle name is required'); return }
-                                    if (!Number.isFinite(p) || p <= 0) { toast.error('Price must be a positive number'); return }
+                                    if (!Number.isFinite(p) || p < 0) { toast.error('Price must be a non-negative number'); return }
                                     try {
                                         setSavingEdit(true)
                                         await setDoc(doc(db, 'bundles', activeBundle.id), {

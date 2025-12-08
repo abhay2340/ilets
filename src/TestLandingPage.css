@@ -644,3 +644,38 @@ body {
   flex-direction: column;
   gap: 16px;
 }
+
+.bundle-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.bundle-grid>div {
+  /* box-sizing is critical so padding doesn't add to width */
+  box-sizing: border-box;
+  /* 3 columns: (100% - 2 gaps of 16px) / 3 */
+  flex: 0 0 calc((100% - 32px) / 3 - 1px);
+  min-width: 0;
+  /* Let flex-basis dictate size */
+  /* Ensure uniform height */
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 768px) {
+  .bundle-grid>div {
+    /* 2 columns: (100% - 1 gap of 16px) / 2 */
+    flex: 0 0 calc((100% - 16px) / 2 - 1px);
+  }
+}
+
+@media (max-width: 480px) {
+  .bundle-grid>div {
+    /* 1 column */
+    flex: 0 0 100%;
+  }
+}
