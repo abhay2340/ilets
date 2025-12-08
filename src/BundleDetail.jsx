@@ -79,7 +79,13 @@ const BundleDetail = () => {
 
                         {!loading && !hasBundleAccess && Number(bundle.price || 0) > 0 && (
                             <button
-                                onClick={() => navigate(`/payment?bundleId=${bundle.id}`)}
+                                onClick={() => {
+                                    if (!user) {
+                                        navigate('/login', { state: { from: { pathname: '/payment', search: `?bundleId=${bundle.id}` } } });
+                                    } else {
+                                        navigate(`/payment?bundleId=${bundle.id}`);
+                                    }
+                                }}
                                 style={{
                                     backgroundColor: '#b30000',
                                     color: 'white',
@@ -110,9 +116,15 @@ const BundleDetail = () => {
                                 {t.type === 'audio' ? 'Audio' : 'Non-audio'}
                             </div>
                             <div style={{ marginTop: 12 }}>
-                                {hasBundleAccess ? (
+                                {(!user || hasBundleAccess) ? (
                                     <button
-                                        onClick={() => navigate(`/security?dbId=${t.id}`)}
+                                        onClick={() => {
+                                            if (!user) {
+                                                navigate('/login', { state: { from: { pathname: '/security', search: '?dbId=' + t.id } } });
+                                            } else {
+                                                navigate(`/security?dbId=${t.id}`);
+                                            }
+                                        }}
                                         style={{
                                             background: 'linear-gradient(135deg, #b30000, #ff0002)',
                                             color: '#fff',

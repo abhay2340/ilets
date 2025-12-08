@@ -154,19 +154,48 @@ const Bundle = () => {
                 {error && <div style={{ color: 'crimson' }}>{error}</div>}
                 {!loading && !error && bundles.length === 0 && <div>No bundles found.</div>}
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
-                    {bundles.map(b => (
-                        <div key={b.id} style={{ border: '1px solid #e0e0e0', borderRadius: 8, padding: 12 }}>
-                            <div style={{ fontWeight: 700 }}>{b.name}</div>
-                            <div style={{ marginTop: 6 }}>Price: ₹{Number(b.price).toLocaleString()}</div>
-                            {b.externalId ? <div style={{ marginTop: 4, fontSize: 12, color: '#444' }}>Ext ID: {b.externalId}</div> : null}
-                            <div style={{ marginTop: 6, fontSize: 12, color: '#555' }}>Tests: {Array.isArray(b.testIds) ? b.testIds.length : 0}</div>
-                            <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-                                <button onClick={() => openManageTests(b)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer' }}>Manage Tests</button>
-                                <button onClick={() => { setIsEditOpen(true); setActiveBundle(b); setEditName(b.name || ''); setEditPrice(String(b.price ?? '')); setEditExternalId(b.externalId || ''); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer' }}>Edit</button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+                    {/* Free Bundles */}
+                    {bundles.some(b => Number(b.price || 0) === 0) && (
+                        <div>
+                            <h3 style={{ marginTop: 0, marginBottom: 12, fontSize: 18, color: '#28a745' }}>Free Bundles</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+                                {bundles.filter(b => Number(b.price || 0) === 0).map(b => (
+                                    <div key={b.id} style={{ border: '1px solid #e0e0e0', borderRadius: 8, padding: 12 }}>
+                                        <div style={{ fontWeight: 700 }}>{b.name}</div>
+                                        <div style={{ marginTop: 6 }}>Price: ₹{Number(b.price).toLocaleString()}</div>
+                                        {b.externalId ? <div style={{ marginTop: 4, fontSize: 12, color: '#444' }}>Ext ID: {b.externalId}</div> : null}
+                                        <div style={{ marginTop: 6, fontSize: 12, color: '#555' }}>Tests: {Array.isArray(b.testIds) ? b.testIds.length : 0}</div>
+                                        <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                                            <button onClick={() => openManageTests(b)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer' }}>Manage Tests</button>
+                                            <button onClick={() => { setIsEditOpen(true); setActiveBundle(b); setEditName(b.name || ''); setEditPrice(String(b.price ?? '')); setEditExternalId(b.externalId || ''); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer' }}>Edit</button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                    ))}
+                    )}
+
+                    {/* Premium Bundles */}
+                    {bundles.some(b => Number(b.price || 0) > 0) && (
+                        <div>
+                            <h3 style={{ marginTop: 0, marginBottom: 12, fontSize: 18, color: '#b30000' }}>Premium Bundles</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+                                {bundles.filter(b => Number(b.price || 0) > 0).map(b => (
+                                    <div key={b.id} style={{ border: '1px solid #e0e0e0', borderRadius: 8, padding: 12 }}>
+                                        <div style={{ fontWeight: 700 }}>{b.name}</div>
+                                        <div style={{ marginTop: 6 }}>Price: ₹{Number(b.price).toLocaleString()}</div>
+                                        {b.externalId ? <div style={{ marginTop: 4, fontSize: 12, color: '#444' }}>Ext ID: {b.externalId}</div> : null}
+                                        <div style={{ marginTop: 6, fontSize: 12, color: '#555' }}>Tests: {Array.isArray(b.testIds) ? b.testIds.length : 0}</div>
+                                        <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                                            <button onClick={() => openManageTests(b)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer' }}>Manage Tests</button>
+                                            <button onClick={() => { setIsEditOpen(true); setActiveBundle(b); setEditName(b.name || ''); setEditPrice(String(b.price ?? '')); setEditExternalId(b.externalId || ''); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer' }}>Edit</button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {isOpen && (

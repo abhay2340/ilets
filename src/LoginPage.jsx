@@ -3,7 +3,7 @@ import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import './LoginPage.css';
 import logo from './assets/logo.png';
 import loginImage from './assets/login-image.jpg';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from './firebaseConfig';
 import { toast } from 'react-toastify';
@@ -32,6 +32,9 @@ const handleForgotPassword = async () => {
 
 function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || '/';
+  const fromSearch = location.state?.from?.search || '';
   const { user, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,8 +53,10 @@ function LoginPage() {
 
     try {
       setSubmitting(true);
-      await signInWithEmailAndPassword(auth, email, password);
-      navigate('/');
+      const userCred = await signInWithEmailAndPassword(auth, email, password);
+      if (userCred.user) {
+        navigate(from + fromSearch, { replace: true });
+      }
     } catch (error) {
       toast.error("Invalid credentials. Please sign up first.", {
         position: "top-center",
@@ -68,9 +73,9 @@ function LoginPage() {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate('/', { replace: true });
+      navigate(from + fromSearch, { replace: true });
     }
-  }, [loading, user, navigate]);
+  }, [loading, user, navigate, from, fromSearch]);
 
   return (
     <div className="login-wrapper">
