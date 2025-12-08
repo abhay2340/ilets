@@ -36,38 +36,32 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
       {/* Multiple choice (TRUE/FALSE/NOT GIVEN or 4 options). For standard MCQs, store letter A/B/C/D. */}
       {question.type === 'mcq' && (() => {
         const opts = Array.isArray(question.options) ? question.options : [];
-        const normalized = opts.map(o => String(o ?? '').trim().toUpperCase());
-        const tfngSet = new Set(['TRUE', 'FALSE', 'NOT GIVEN', 'YES', 'NO']);
-        const isTFNG = normalized.every(o => tfngSet.has(o));
 
         return opts.map((opt, i) => {
-          const letter = String.fromCharCode(65 + i); // A, B, C, D ...
-          const inputValue = isTFNG ? opt : letter;
-          const isChecked = isTFNG ? (answer === opt) : (answer === letter);
-          // Strip leading letter labels like "A.", "B)", or just "C" from option text
+          // Always use the option text as the value (user requirement: "records answer like its value")
+          const inputValue = opt;
+          const isChecked = (answer === inputValue);
+
+          // Strip leading letter labels like "A.", "B)", or just "C" from option text if they match the index
+          // This keeps the display clean if the data contains "A. Option" but we want to show "Option"
           let displayText = String(opt ?? '');
-          if (!isTFNG) {
-            const match = displayText.match(/^([A-Za-z])\s*[\.)\-:]?\s*(.*)$/);
-            if (match && match[1].toUpperCase() === letter) {
-              displayText = match[2] || '';
-            }
+          const letter = String.fromCharCode(65 + i); // A, B, C...
+          const match = displayText.match(/^([A-Za-z])\s*[\.)\-:]?\s*(.*)$/);
+          if (match && match[1].toUpperCase() === letter) {
+            displayText = match[2] || '';
           }
+
           return (
             <label key={i} style={{ display: 'block', marginLeft: '20px', cursor: 'pointer' }}>
               <input
                 type="radio"
-                name={`q-${question.id}`}  // MUST be unique per question
+                name={`q-${question.id}`}
                 value={inputValue}
                 checked={isChecked}
                 onChange={() => { onVisited?.(question.id); setAnswer(inputValue); }}
                 style={{ cursor: 'pointer', marginRight: '8px' }}
               />
-              {!isTFNG && <span style={{ fontWeight: 700, marginRight: 6 }}>{letter}.</span>}
-              {isTFNG ? (
-                <span>{opt}</span>
-              ) : (
-                displayText ? <span>{displayText}</span> : null
-              )}
+              <span>{displayText}</span>
             </label>
           );
         });
