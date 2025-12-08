@@ -10,7 +10,7 @@ const TestInstructions = () => {
 
   const handleBegin = () => {
     const query = dbId ? `?dbId=${dbId}` : `?testId=${testId || 'test1'}`;
-    navigate(`/test${query}`);
+    navigate(`/test${query}`, { replace: true });
   };
 
   return (

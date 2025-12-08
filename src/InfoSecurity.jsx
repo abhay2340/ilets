@@ -13,7 +13,7 @@ const InfoSecurity = () => {
     if (agree) {
       // Pass testId or dbId to instructions
       const query = dbId ? `?dbId=${dbId}` : `?testId=${testId || 'test1'}`;
-      navigate(`/instructions${query}`);
+      navigate(`/instructions${query}`, { replace: true });
     } else {
       alert('Please agree to the Privacy Policy.');
     }
