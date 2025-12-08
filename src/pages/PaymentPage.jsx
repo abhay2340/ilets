@@ -38,7 +38,8 @@ const PaymentPage = () => {
               price: Number(data.price || 0),
               isBundle: true,
               isFree: Number(data.price || 0) === 0,
-              features: ['Includes multiple tests', 'Full access for 3 months', 'Instant activation'] // dynamic features if available
+              testIds: data.testIds || [], // Capture testIds for post-purchase granting
+              features: ['Includes multiple tests', 'Full access for 3 months', 'Instant activation']
             });
           } else {
             setError('Bundle not found');
@@ -59,6 +60,7 @@ const PaymentPage = () => {
           price: BUNDLE_PRICING[BUNDLE_ID].price,
           isBundle: true,
           isFree: false,
+          testIds: BUNDLE_PRICING[BUNDLE_ID].tests, // Static list
           features: ['Full-length IELTS practice test', 'Listening, Reading, and Writing sections', 'Instant results and feedback']
         });
       } else {
@@ -71,6 +73,7 @@ const PaymentPage = () => {
             price: info.price,
             isBundle: false,
             isFree: !!info.isFree,
+            title: `IELTS Test ${targetId.replace('test', '')}`,
             features: ['Full-length IELTS practice test', 'Listening, Reading, and Writing sections', 'Instant results and feedback']
           });
         } else {
@@ -95,7 +98,8 @@ const PaymentPage = () => {
     setError('');
 
     try {
-      const res = await purchaseTest(itemData.id);
+      // Pass itemData to purchaseTest so it knows the price/details for dynamic items
+      const res = await purchaseTest(itemData.id, itemData);
       console.log('Payment successful:', res?.razorpay_payment_id || res);
 
       const maxWaitMs = 4000;

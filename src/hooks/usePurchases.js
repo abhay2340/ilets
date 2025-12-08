@@ -76,7 +76,7 @@ export const usePurchases = () => {
   };
 
   // Purchase a test
-  const purchaseTest = async (testId) => {
+  const purchaseTest = async (testId, itemDetails = null) => {
     if (!user) {
       throw new Error('User must be logged in to purchase tests');
     }
@@ -104,7 +104,8 @@ export const usePurchases = () => {
         },
         (error) => {
           reject(error);
-        }
+        },
+        itemDetails
       );
     });
   };

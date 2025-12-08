@@ -67,24 +67,45 @@ export const createPaymentOrder = async (testId, userId) => {
 };
 
 // Initialize Razorpay payment
-export const initializePayment = async (testId, userId, onSuccess, onError) => {
+export const initializePayment = async (testId, userId, onSuccess, onError, itemDetails = null) => {
   try {
     const Razorpay = await loadRazorpayScript();
     if (!Razorpay) {
       throw new Error('Failed to load Razorpay');
     }
 
-    const isBundle = testId === BUNDLE_ID;
-    const testPricing = isBundle ? BUNDLE_PRICING[BUNDLE_ID] : TEST_PRICING[testId];
     const keyId = ensureRazorpayKeyConfigured();
+    let price, currency, name, isBundle, description;
+
+    if (itemDetails) {
+      price = itemDetails.price;
+      currency = itemDetails.currency || 'INR'; // Fallback
+      name = 'Gurjant IELTS';
+      isBundle = !!itemDetails.isBundle;
+      description = isBundle
+        ? `Payment for ${itemDetails.name || 'Bundle'}`
+        : `Payment for ${itemDetails.name || 'Test'}`;
+    } else {
+      // Fallback to static
+      isBundle = testId === BUNDLE_ID;
+      const testPricing = isBundle ? BUNDLE_PRICING[BUNDLE_ID] : TEST_PRICING[testId];
+      if (!testPricing) throw new Error('Invalid test/bundle ID');
+      price = testPricing.price;
+      currency = testPricing.currency;
+      name = 'Gurjant IELTS';
+      description = isBundle
+        ? 'Payment for 3 months bundle (all paid tests)'
+        : `Payment for ${testPricing.testName || `IELTS Test ${testId.charAt(testId.length - 1)}`}`;
+    }
+
 
     const options = {
       key: keyId,
       // Direct payment: do not set order_id when you don't have a backend order
-      amount: testPricing.price * 100,
-      currency: testPricing.currency,
-      name: 'Gurjant IELTS',
-      description: isBundle ? 'Payment for 3 months bundle (all paid tests)' : `Payment for ${testPricing.testName || `IELTS Test ${testId.charAt(testId.length - 1)}`}`,
+      amount: price * 100,
+      currency: currency,
+      name: name,
+      description: description,
       // order_id: backendOrder.id, // <-- only when using your own backend Orders API
       prefill: {
         name: auth.currentUser?.displayName || '',
@@ -95,7 +116,7 @@ export const initializePayment = async (testId, userId, onSuccess, onError) => {
       },
       handler: async (response) => {
         try {
-          await handlePaymentSuccess(response, testId, userId);
+          await handlePaymentSuccess(response, testId, userId, itemDetails);
           onSuccess(response);
         } catch (error) {
           console.error('Payment success handler error:', error);
@@ -118,20 +139,31 @@ export const initializePayment = async (testId, userId, onSuccess, onError) => {
 };
 
 // Handle successful payment
-export const handlePaymentSuccess = async (paymentResponse, testId, userId) => {
+export const handlePaymentSuccess = async (paymentResponse, testId, userId, itemDetails = null) => {
   try {
     const purchasedAt = new Date();
     const expiresAt = new Date(purchasedAt.getTime() + ACCESS_DURATION.PAID_TEST_ACCESS_MS);
 
-    const isBundle = testId === BUNDLE_ID;
-    const pricing = isBundle ? BUNDLE_PRICING[BUNDLE_ID] : TEST_PRICING[testId];
+    let price, currency, isBundle;
+
+    // Resolve pricing/details again for recording
+    if (itemDetails) {
+      price = itemDetails.price;
+      currency = itemDetails.currency || 'INR';
+      isBundle = !!itemDetails.isBundle;
+    } else {
+      isBundle = testId === BUNDLE_ID;
+      const pricing = isBundle ? BUNDLE_PRICING[BUNDLE_ID] : TEST_PRICING[testId];
+      price = pricing.price;
+      currency = pricing.currency;
+    }
 
     // Save purchase record to Firestore
     const purchaseData = {
       userId,
       testId,
-      amount: pricing.price,
-      currency: pricing.currency,
+      amount: price,
+      currency: currency,
       status: 'completed',
       purchasedAt,
       expiresAt,
@@ -154,7 +186,7 @@ export const handlePaymentSuccess = async (paymentResponse, testId, userId) => {
 
     // Update user's purchased tests with expiration
     if (isBundle) {
-      const tests = BUNDLE_PRICING[BUNDLE_ID].tests || [];
+      const tests = itemDetails?.testIds || BUNDLE_PRICING[BUNDLE_ID]?.tests || [];
       for (const tId of tests) {
         await updateUserPurchasedTests(userId, tId, expiresAt);
       }
