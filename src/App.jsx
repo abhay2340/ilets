@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Dashboard from './Dashboard';
 import LoginPage from './LoginPage';
@@ -24,9 +24,28 @@ import BundleDetail from './BundleDetail.jsx';
 import Blogs from './Blogs.jsx';
 import BlogDetail from './BlogDetail.jsx';
 function App() {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const checkFs = () => {
+      const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+      setIsFullscreen(isFs);
+    };
+    document.addEventListener('fullscreenchange', checkFs);
+    document.addEventListener('webkitfullscreenchange', checkFs);
+    document.addEventListener('mozfullscreenchange', checkFs);
+    document.addEventListener('MSFullscreenChange', checkFs);
+    return () => {
+      document.removeEventListener('fullscreenchange', checkFs);
+      document.removeEventListener('webkitfullscreenchange', checkFs);
+      document.removeEventListener('mozfullscreenchange', checkFs);
+      document.removeEventListener('MSFullscreenChange', checkFs);
+    };
+  }, []);
+
   return (
     <Router>
-      <Navbar />
+      {!isFullscreen && <Navbar />}
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/login" element={<LoginPage />} />

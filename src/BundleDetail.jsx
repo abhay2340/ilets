@@ -67,7 +67,7 @@ const BundleDetail = () => {
                             </div>
                             <div style={{ marginTop: 12 }}>
                                 <button
-                                    onClick={() => navigate(`/test?dbId=${t.id}`)}
+                                    onClick={() => navigate(`/security?dbId=${t.id}`)}
                                     style={{
                                         background: 'linear-gradient(135deg, #b30000, #ff0002)',
                                         color: '#fff',

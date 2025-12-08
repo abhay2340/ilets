@@ -5,10 +5,12 @@ const TestInstructions = () => {
   const navigate = useNavigate();
   const { search } = useLocation();
   const params = new URLSearchParams(search);
-  const testId = params.get('testId') || 'test1'; // default to test1 if not provided
+  const testId = params.get('testId');
+  const dbId = params.get('dbId');
 
   const handleBegin = () => {
-    navigate(`/test?testId=${testId}`);
+    const query = dbId ? `?dbId=${dbId}` : `?testId=${testId || 'test1'}`;
+    navigate(`/test${query}`);
   };
 
   return (
