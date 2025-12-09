@@ -86,6 +86,44 @@ const TestPage = () => {
   const startXRef = useRef(0);
   const startWidthRef = useRef(50);
 
+  // Helper function to get question range (min-max) from questions array
+  const getQuestionRange = (questions) => {
+    if (!questions || questions.length === 0) return '';
+
+    const numbers = [];
+    questions.forEach(q => {
+      // If question has subIds, use those
+      if (Array.isArray(q.subIds) && q.subIds.length > 0) {
+        q.subIds.forEach(id => {
+          if (typeof id === 'number') numbers.push(id);
+        });
+      } else {
+        // Otherwise, try to parse the id
+        const idStr = String(q.id || '');
+        // Check if it's a range like "1-3"
+        const rangeMatch = idStr.match(/^(\d+)-(\d+)$/);
+        if (rangeMatch) {
+          const start = parseInt(rangeMatch[1], 10);
+          const end = parseInt(rangeMatch[2], 10);
+          for (let i = start; i <= end; i++) numbers.push(i);
+        } else {
+          // Try to extract a single number
+          const numMatch = idStr.match(/\d+/);
+          if (numMatch) numbers.push(parseInt(numMatch[0], 10));
+        }
+      }
+    });
+
+    if (numbers.length === 0) {
+      // Fallback: use first and last question id as-is
+      return `${questions[0]?.id || ''}–${questions.at(-1)?.id || ''}`;
+    }
+
+    const min = Math.min(...numbers);
+    const max = Math.max(...numbers);
+    return min === max ? `${min}` : `${min}–${max}`;
+  };
+
   const onSplitterMouseDown = (e) => {
     isResizingRef.current = true;
     startXRef.current = e.clientX;
@@ -936,7 +974,7 @@ const TestPage = () => {
 
               <p>
                 <strong>
-                  Questions {currentPart.questions[0].id}–{currentPart.questions.at(-1).id}
+                  Questions {getQuestionRange(currentPart.questions)}
                 </strong>
               </p>
               {currentPart.questions.map((q) => (
@@ -990,14 +1028,65 @@ const TestPage = () => {
           <div
             onMouseDown={onSplitterMouseDown}
             style={{
-              width: '6px',
+              width: '10px',
               cursor: 'col-resize',
-              background: '#ccc',
+              background: '#ddd',
               margin: '0 8px',
-              borderRadius: '3px'
+              borderRadius: '4px',
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background-color 0.2s',
+              minHeight: '60px'
             }}
-            title="Drag to resize"
-          />
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#bbb';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#ddd';
+            }}
+            title="Drag to resize panels"
+          >
+            {/* Two-direction arrow indicator with circle */}
+            <div
+              style={{
+                position: 'absolute',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '3px',
+                pointerEvents: 'none',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                background: '#fff',
+                border: '2px solid #999',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}
+            >
+              <div
+                style={{
+                  width: 0,
+                  height: 0,
+                  borderTop: '4px solid transparent',
+                  borderBottom: '4px solid transparent',
+                  borderRight: '4px solid #555'
+                }}
+              />
+              <div
+                style={{
+                  width: 0,
+                  height: 0,
+                  borderTop: '4px solid transparent',
+                  borderBottom: '4px solid transparent',
+                  borderLeft: '4px solid #555'
+                }}
+              />
+            </div>
+          </div>
 
           {/* Questions panel */}
           {hasQuestions && (
@@ -1032,7 +1121,7 @@ const TestPage = () => {
 
               <p>
                 <strong>
-                  Questions {currentPart.questions[0].id}–{currentPart.questions.at(-1).id}
+                  Questions {getQuestionRange(currentPart.questions)}
                 </strong>
               </p>
               {currentPart.questions.map((q) => (

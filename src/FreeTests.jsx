@@ -5,9 +5,12 @@ import { useAuth } from './AuthContext';
 import { TEST_PRICING } from './config/pricing';
 import test1 from './data/test1.jsx';
 import test2 from './data/test2.jsx';
+import ConfirmationModal from './components/ConfirmationModal';
 
 function FreeTests({ purchasedTests = [], loading = false, navigate }) {
     const { user } = useAuth();
+    const [showLoginModal, setShowLoginModal] = React.useState(false);
+    const [pendingTestId, setPendingTestId] = React.useState(null);
     const allIds = Object.keys(TEST_PRICING)
         .sort((a, b) => (parseInt(a.replace('test', '')) || 0) - (parseInt(b.replace('test', '')) || 0));
     const freeIds = allIds.filter(id => TEST_PRICING[id]?.isFree);
@@ -32,7 +35,8 @@ function FreeTests({ purchasedTests = [], loading = false, navigate }) {
         const isPurchased = purchasedTests?.some?.(t => t.testId === testId);
         const handleStart = () => {
             if (!user) {
-                navigate('/login');
+                setPendingTestId(testId);
+                setShowLoginModal(true);
                 return;
             }
             navigate(`/security?testId=${testId}`);
@@ -73,6 +77,24 @@ function FreeTests({ purchasedTests = [], loading = false, navigate }) {
                     </div>
                 </div>
             </div>
+
+            <ConfirmationModal
+                isOpen={showLoginModal}
+                onClose={() => {
+                    setShowLoginModal(false);
+                    setPendingTestId(null);
+                }}
+                onConfirm={() => {
+                    setShowLoginModal(false);
+                    const testId = pendingTestId;
+                    setPendingTestId(null);
+                    navigate('/login', { state: { from: { pathname: '/security', search: `?testId=${testId}` } } });
+                }}
+                title="Login Required"
+                message="You need to login to start a test. Would you like to go to the login page?"
+                confirmText="Go to Login"
+                cancelText="Cancel"
+            />
         </div>
     );
 }

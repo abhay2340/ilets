@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig.jsx';
 import { Bar } from 'react-chartjs-2';
 import { Chart, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
@@ -15,6 +15,7 @@ const formatTime = (seconds) => {
 
 const OverviewSection = ({ user }) => {
   const [results, setResults] = useState([]);
+  const [testTitles, setTestTitles] = useState({});
 
   useEffect(() => {
     const fetchResults = async () => {
@@ -22,12 +23,39 @@ const OverviewSection = ({ user }) => {
       const snapshot = await getDocs(q);
       const data = snapshot.docs.map(doc => doc.data());
       setResults(data);
+
+      // Fetch titles for unique test IDs
+      const uniqueTestIds = [...new Set(data.map(r => r.test))];
+      const titles = {};
+
+      await Promise.all(uniqueTestIds.map(async (testId) => {
+        try {
+          const testDoc = await getDoc(doc(db, 'tests', testId));
+          if (testDoc.exists()) {
+            titles[testId] = testDoc.data().title;
+          } else {
+            // Fallback for static tests not in DB or deleted tests
+            // If it looks like 'test1', format it nicely
+            if (String(testId).toLowerCase().startsWith('test')) {
+              const num = String(testId).replace(/test/i, '');
+              titles[testId] = `Practice Test ${num}`;
+            } else {
+              titles[testId] = testId;
+            }
+          }
+        } catch (e) {
+          console.error('Error fetching test title', e);
+          titles[testId] = testId;
+        }
+      }));
+
+      setTestTitles(titles);
     };
     fetchResults();
   }, [user.uid]);
 
-  // Chart data prep
-  const labels = results.map((r) => r.test);
+  // Chart data prep - use test titles instead of IDs
+  const labels = results.map((r) => testTitles[r.test] || r.test);
   const accuracyData = results.map((r) => r.accuracy);
   const timeData = results.map((r) => Math.round((r.timeTaken || 0) / 60)); // minutes
   const scoreData = results.map((r) => r.correct);
@@ -83,7 +111,7 @@ const OverviewSection = ({ user }) => {
                   boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <div style={{ fontWeight: 800 }}>{r.test}</div>
+                    <div style={{ fontWeight: 800 }}>{testTitles[r.test] || r.test}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#374151' }}>
                       <FaCalendarAlt /> {submittedAt ? submittedAt.toLocaleString() : '—'}
                     </div>

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { db } from './firebaseConfig'
 import { doc, getDoc, getDocs, collection } from 'firebase/firestore'
 import LoaderOverlay from './components/LoaderOverlay.jsx'
+import ConfirmationModal from './components/ConfirmationModal.jsx'
 
 import { usePurchases } from './hooks/usePurchases'
 import { useAuth } from './AuthContext'
@@ -18,6 +19,9 @@ const BundleDetail = () => {
     const [loading, setLoading] = React.useState(true)
     const [error, setError] = React.useState('')
     const [hasBundleAccess, setHasBundleAccess] = React.useState(false)
+    const [showLoginModal, setShowLoginModal] = React.useState(false)
+    const [showStartTestModal, setShowStartTestModal] = React.useState(false)
+    const [pendingTestId, setPendingTestId] = React.useState(null)
 
     React.useEffect(() => {
         const load = async () => {
@@ -81,7 +85,7 @@ const BundleDetail = () => {
                             <button
                                 onClick={() => {
                                     if (!user) {
-                                        navigate('/login', { state: { from: { pathname: '/payment', search: `?bundleId=${bundle.id}` } } });
+                                        setShowLoginModal(true);
                                     } else {
                                         navigate(`/payment?bundleId=${bundle.id}`);
                                     }
@@ -120,7 +124,8 @@ const BundleDetail = () => {
                                     <button
                                         onClick={() => {
                                             if (!user) {
-                                                navigate('/login', { state: { from: { pathname: '/security', search: '?dbId=' + t.id } } });
+                                                setPendingTestId(t.id);
+                                                setShowStartTestModal(true);
                                             } else {
                                                 navigate(`/security?dbId=${t.id}`);
                                             }
@@ -150,6 +155,37 @@ const BundleDetail = () => {
                     {tests.length === 0 && <div>No tests in this bundle.</div>}
                 </div>
             )}
+
+            <ConfirmationModal
+                isOpen={showLoginModal}
+                onClose={() => setShowLoginModal(false)}
+                onConfirm={() => {
+                    setShowLoginModal(false);
+                    navigate('/login', { state: { from: { pathname: '/payment', search: `?bundleId=${bundle?.id}` } } });
+                }}
+                title="Login Required"
+                message="You need to login to buy a test. Would you like to go to the login page?"
+                confirmText="Go to Login"
+                cancelText="Cancel"
+            />
+
+            <ConfirmationModal
+                isOpen={showStartTestModal}
+                onClose={() => {
+                    setShowStartTestModal(false);
+                    setPendingTestId(null);
+                }}
+                onConfirm={() => {
+                    setShowStartTestModal(false);
+                    const testId = pendingTestId;
+                    setPendingTestId(null);
+                    navigate('/login', { state: { from: { pathname: '/security', search: `?dbId=${testId}` } } });
+                }}
+                title="Login Required"
+                message="You need to login to start a test. Would you like to go to the login page?"
+                confirmText="Go to Login"
+                cancelText="Cancel"
+            />
         </div>
     )
 }

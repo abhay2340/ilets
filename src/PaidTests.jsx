@@ -10,8 +10,13 @@ import test7 from './data/test7.jsx';
 import test8 from './data/test8.jsx';
 import test9 from './data/test9.jsx';
 import { FaHeadphones, FaPenNib } from 'react-icons/fa';
+import { useAuth } from './AuthContext';
+import ConfirmationModal from './components/ConfirmationModal';
 
 function PaidTests({ purchasedTests = [], loading = false, navigate, hasAccess }) {
+    const { user } = useAuth();
+    const [showLoginModal, setShowLoginModal] = React.useState(false);
+    const [pendingTestId, setPendingTestId] = React.useState(null);
     const paidIds = (BUNDLE_PRICING[BUNDLE_ID]?.tests || [])
         .slice()
         .sort((a, b) => (parseInt(a.replace('test', '')) || 0) - (parseInt(b.replace('test', '')) || 0));
@@ -28,6 +33,11 @@ function PaidTests({ purchasedTests = [], loading = false, navigate, hasAccess }
         const label = getSectionLabel(testId);
         const isUnlocked = purchasedTests?.some?.(t => t.testId === testId);
         const handleStart = async () => {
+            if (!user) {
+                setPendingTestId(testId);
+                setShowLoginModal(true);
+                return;
+            }
             if (await hasAccess?.(testId)) navigate(`/security?testId=${testId}`);
             else navigate(`/payment?testId=${BUNDLE_ID}`);
         };
@@ -79,6 +89,24 @@ function PaidTests({ purchasedTests = [], loading = false, navigate, hasAccess }
                 </div>
 
             </div>
+
+            <ConfirmationModal
+                isOpen={showLoginModal}
+                onClose={() => {
+                    setShowLoginModal(false);
+                    setPendingTestId(null);
+                }}
+                onConfirm={() => {
+                    setShowLoginModal(false);
+                    const testId = pendingTestId;
+                    setPendingTestId(null);
+                    navigate('/login', { state: { from: { pathname: '/security', search: `?testId=${testId}` } } });
+                }}
+                title="Login Required"
+                message="You need to login to start a test. Would you like to go to the login page?"
+                confirmText="Go to Login"
+                cancelText="Cancel"
+            />
         </div>
     );
 }

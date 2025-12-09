@@ -15,6 +15,22 @@ const Account = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Support deep linking via ?tab=profile|history|overview|logout
+  // IMPORTANT: All hooks must be called before any conditional returns
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = (params.get('tab') || '').toLowerCase();
+    const allowed = new Set(['profile', 'history', 'overview', 'logout']);
+    if (allowed.has(tab)) setSelectedTab(tab);
+  }, [location.search]);
+
+  // Handle navigation for unauthenticated users
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/login');
+    }
+  }, [loading, user, navigate]);
+
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '70vh' }}>
@@ -24,7 +40,6 @@ const Account = () => {
   }
 
   if (!user) {
-    navigate('/login');
     return <p>Please log in to access your account.</p>;
   }
 
@@ -43,14 +58,6 @@ const Account = () => {
   const handleCancelLogout = () => {
     setIsLogoutModalOpen(false);
   };
-
-  // Support deep linking via ?tab=profile|history|overview|logout
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const tab = (params.get('tab') || '').toLowerCase();
-    const allowed = new Set(['profile', 'history', 'overview', 'logout']);
-    if (allowed.has(tab)) setSelectedTab(tab);
-  }, [location.search]);
 
   const handleChangeTab = (tab) => {
     const next = (tab || '').toLowerCase();

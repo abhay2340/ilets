@@ -7,6 +7,7 @@ import { FaLock, FaCheck, FaArrowLeft, FaCreditCard } from 'react-icons/fa';
 import './PaymentPage.css';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
+import ConfirmationModal from '../components/ConfirmationModal';
 
 const PaymentPage = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const PaymentPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [itemData, setItemData] = useState(null); // { id, name, price, isBundle, features }
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Get ID from URL params
   const params = new URLSearchParams(location.search);
@@ -89,7 +91,7 @@ const PaymentPage = () => {
 
   const handlePurchase = async () => {
     if (!user) {
-      navigate('/login');
+      setShowLoginModal(true);
       return;
     }
     if (!itemData) return;
@@ -278,6 +280,19 @@ const PaymentPage = () => {
           </div>
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onConfirm={() => {
+          setShowLoginModal(false);
+          navigate('/login');
+        }}
+        title="Login Required"
+        message="You need to login to buy a test. Would you like to go to the login page?"
+        confirmText="Go to Login"
+        cancelText="Cancel"
+      />
     </div>
   );
 };
