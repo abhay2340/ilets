@@ -6,11 +6,12 @@ import Admin from './Admin.jsx'
 import Tests from './Tests.jsx'
 import Bundle from './Bundle.jsx'
 import ManageBlogs from './ManageBlogs.jsx'
+import ManageGeneralTraining from './ManageGeneralTraining.jsx'
 
 const AdminPanel = () => {
     const { loading, role } = useAuth()
     const isSuper = useMemo(() => role === 'ADMIN', [role])
-    const [section, setSection] = useState('add') // add | tests | bundles | blogs
+    const [section, setSection] = useState('add') // add | tests | bundles | blogs | generalTraining
 
     if (!loading && !isSuper) {
         return <Navigate to="/login" replace />
@@ -25,6 +26,7 @@ const AdminPanel = () => {
                     <button onClick={() => setSection('tests')} style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 8, border: section === 'tests' ? '1px solid #cfe3ff' : '1px solid #ddd', background: section === 'tests' ? '#f0f7ff' : '#fff', cursor: 'pointer' }}>All Tests</button>
                     <button onClick={() => setSection('bundles')} style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 8, border: section === 'bundles' ? '1px solid #cfe3ff' : '1px solid #ddd', background: section === 'bundles' ? '#f0f7ff' : '#fff', cursor: 'pointer' }}>Bundles</button>
                     <button onClick={() => setSection('blogs')} style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 8, border: section === 'blogs' ? '1px solid #cfe3ff' : '1px solid #ddd', background: section === 'blogs' ? '#f0f7ff' : '#fff', cursor: 'pointer' }}>Manage Blogs</button>
+                    <button onClick={() => setSection('generalTraining')} style={{ textAlign: 'left', padding: '10px 12px', borderRadius: 8, border: section === 'generalTraining' ? '1px solid #cfe3ff' : '1px solid #ddd', background: section === 'generalTraining' ? '#f0f7ff' : '#fff', cursor: 'pointer' }}>Manage General Training</button>
                 </nav>
             </aside>
             <main style={{ flex: 1, padding: 16 }}>
@@ -32,6 +34,7 @@ const AdminPanel = () => {
                 {section === 'tests' && <Tests />}
                 {section === 'bundles' && <Bundle />}
                 {section === 'blogs' && <ManageBlogs />}
+                {section === 'generalTraining' && <ManageGeneralTraining />}
             </main>
         </div>
     )

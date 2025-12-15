@@ -23,6 +23,11 @@ import AdminPanel from './AdminPanel.jsx';
 import BundleDetail from './BundleDetail.jsx';
 import Blogs from './Blogs.jsx';
 import BlogDetail from './BlogDetail.jsx';
+import GeneralTraining from './GeneralTraining.jsx';
+import GeneralTrainingDetail from './GeneralTrainingDetail.jsx';
+import IeltsPrediction from './IeltsPrediction.jsx';
+import FullMockTestPage from './FullMockTestPage.jsx';
+import FreeBundlesPage from './FreeBundlesPage.jsx';
 function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -65,11 +70,15 @@ function App() {
         <Route path="/admin" element={<Admin />} />
         <Route path="/admin/:testId" element={<Admin />} />
         <Route path="/tests" element={<Tests />} />
-        <Route path="/bundle" element={<Bundle />} />
+        <Route path="/bundle" element={<FullMockTestPage />} />
         <Route path="/bundle/:bundleId" element={<BundleDetail />} />
         <Route path="/admin-panel" element={<AdminPanel />} />
         <Route path="/blogs" element={<Blogs />} />
         <Route path="/blogs/:id" element={<BlogDetail />} />
+        <Route path="/general-training" element={<GeneralTraining />} />
+        <Route path="/general-training/:id" element={<GeneralTrainingDetail />} />
+        <Route path="/ielts-prediction" element={<IeltsPrediction />} />
+        <Route path="/free-test" element={<FreeBundlesPage />} />
       </Routes>
 
       <ToastContainer position="top-center" />
