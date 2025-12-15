@@ -29,8 +29,11 @@ function Navbar({ transparent = false }) {
             <img src={logo} alt="Gurjant IELTS" className="logo-img" onClick={() => navigate('/')} />
             <ul className="nav-links">
               <li><Link to="/">Home</Link></li>
-              <li><Link to="/blogs">Blogs</Link></li>
-              <li><Link to="/introduction">Introduction</Link></li>
+              <li><Link to="/blogs">Recent Exams</Link></li>
+              <li><Link to="/bundle">Full Mock Test</Link></li>
+              <li><Link to="/free-test">Free Test</Link></li>
+              <li><Link to="/general-training">General Training</Link></li>
+              <li><Link to="/ielts-prediction">IELTS Prediction</Link></li>
               <li><Link to="/contact">Contact</Link></li>
               {role === 'ADMIN' && (
                 <li><Link to="/admin-panel">Admin Panel</Link></li>
