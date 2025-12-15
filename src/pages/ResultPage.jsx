@@ -126,10 +126,6 @@ const ResultPage = () => {
   const ResultRow = ({ id, correctAnswers, userAnswers, questionDetails }) => {
     const correctAns = correctAnswers[id];
     const userAns = userAnswers[id];
-    const isCorrect = compareAnswers(userAns, correctAns);
-    const bg = !userAns ? '#fff3cd' : (isCorrect ? '#e8f5e9' : '#ffebee');
-    const bar = !userAns ? '#ff9800' : (isCorrect ? '#4CAF50' : '#f44336');
-    const text = !userAns ? '#ff9800' : (isCorrect ? '#2e7d32' : '#c62828');
 
     // Get question text and options if available
     const qDetail = questionDetails || {};
@@ -140,23 +136,76 @@ const ResultPage = () => {
     const isSubQuestion = qDetail.isSubQuestion || false;
     const parentId = qDetail.parentId;
 
+    const uaStr = String(userAns ?? '').trim();
+    const caStr = String(correctAns ?? '').trim();
+
+    // Per‑question marks (supports partial marks for multiselect)
+    let maxMarks = 1;
+    let awarded = 0;
+    let status = 'no_key'; // 'correct' | 'wrong' | 'missed' | 'partial' | 'no_key'
+
+    if (!caStr) {
+      status = uaStr ? 'no_key' : 'missed';
+    } else if (questionType === 'multiselect') {
+      const correctOptions = caStr ? caStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const userOptions = uaStr ? uaStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+      maxMarks = correctOptions.length || 0;
+
+      if (!uaStr) {
+        awarded = 0;
+        status = 'missed';
+      } else {
+        const correctSet = new Set(correctOptions);
+        userOptions.forEach(opt => {
+          if (correctSet.has(opt)) awarded += 1;
+        });
+        if (awarded > maxMarks) awarded = maxMarks;
+        if (awarded === 0) status = 'wrong';
+        else if (awarded === maxMarks) status = 'correct';
+        else status = 'partial';
+      }
+    } else {
+      maxMarks = 1;
+      if (!uaStr) {
+        status = 'missed';
+      } else if (compareAnswers(uaStr, caStr)) {
+        awarded = 1;
+        status = 'correct';
+      } else {
+        awarded = 0;
+        status = 'wrong';
+      }
+    }
+
+    const bg =
+      status === 'correct' ? '#e8f5e9'
+        : status === 'partial' ? '#e3f2fd'
+        : status === 'missed' ? '#fff3cd'
+          : status === 'wrong' ? '#ffebee'
+            : '#f5f5f5';
+    const bar =
+      status === 'correct' ? '#4CAF50'
+        : status === 'partial' ? '#1976d2'
+        : status === 'missed' ? '#ff9800'
+          : status === 'wrong' ? '#f44336'
+            : '#9e9e9e';
+    const text =
+      status === 'correct' ? '#2e7d32'
+        : status === 'partial' ? '#1565c0'
+        : status === 'missed' ? '#ff9800'
+          : status === 'wrong' ? '#c62828'
+            : '#616161';
+
     // Format answer display based on question type
     const formatAnswer = (ans, isCorrectAnswer = false) => {
       if (!ans || String(ans).trim() === '') return 'Unanswered';
-
       const ansStr = String(ans).trim();
 
-      // For matchingdrag, the answer IS the option text (selected from dropdown)
       if (questionType === 'matchingdrag') {
-        // Check if answer matches an option
         const matchingOption = options.find(opt => String(opt).trim() === ansStr);
-        if (matchingOption) {
-          return matchingOption;
-        }
-        // If not found in options, just return the answer as-is
+        if (matchingOption) return matchingOption;
         return ansStr;
       }
-
       return ansStr;
     };
 
@@ -211,6 +260,13 @@ const ResultPage = () => {
           {!correctAns && (
             <div style={{ fontSize: 12, color: '#999', fontStyle: 'italic' }}>
               No correct answer defined
+            </div>
+          )}
+          {/* Show marks for questions that have a key */}
+          {caStr && (
+            <div style={{ fontSize: 12, color: '#555', marginTop: 2 }}>
+              <strong>Marks:</strong> {awarded}/{maxMarks}
+              {status === 'partial' && ' (partial credit)'}
             </div>
           )}
         </div>
@@ -325,9 +381,9 @@ const ResultPage = () => {
     userAnswers: userAnswers
   });
 
-  let correct = 0;
-  let wrong = 0;
-  let missed = 0;
+  let correct = 0;   // total marks gained
+  let wrong = 0;     // total marks lost (attempted but incorrect)
+  let missed = 0;    // total marks from unanswered parts
   const scoringDetails = [];
 
   questionIds.forEach(id => {
@@ -336,18 +392,74 @@ const ResultPage = () => {
     const uaStr = String(ua ?? '').trim();
     const caStr = String(ca ?? '').trim();
 
+    // Look up question type (for multiselect partial scoring)
+    let qType = '';
+    (testData?.parts || []).forEach(part => {
+      (part.questions || []).forEach(q => {
+        if (Array.isArray(q.subIds) && q.subIds.includes(id)) {
+          qType = q.type || '';
+        } else if (q.id === id) {
+          qType = q.type || '';
+        }
+      });
+    });
+
+    if (!caStr) {
+      if (!uaStr) {
+        scoringDetails.push({ id, status: 'missed', userAnswer: uaStr, correctAnswer: caStr });
+      } else {
+        scoringDetails.push({ id, status: 'no_key', userAnswer: uaStr, correctAnswer: caStr });
+      }
+      return;
+    }
+
+    // Multiselect → each correct option is 1 mark
+    if (qType === 'multiselect') {
+      const correctOptions = caStr ? caStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const userOptions = uaStr ? uaStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const maxMarks = correctOptions.length || 0;
+
+      if (!uaStr) {
+        missed += maxMarks;
+        scoringDetails.push({ id, status: 'missed', userAnswer: uaStr, correctAnswer: caStr, maxMarks, marksAwarded: 0 });
+      } else {
+        const correctSet = new Set(correctOptions);
+        let awarded = 0;
+        userOptions.forEach(opt => {
+          if (correctSet.has(opt)) awarded += 1;
+        });
+        if (awarded > maxMarks) awarded = maxMarks;
+        const lost = maxMarks - awarded;
+        correct += awarded;
+        wrong += lost;
+
+        let status = 'wrong';
+        if (awarded === 0) status = 'wrong';
+        else if (awarded === maxMarks) status = 'correct';
+        else status = 'partial';
+
+        scoringDetails.push({
+          id,
+          status,
+          userAnswer: uaStr,
+          correctAnswer: caStr,
+          maxMarks,
+          marksAwarded: awarded
+        });
+      }
+      return;
+    }
+
+    // Default single‑mark questions
     if (!uaStr) {
-      missed++;
-      scoringDetails.push({ id, status: 'missed', userAnswer: uaStr, correctAnswer: caStr });
-    } else if (caStr && compareAnswers(ua, ca)) {
-      correct++;
-      scoringDetails.push({ id, status: 'correct', userAnswer: uaStr, correctAnswer: caStr });
-    } else if (caStr) {
-      wrong++;
-      scoringDetails.push({ id, status: 'wrong', userAnswer: uaStr, correctAnswer: caStr });
+      missed += 1;
+      scoringDetails.push({ id, status: 'missed', userAnswer: uaStr, correctAnswer: caStr, maxMarks: 1, marksAwarded: 0 });
+    } else if (compareAnswers(ua, ca)) {
+      correct += 1;
+      scoringDetails.push({ id, status: 'correct', userAnswer: uaStr, correctAnswer: caStr, maxMarks: 1, marksAwarded: 1 });
     } else {
-      // If no correct answer defined, count as answered but not scored
-      scoringDetails.push({ id, status: 'no_key', userAnswer: uaStr, correctAnswer: caStr });
+      wrong += 1;
+      scoringDetails.push({ id, status: 'wrong', userAnswer: uaStr, correctAnswer: caStr, maxMarks: 1, marksAwarded: 0 });
     }
   });
 

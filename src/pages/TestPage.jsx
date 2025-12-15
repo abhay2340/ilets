@@ -359,59 +359,165 @@ const TestPage = () => {
       userAnswerIds: Object.keys(userAnswers).map(Number).sort((a, b) => a - b)
     });
 
-    let correct = 0, wrong = 0;
-    const qIds = Object.keys(correctAnswers).map(Number);
-    const total = qIds.length || allQuestions.filter(q => typeof q.id === 'number').length;
+    // Build quick lookup for question types (needed for multiselect partial scoring)
+    const questionMetaById = {};
+    allQuestions.forEach((q) => {
+      if (!q) return;
+      const baseId = typeof q.id === 'number' ? q.id : null;
+      const qType = q.type || 'mcq';
+      if (baseId != null && !questionMetaById[baseId]) {
+        questionMetaById[baseId] = { type: qType };
+      }
+      if (Array.isArray(q.subIds)) {
+        q.subIds.forEach((subId) => {
+          if (typeof subId === 'number' && !questionMetaById[subId]) {
+            questionMetaById[subId] = { type: qType };
+          }
+        });
+      }
+    });
 
-    console.log('📊 TestPage: Starting scoring...', {
+    let totalMarks = 0;
+    let gainedMarks = 0;
+    let unansweredMarks = 0;
+
+    const qIds = Object.keys(correctAnswers).map(Number);
+
+    console.log('📊 TestPage: Starting scoring (marks‑based)...', {
       questionIds: qIds,
-      totalQuestions: total,
       correctAnswersKeys: Object.keys(correctAnswers).map(Number).sort((a, b) => a - b)
     });
 
     const scoringDetails = [];
     qIds.forEach(id => {
-      const userAns = (userAnswers[id] || '')?.trim();
-      const keyAns = (correctAnswers[id] || '')?.trim();
+      const userAnsRaw = userAnswers[id] ?? '';
+      const keyAnsRaw = correctAnswers[id] ?? '';
+      const userAns = typeof userAnsRaw === 'string' ? userAnsRaw.trim() : String(userAnsRaw).trim();
+      const keyAns = typeof keyAnsRaw === 'string' ? keyAnsRaw.trim() : String(keyAnsRaw).trim();
 
-      if (!userAns) {
-        scoringDetails.push({ id, status: 'unanswered', userAnswer: userAns, correctAnswer: keyAns });
+      const meta = questionMetaById[id] || {};
+      const qType = meta.type || 'mcq';
+
+      // --- Multi‑select (checkboxes, multiple correct) → partial marks per correct option ---
+      if (qType === 'multiselect') {
+        const correctOptions = keyAns
+          ? keyAns.split(',').map(s => s.trim()).filter(Boolean)
+          : [];
+        const maxMarks = correctOptions.length || 0;
+        totalMarks += maxMarks;
+
+        if (!userAns) {
+          // No selection → all marks remain unanswered
+          unansweredMarks += maxMarks;
+          scoringDetails.push({
+            id,
+            type: qType,
+            status: 'unanswered',
+            marksAwarded: 0,
+            maxMarks,
+            userAnswer: userAns,
+            correctAnswer: keyAns
+          });
+          return;
+        }
+
+        const userOptions = userAns
+          ? userAns.split(',').map(s => s.trim()).filter(Boolean)
+          : [];
+
+        const correctSet = new Set(correctOptions);
+        let awarded = 0;
+        userOptions.forEach(opt => {
+          if (correctSet.has(opt)) awarded += 1;
+        });
+
+        if (awarded > maxMarks) awarded = maxMarks;
+        gainedMarks += awarded;
+
+        const status =
+          awarded === 0
+            ? 'wrong'
+            : (awarded === maxMarks ? 'correct' : 'partial');
+
+        scoringDetails.push({
+          id,
+          type: qType,
+          status,
+          marksAwarded: awarded,
+          maxMarks,
+          userAnswer: userAns,
+          correctAnswer: keyAns,
+          details: {
+            correctOptions,
+            userOptions
+          }
+        });
         return;
       }
-      // simple normalization for two-letter multi answers like "B,D"
+
+      // --- Default single‑mark questions (MCQ, dropdown, written, etc.) ---
+      const questionMarks = 1;
+      totalMarks += questionMarks;
+
+      if (!userAns) {
+        unansweredMarks += questionMarks;
+        scoringDetails.push({
+          id,
+          type: qType,
+          status: 'unanswered',
+          marksAwarded: 0,
+          maxMarks: questionMarks,
+          userAnswer: userAns,
+          correctAnswer: keyAns
+        });
+        return;
+      }
+
       const norm = s => s.toUpperCase().replace(/\s+/g, '').split(',').filter(Boolean).sort().join(',');
       const normalizedUser = norm(userAns);
       const normalizedKey = norm(keyAns);
       const isMatch = normalizedUser === normalizedKey;
 
       if (isMatch) {
-        correct++;
-        scoringDetails.push({ id, status: 'correct', userAnswer: userAns, correctAnswer: keyAns, normalized: { user: normalizedUser, key: normalizedKey } });
+        gainedMarks += questionMarks;
+        scoringDetails.push({
+          id,
+          type: qType,
+          status: 'correct',
+          marksAwarded: questionMarks,
+          maxMarks: questionMarks,
+          userAnswer: userAns,
+          correctAnswer: keyAns,
+          normalized: { user: normalizedUser, key: normalizedKey }
+        });
       } else {
-        wrong++;
-        scoringDetails.push({ id, status: 'wrong', userAnswer: userAns, correctAnswer: keyAns, normalized: { user: normalizedUser, key: normalizedKey } });
+        scoringDetails.push({
+          id,
+          type: qType,
+          status: 'wrong',
+          marksAwarded: 0,
+          maxMarks: questionMarks,
+          userAnswer: userAns,
+          correctAnswer: keyAns,
+          normalized: { user: normalizedUser, key: normalizedKey }
+        });
       }
     });
 
-    console.log('✅ TestPage: Scoring complete', {
-      correct,
-      wrong,
-      unanswered: qIds.length - correct - wrong,
-      total,
-      scoringDetails
-    });
-
-    const answered = correct + wrong;
-    const unanswered = Math.max(total - answered, 0);
+    const correct = gainedMarks;
+    const total = totalMarks || (qIds.length || allQuestions.filter(q => typeof q.id === 'number').length);
+    const unanswered = unansweredMarks;
+    const wrong = Math.max(total - correct - unanswered, 0);
     const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
 
-    console.log('📈 TestPage: Final results', {
-      correct,
-      wrong,
-      unanswered,
-      total,
+    console.log('📈 TestPage: Final results (marks‑based)', {
+      marksCorrect: correct,
+      marksWrong: wrong,
+      marksUnanswered: unanswered,
+      totalMarks: total,
       accuracy,
-      timeTaken
+      timeTaken,
+      scoringDetails
     });
 
     // 🔥 Save to Firestore
