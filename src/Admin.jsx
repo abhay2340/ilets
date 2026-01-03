@@ -488,10 +488,18 @@ const Admin = () => {
             const blanks = (String(q.question || '').match(/_{3,}/g) || []).length;
             const count = Math.max(0, blanks);
             const subIds = Array.from({ length: count }, (_, i) => nextId + i);
-            if (Array.isArray(q.answers)) {
-              q.answers.forEach((ans, idx) => {
+
+            // Read answers directly from form values using getValues (q.answers might not be in values object)
+            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+            const formAnswers = getValues(answersPath);
+            const answers = Array.isArray(formAnswers) ? formAnswers : (Array.isArray(q.answers) ? q.answers : []);
+
+            if (answers.length > 0) {
+              answers.forEach((ans, idx) => {
                 const subId = subIds[idx];
-                if (subId != null) answerMap[subId] = ans;
+                if (subId != null && ans != null && String(ans).trim() !== '') {
+                  answerMap[subId] = String(ans).trim();
+                }
               });
             }
             nextId += count;
@@ -1268,6 +1276,8 @@ const AnswerSection = ({ control, register, watch, setValue, partIndex, qIndex, 
         register={register}
         namePrefix={namePrefix}
         errors={errors}
+        watch={watch}
+        setValue={setValue}
       />
     );
   }
@@ -2462,13 +2472,57 @@ const FlowchartEditor = ({ control, register, namePrefix, errors, setValue, watc
   );
 };
 
-const SentenceFillEditor = ({ control, register, namePrefix, errors }) => {
+const SentenceFillEditor = ({ control, register, namePrefix, errors, watch, setValue }) => {
   const {
     fields: answerFields,
-    append: appendAnswer,
-    remove: removeAnswer,
+    // append: appendAnswer, // Manual control removed
+    // remove: removeAnswer, // Manual control removed
   } = useFieldArray({ control, name: `${namePrefix}.answers` });
   const answersError = getNestedError(errors, `${namePrefix}.answers`);
+
+  // Watch question text to count blanks
+  const questionText = watch(`${namePrefix}.question`) || '';
+  const blankCount = (String(questionText).match(/_{3,}/g) || []).length;
+
+  // Track if we've seen answers with values (to avoid overwriting on initial load)
+  const answersInitializedRef = React.useRef(false);
+
+  // Sync answers array length with blank count
+  React.useEffect(() => {
+    // Check if we have any existing answers with values
+    const hasAnswers = answerFields.some((_, idx) => {
+      const val = watch(`${namePrefix}.answers.${idx}`) || '';
+      return String(val).trim() !== '';
+    });
+
+    if (hasAnswers) {
+      answersInitializedRef.current = true;
+    }
+
+    if (blankCount >= 0) {
+      // Only sync length if blank count changed or logic dictates
+      // (Using blankCount as the truth)
+      if (answerFields.length !== blankCount) {
+        const newAnswers = Array(blankCount).fill('');
+        // Preserve existing answers if they exist
+        answerFields.forEach((ans, idx) => {
+          if (idx < newAnswers.length) {
+            const existingValue = watch(`${namePrefix}.answers.${idx}`) || '';
+            newAnswers[idx] = existingValue;
+          }
+        });
+
+        // Only update if we have values or if this is the first time/user is editing
+        // If it's a new question (no answers yet), we just set the empty slots
+        if (hasAnswers || !answersInitializedRef.current || blankCount > 0) {
+          setValue(`${namePrefix}.answers`, newAnswers, { shouldValidate: true });
+          if (hasAnswers) {
+            answersInitializedRef.current = true;
+          }
+        }
+      }
+    }
+  }, [blankCount, answerFields.length, namePrefix, setValue, watch]);
 
   return (
     <div style={{ marginTop: 12 }}>
@@ -2491,36 +2545,16 @@ const SentenceFillEditor = ({ control, register, namePrefix, errors }) => {
                 {...register(`${namePrefix}.answers.${idx}`)}
                 style={{ flex: 1, padding: 8 }}
               />
-              <button
-                type="button"
-                onClick={() => removeAnswer(idx)}
-                style={{
-                  background: '#fff2f2',
-                  border: '1px solid #ffdcdc',
-                  padding: '6px 10px',
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                }}
-              >
-                Remove
-              </button>
+              {/* Manual remove button removed as it's auto-synced */}
             </div>
           ))}
+          {answerFields.length === 0 && (
+            <div style={{ fontStyle: 'italic', color: '#888' }}>
+              No blanks detected yet. Add ___ to the question text.
+            </div>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={() => appendAnswer('')}
-          style={{
-            marginTop: 8,
-            background: '#eefaff',
-            border: '1px solid #d7f0ff',
-            padding: '6px 10px',
-            borderRadius: 6,
-            cursor: 'pointer',
-          }}
-        >
-          + Add Answer
-        </button>
+        {/* Manual add button removed */}
       </div>
     </div>
   );
