@@ -319,12 +319,25 @@ const Admin = () => {
           if (q.type === 'matchinggroup') {
             const rowCount = Array.isArray(q.rows) ? q.rows.length : 0;
             const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i);
-            if (Array.isArray(q.answers)) {
-              q.answers.forEach((ans, idx) => {
+
+            // Read answers directly from form values using getValues (q.answers might not be in values object)
+            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+            const formAnswers = getValues(answersPath);
+            const answers = Array.isArray(formAnswers) ? formAnswers : (Array.isArray(q.answers) ? q.answers : []);
+
+            // Save answers to answerMap
+            if (answers.length > 0) {
+              answers.forEach((ans, idx) => {
                 const subId = subIds[idx];
-                if (subId != null) answerMap[subId] = ans;
+                if (subId != null && ans != null && String(ans).trim() !== '') {
+                  answerMap[subId] = String(ans).trim();
+                  console.log(`  ✓ Saved matchinggroup answer for subId ${subId}:`, String(ans).trim());
+                }
               });
+            } else {
+              console.warn('  ⚠️ No answers found for matchinggroup question:', q.question);
             }
+
             nextId += rowCount;
             const out = {
               id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
@@ -1530,8 +1543,15 @@ const MatchingGroupEditor = ({ control, register, watch, namePrefix, errors }) =
   const rowsError = getNestedError(errors, `${namePrefix}.rows`);
   const answersError = getNestedError(errors, `${namePrefix}.answers`);
 
-  // State to manage column labels and descriptions separately
-  const [columnLabels, setColumnLabels] = React.useState(['A', 'B', 'C', 'D', 'E']);
+  // Get current columns from form state
+  const currentColumns = watch(`${namePrefix}.columns`) || [];
+
+  // Generate column labels dynamically based on actual column count
+  // This ensures labels are always A, B, C, D, E, F, G, H, I... regardless of state
+  const columnLabels = React.useMemo(() => {
+    const count = columnFields.length || currentColumns.length || 5;
+    return Array.from({ length: count }, (_, i) => String.fromCharCode(65 + i));
+  }, [columnFields.length, currentColumns.length]);
 
   const addRowWithAnswer = () => {
     appendRow('');
@@ -1543,15 +1563,10 @@ const MatchingGroupEditor = ({ control, register, watch, namePrefix, errors }) =
   };
 
   const addColumnLabel = () => {
-    const nextLabel = String.fromCharCode(65 + columnLabels.length); // A=65, B=66, etc.
-    setColumnLabels([...columnLabels, nextLabel]);
     appendColumn('');
   };
 
   const removeColumnLabel = (idx) => {
-    const newLabels = [...columnLabels];
-    newLabels.splice(idx, 1);
-    setColumnLabels(newLabels);
     removeColumn(idx);
   };
 
