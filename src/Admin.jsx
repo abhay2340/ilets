@@ -42,6 +42,15 @@ const buildValidationSchema = () =>
       .of(
         yup.object({
           title: yup.string().required('Part title is required'),
+          partInstructions: yup
+            .array()
+            .of(
+              yup.object({
+                text: yup.string().trim().required('Instruction text is required'),
+                infoKind: yup.string().oneOf(['normal', 'bold']).default('normal'),
+              })
+            )
+            .default([]),
           passage: yup.string().required('Passage is required'),
           audioSrc: yup.string().trim().notRequired(),
           questions: yup
@@ -227,6 +236,7 @@ const defaultValues = {
   parts: [
     {
       title: '',
+      partInstructions: [],
       passage: '',
       audioSrc: '',
       questions: [],
@@ -301,6 +311,9 @@ const Admin = () => {
       parts: values.parts.map((part, partIdx) => ({
         title: part.title,
         passage: part.passage,
+        ...(Array.isArray(part.partInstructions) && part.partInstructions.length > 0
+          ? { partInstructions: part.partInstructions }
+          : {}),
         ...(part.audioSrc ? { audioSrc: part.audioSrc } : {}),
         questions: part.questions.map((q, qIdx) => {
           if (q.type === 'matchinggroup') {
@@ -641,6 +654,7 @@ const Admin = () => {
 
         const populatedParts = (testData.parts || []).map((part) => ({
           title: part.title || '',
+          partInstructions: Array.isArray(part.partInstructions) ? part.partInstructions : [],
           passage: part.passage || '',
           audioSrc: part.audioSrc || '',
           questions: (part.questions || []).map((q) => {
@@ -854,6 +868,15 @@ const Admin = () => {
                   )}
                 </div>
 
+                <PartInstructionsEditor
+                  control={control}
+                  register={register}
+                  watch={watch}
+                  setValue={setValue}
+                  partIndex={partIndex}
+                  errors={errors}
+                />
+
                 <div>
                   <label style={{ display: 'block', fontWeight: 600 }}>Passage</label>
                   <textarea
@@ -945,7 +968,7 @@ const Admin = () => {
 
         <button
           type="button"
-          onClick={() => appendPart({ title: '', passage: '', audioSrc: '', questions: [] })}
+          onClick={() => appendPart({ title: '', partInstructions: [], passage: '', audioSrc: '', questions: [] })}
           style={{
             background: '#f0f7ff',
             border: '1px solid #cfe3ff',
@@ -1216,6 +1239,99 @@ const OptionsEditor = ({ control, register, namePrefix, errors }) => {
       >
         + Add Option
       </button>
+    </div>
+  );
+};
+
+const PartInstructionsEditor = ({ control, register, watch, setValue, partIndex, errors }) => {
+  const namePrefix = `parts.${partIndex}.partInstructions`;
+  const { fields, append, remove } = useFieldArray({ control, name: namePrefix });
+
+  return (
+    <div style={{ marginTop: 12, marginBottom: 12 }}>
+      <label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>
+        Instructions (Above Passage)
+      </label>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {fields.map((field, idx) => {
+          const instructionText = watch(`${namePrefix}.${idx}.text`) || '';
+          const infoKind = watch(`${namePrefix}.${idx}.infoKind`) || 'normal';
+          return (
+            <div
+              key={field.id}
+              style={{
+                border: '1px solid #e0e0e0',
+                borderRadius: 6,
+                padding: 12,
+                background: '#fafafa',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>Instruction {idx + 1}</span>
+                <button
+                  type="button"
+                  onClick={() => remove(idx)}
+                  style={{
+                    background: '#ffe6e6',
+                    border: '1px solid #ffcccc',
+                    padding: '4px 8px',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    fontSize: 12,
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <input
+                  placeholder="Enter instruction text"
+                  {...register(`${namePrefix}.${idx}.text`)}
+                  style={{ width: '100%', padding: 8 }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    {...register(`${namePrefix}.${idx}.infoKind`)}
+                    value="normal"
+                    checked={infoKind === 'normal' || (!infoKind && infoKind !== 'bold')}
+                    onChange={() => setValue(`${namePrefix}.${idx}.infoKind`, 'normal', { shouldDirty: true })}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span>Normal</span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                  <input
+                    type="radio"
+                    {...register(`${namePrefix}.${idx}.infoKind`)}
+                    value="bold"
+                    checked={infoKind === 'bold'}
+                    onChange={() => setValue(`${namePrefix}.${idx}.infoKind`, 'bold', { shouldDirty: true })}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <span style={{ fontWeight: 800 }}>Bold</span>
+                </label>
+              </div>
+            </div>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => append({ text: '', infoKind: 'normal' })}
+          style={{
+            background: '#eefaff',
+            border: '1px solid #d7f0ff',
+            padding: '6px 10px',
+            borderRadius: 6,
+            cursor: 'pointer',
+            alignSelf: 'flex-start',
+          }}
+        >
+          + Add Instruction
+        </button>
+      </div>
     </div>
   );
 };

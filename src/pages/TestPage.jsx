@@ -1127,6 +1127,26 @@ const TestPage = () => {
             }}
           >
             <h3>{currentPart.title}</h3>
+            {/* Part-level instructions above passage */}
+            {Array.isArray(currentPart.partInstructions) && currentPart.partInstructions.length > 0 && (
+              <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid #ddd' }}>
+                {currentPart.partInstructions.map((inst, idx) => {
+                  const isBold = inst.infoKind === 'bold' || inst.infoKind === 'heading';
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        marginBottom: idx < currentPart.partInstructions.length - 1 ? '12px' : 0,
+                        fontWeight: isBold ? 800 : 400,
+                        fontSize: '16px',
+                      }}
+                    >
+                      {inst.text}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <p style={{ whiteSpace: 'pre-wrap' }}>{currentPart.passage}</p>
           </div>
 
