@@ -73,6 +73,7 @@ const ResultPage = () => {
       const questionsWithDetails = [];
 
       (p.questions || []).forEach(q => {
+        if (q.type === 'info') return; // Exclude info/instruction blocks
         if (Array.isArray(q.subIds)) {
           // For questions with subIds, add each subId and store question details
           q.subIds.forEach((subId, subIdx) => {
@@ -180,21 +181,21 @@ const ResultPage = () => {
     const bg =
       status === 'correct' ? '#e8f5e9'
         : status === 'partial' ? '#e3f2fd'
-        : status === 'missed' ? '#fff3cd'
-          : status === 'wrong' ? '#ffebee'
-            : '#f5f5f5';
+          : status === 'missed' ? '#fff3cd'
+            : status === 'wrong' ? '#ffebee'
+              : '#f5f5f5';
     const bar =
       status === 'correct' ? '#4CAF50'
         : status === 'partial' ? '#1976d2'
-        : status === 'missed' ? '#ff9800'
-          : status === 'wrong' ? '#f44336'
-            : '#9e9e9e';
+          : status === 'missed' ? '#ff9800'
+            : status === 'wrong' ? '#f44336'
+              : '#9e9e9e';
     const text =
       status === 'correct' ? '#2e7d32'
         : status === 'partial' ? '#1565c0'
-        : status === 'missed' ? '#ff9800'
-          : status === 'wrong' ? '#c62828'
-            : '#616161';
+          : status === 'missed' ? '#ff9800'
+            : status === 'wrong' ? '#c62828'
+              : '#616161';
 
     // Format answer display based on question type
     const formatAnswer = (ans, isCorrectAnswer = false) => {
@@ -354,6 +355,7 @@ const ResultPage = () => {
     const ids = [];
     (testData?.parts || []).forEach(part => {
       (part.questions || []).forEach(q => {
+        if (q.type === 'info') return; // Exclude info/instruction blocks
         if (Array.isArray(q.subIds)) {
           ids.push(...q.subIds);
         } else if (typeof q.id === 'number') {

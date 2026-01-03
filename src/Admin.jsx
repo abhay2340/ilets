@@ -566,6 +566,14 @@ const Admin = () => {
             };
           }
 
+          if (q.type === 'info') {
+            return {
+              id: `info-${partIdx}-${qIdx}`,
+              type: 'info',
+              question: q.question,
+            };
+          }
+
           const id = nextId;
           nextId += 1;
           const base = {
@@ -576,11 +584,10 @@ const Admin = () => {
           if (q.type === 'mcq' || q.type === 'dropdown') {
             if (Array.isArray(q.options)) base.options = q.options;
           }
-          if (q.type !== 'info') {
-            if (q.type === 'written' || q.type === 'mcq' || q.type === 'dropdown') {
-              if (q.answer != null && q.answer !== '') answerMap[id] = q.answer;
-            }
+          if (q.type === 'written' || q.type === 'mcq' || q.type === 'dropdown') {
+            if (q.answer != null && q.answer !== '') answerMap[id] = q.answer;
           }
+
           return base;
         }),
       })),
