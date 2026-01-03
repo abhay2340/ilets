@@ -1,21 +1,13 @@
 import React from 'react';
 
 const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId }) => {
-  // Info blocks: headings or bullet lines
+  // Info blocks: bold or normal (no bullet point)
   if (question.type === 'info') {
-    const kind = question.infoKind || 'bullet';
-    if (kind === 'heading') {
-      return (
-        <div style={{ margin: '12px 0 6px 0' }}>
-          <div style={{ fontWeight: 800, fontSize: '18px' }}>{question.question}</div>
-        </div>
-      );
-    }
-    // bullet
+    const kind = question.infoKind || 'normal';
+    const isBold = kind === 'bold' || kind === 'heading'; // Support legacy 'heading' for backward compatibility
     return (
-      <div style={{ marginBottom: '8px', marginLeft: '10px' }}>
-        <span style={{ fontWeight: 700, marginRight: 6 }}>•</span>
-        <span>{question.question}</span>
+      <div style={{ margin: '12px 0 6px 0' }}>
+        <div style={{ fontWeight: isBold ? 800 : 400, fontSize: '16px' }}>{question.question}</div>
       </div>
     );
   }

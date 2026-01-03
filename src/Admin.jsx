@@ -571,6 +571,7 @@ const Admin = () => {
               id: `info-${partIdx}-${qIdx}`,
               type: 'info',
               question: q.question,
+              infoKind: q.infoKind || 'normal',
             };
           }
 
@@ -723,7 +724,7 @@ const Admin = () => {
               }
               return { ...q, answers };
             }
-            if (q.type === 'info') return { ...q };
+            if (q.type === 'info') return { ...q, infoKind: q.infoKind || 'normal' };
             const ans = answersMap[q.id] || '';
             return { ...q, answer: ans };
           }),
@@ -1119,6 +1120,16 @@ const QuestionCard = ({
         errors={errors}
       />
 
+      <InfoStyleSection
+        control={control}
+        register={register}
+        watch={watch}
+        setValue={setValue}
+        partIndex={partIndex}
+        qIndex={qIndex}
+        errors={errors}
+      />
+
       <AnswerSection
         control={control}
         register={register}
@@ -1205,6 +1216,45 @@ const OptionsEditor = ({ control, register, namePrefix, errors }) => {
       >
         + Add Option
       </button>
+    </div>
+  );
+};
+
+const InfoStyleSection = ({ control, register, watch, setValue, partIndex, qIndex, errors }) => {
+  const namePrefix = `parts.${partIndex}.questions.${qIndex}`;
+  const questionType = watch(`${namePrefix}.type`);
+
+  if (questionType !== 'info') return null;
+
+  const infoKind = watch(`${namePrefix}.infoKind`) || 'normal';
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <label style={{ display: 'block', fontWeight: 600, marginBottom: 8 }}>Text Style</label>
+      <div style={{ display: 'flex', gap: 16 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+          <input
+            type="radio"
+            {...register(`${namePrefix}.infoKind`)}
+            value="normal"
+            checked={infoKind === 'normal' || (!infoKind && infoKind !== 'bold')}
+            onChange={() => setValue(`${namePrefix}.infoKind`, 'normal', { shouldDirty: true })}
+            style={{ cursor: 'pointer' }}
+          />
+          <span>Normal</span>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+          <input
+            type="radio"
+            {...register(`${namePrefix}.infoKind`)}
+            value="bold"
+            checked={infoKind === 'bold'}
+            onChange={() => setValue(`${namePrefix}.infoKind`, 'bold', { shouldDirty: true })}
+            style={{ cursor: 'pointer' }}
+          />
+          <span style={{ fontWeight: 800 }}>Bold</span>
+        </label>
+      </div>
     </div>
   );
 };
