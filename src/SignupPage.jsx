@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import './SignupPage.css';
 import logo from './assets/logo.png';
 import loginImage from './assets/login-image.jpg';
@@ -16,6 +17,8 @@ function SignupPage() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({ name: false, email: false, phone: false, password: false, confirmPassword: false });
@@ -120,25 +123,71 @@ function SignupPage() {
             </div>
 
             <label>Password</label>
-            <input
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onBlur={() => setTouched(prev => ({ ...prev, password: true }))}
-              required
-            />
+            <div style={{ position: 'relative', marginBottom: '15px' }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onBlur={() => setTouched(prev => ({ ...prev, password: true }))}
+                required
+                style={{ width: '100%', paddingRight: '40px', marginBottom: 0 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#666',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0
+                }}
+              >
+                {showPassword ? <FaEyeSlash size={20} /> : <FaEye size={20} />}
+              </button>
+            </div>
             {(touched.password || submitAttempted) && errors.password && <div style={{ color: '#b30000', fontSize: 12, marginTop: 4 }}>{errors.password}</div>}
 
             <label>Re-Enter Password</label>
-            <input
-              type="password"
-              placeholder="Re-enter your password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              onBlur={() => setTouched(prev => ({ ...prev, confirmPassword: true }))}
-              required
-            />
+            <div style={{ position: 'relative', marginBottom: '15px' }}>
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                placeholder="Re-enter your password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                onBlur={() => setTouched(prev => ({ ...prev, confirmPassword: true }))}
+                required
+                style={{ width: '100%', paddingRight: '40px', marginBottom: 0 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#666',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0
+                }}
+              >
+                {showConfirmPassword ? <FaEyeSlash size={20} /> : <FaEye size={20} />}
+              </button>
+            </div>
             {(touched.confirmPassword || submitAttempted) && errors.confirmPassword && <div style={{ color: '#b30000', fontSize: 12, marginTop: 4 }}>{errors.confirmPassword}</div>}
 
             <button className="signup-button" type="submit" disabled={!isValid || submitting}>
