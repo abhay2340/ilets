@@ -7,20 +7,6 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getAnalytics } from "firebase/analytics";
 
-
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// const firebaseConfig = {
-//   apiKey: "AIzaSyD30kb56JbiE0fH58mCV-V7vMyxiRVf-lc",
-//   authDomain: "ilets-e09c6.firebaseapp.com",
-//   projectId: "ilets-e09c6",
-//   storageBucket: "ilets-e09c6.firebasestorage.app",
-//   messagingSenderId: "471230915741",
-//   appId: "1:471230915741:web:70c755dc52a2a3b254a074",
-//   measurementId: "G-KRXCH67YNP"
-// };
 const firebaseConfig = {
   apiKey: "AIzaSyCEbJIGgj2820WJD_N7CTZVs7avYIMq0DA",
   authDomain: "real-ielts-248af.firebaseapp.com",
