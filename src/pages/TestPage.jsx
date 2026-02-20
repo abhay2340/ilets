@@ -1044,7 +1044,72 @@ const TestPage = () => {
             }}
           >
             <h3>{currentPart.title}</h3>
-            <p style={{ whiteSpace: 'pre-wrap' }}>{currentPart.passage}</p>
+            {(() => {
+              const hmQ = currentPart.questions.find(q => q.type === 'headingmatch');
+              if (hmQ && /_{3,}/.test(currentPart.passage || '')) {
+                const parts = String(currentPart.passage || '').split(/_{3,}/);
+                const subIds = Array.isArray(hmQ.subIds) ? hmQ.subIds : [];
+                return (
+                  <div style={{ whiteSpace: 'normal', lineHeight: 1.5 }}>
+                    {parts.map((chunk, i) => {
+                      if (i === parts.length - 1) return <span key={`pc-${i}`}>{chunk}</span>;
+                      const subId = subIds[i] ?? (i + 1);
+                      const placed = answers[subId] || '';
+                      return (
+                        <React.Fragment key={`pc-${i}`}>
+                          <span>{chunk}</span>
+                          <span
+                            data-dnd="dropzone"
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const w = e.dataTransfer.getData('text/plain');
+                              const opts = Array.isArray(hmQ.options) ? hmQ.options.map(o => String(o ?? '').trim()) : [];
+                              if (!opts.includes(w)) return;
+                              // Clear if this heading was placed elsewhere
+                              subIds.forEach((sid) => {
+                                if (sid !== subId && answers[sid] === w) handleSetAnswer(sid, '');
+                              });
+                              handleSetAnswer(subId, w);
+                              markVisited(subId);
+                            }}
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              padding: placed ? '6px 16px' : '6px',
+                              border: placed ? '2px solid #1a8fca' : '2px dashed #1a8fca',
+                              borderRadius: 8,
+                              margin: '4px 0',
+                              background: placed ? '#f0f7ff' : '#fff',
+                              textAlign: 'center',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              boxSizing: 'border-box',
+                            }}
+                          >
+                            {placed ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                <strong style={{ color: '#1e3a5f', fontSize: '14px' }}>{placed}</strong>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); handleSetAnswer(subId, ''); }}
+                                  style={{ background: '#ffecec', border: '1px solid #ffd4d4', padding: '2px 6px', borderRadius: 4, cursor: 'pointer', fontSize: '11px' }}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ) : (
+                              <span style={{ color: '#333', fontWeight: 700, fontSize: '18px' }}>{subId}</span>
+                            )}
+                          </span>
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                );
+              }
+              return <p style={{ whiteSpace: 'pre-wrap' }}>{currentPart.passage}</p>;
+            })()}
           </div>
 
           {hasQuestions && (
@@ -1107,6 +1172,7 @@ const TestPage = () => {
                     setAnswer={(val) => handleSetAnswer(q.id, val)}
                     setAnswerForId={(qid, val) => handleSetAnswer(qid, val)}
                     onVisited={(id) => markVisited(id)}
+                    allAnswers={answers}
                   />
                 </div>
               ))}
@@ -1127,7 +1193,71 @@ const TestPage = () => {
             }}
           >
             <h3>{currentPart.title}</h3>
-            <p style={{ whiteSpace: 'pre-wrap' }}>{currentPart.passage}</p>
+            {(() => {
+              const hmQ = currentPart.questions.find(q => q.type === 'headingmatch');
+              if (hmQ && /_{3,}/.test(currentPart.passage || '')) {
+                const parts = String(currentPart.passage || '').split(/_{3,}/);
+                const subIds = Array.isArray(hmQ.subIds) ? hmQ.subIds : [];
+                return (
+                  <div style={{ whiteSpace: 'normal', lineHeight: 1.5 }}>
+                    {parts.map((chunk, i) => {
+                      if (i === parts.length - 1) return <span key={`pc-${i}`}>{chunk}</span>;
+                      const subId = subIds[i] ?? (i + 1);
+                      const placed = answers[subId] || '';
+                      return (
+                        <React.Fragment key={`pc-${i}`}>
+                          <span>{chunk}</span>
+                          <span
+                            data-dnd="dropzone"
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const w = e.dataTransfer.getData('text/plain');
+                              const opts = Array.isArray(hmQ.options) ? hmQ.options.map(o => String(o ?? '').trim()) : [];
+                              if (!opts.includes(w)) return;
+                              subIds.forEach((sid) => {
+                                if (sid !== subId && answers[sid] === w) handleSetAnswer(sid, '');
+                              });
+                              handleSetAnswer(subId, w);
+                              markVisited(subId);
+                            }}
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              padding: placed ? '6px 16px' : '6px',
+                              border: placed ? '2px solid #1a8fca' : '2px dashed #1a8fca',
+                              borderRadius: 8,
+                              margin: '4px 0',
+                              background: placed ? '#f0f7ff' : '#fff',
+                              textAlign: 'center',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              boxSizing: 'border-box',
+                            }}
+                          >
+                            {placed ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                <strong style={{ color: '#1e3a5f', fontSize: '14px' }}>{placed}</strong>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); handleSetAnswer(subId, ''); }}
+                                  style={{ background: '#ffecec', border: '1px solid #ffd4d4', padding: '2px 6px', borderRadius: 4, cursor: 'pointer', fontSize: '11px' }}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ) : (
+                              <span style={{ color: '#333', fontWeight: 700, fontSize: '18px' }}>{subId}</span>
+                            )}
+                          </span>
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                );
+              }
+              return <p style={{ whiteSpace: 'pre-wrap' }}>{currentPart.passage}</p>;
+            })()}
           </div>
 
           {/* Vertical splitter */}
@@ -1253,6 +1383,7 @@ const TestPage = () => {
                     setAnswer={(val) => handleSetAnswer(q.id, val)}
                     setAnswerForId={(qid, val) => handleSetAnswer(qid, val)}
                     onVisited={(id) => markVisited(id)}
+                    allAnswers={answers}
                   />
                 </div>
               ))}

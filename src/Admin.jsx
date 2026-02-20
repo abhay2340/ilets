@@ -21,6 +21,7 @@ const QUESTION_TYPES = [
   { value: 'sentencefill', label: 'Sentence Completion (typed words into blanks)' },
   { value: 'maplabel', label: 'Plan/Map/Diagram Labelling (matrix + image)' },
   { value: 'tablefill', label: 'Table Fill (typed blanks in table)' },
+  { value: 'headingmatch', label: 'Heading Match (Drag headings to sections)' },
   { value: 'info', label: 'Info/Instruction (No answer)' },
 ];
 
@@ -68,6 +69,7 @@ const buildValidationSchema = () =>
                     'dropdown',
                     'matchinggroup',
                     'matchingdrag',
+                    'headingmatch',
                     'summarydrag',
                     'flowchart',
                     'sentencefill',
@@ -95,6 +97,7 @@ const buildValidationSchema = () =>
                     t === 'multiselect' ||
                     t === 'dropdown' ||
                     t === 'matchingdrag' ||
+                    t === 'headingmatch' ||
                     t === 'summarydrag' ||
                     t === 'flowchart',
                   then: (schema) =>
@@ -164,6 +167,7 @@ const buildValidationSchema = () =>
                     return (
                       type === 'matchinggroup' ||
                       type === 'matchingdrag' ||
+                      type === 'headingmatch' ||
                       type === 'summarydrag' ||
                       type === 'multiselect' ||
                       type === 'flowchart' ||
@@ -194,6 +198,11 @@ const buildValidationSchema = () =>
                           const qtext = this.parent.question || '';
                           const blanks = (qtext.match(/_{3,}/g) || []).length;
                           return Array.isArray(val) && val.length === blanks;
+                        }
+                        if (type === 'headingmatch') {
+                          // blanks are in the passage (part level), not in the question
+                          // Since we can't easily access the passage here, skip strict length validation
+                          return Array.isArray(val);
                         }
                         if (type === 'flowchart') {
                           const rows = this.parent.rows || [];
@@ -437,6 +446,35 @@ const Admin = () => {
               question: q.question,
               options: Array.isArray(q.options) ? q.options : [],
               rows: Array.isArray(q.rows) ? q.rows : [],
+            };
+          }
+          if (q.type === 'headingmatch') {
+            // Count blanks (___) from the PASSAGE, not the question text
+            const passageText = part.passage || '';
+            const blanks = (String(passageText).match(/_{3,}/g) || []).length;
+            const count = Math.max(0, blanks);
+            const subIds = Array.from({ length: count }, (_, i) => nextId + i);
+
+            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+            const formAnswers = getValues(answersPath);
+            const answers = Array.isArray(formAnswers) ? formAnswers : (Array.isArray(q.answers) ? q.answers : []);
+
+            if (answers.length > 0) {
+              answers.forEach((ans, idx) => {
+                const subId = subIds[idx];
+                if (subId != null && ans != null && String(ans).trim() !== '') {
+                  answerMap[subId] = String(ans).trim();
+                }
+              });
+            }
+
+            nextId += count;
+            return {
+              id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
+              type: 'headingmatch',
+              subIds,
+              question: q.question,
+              options: Array.isArray(q.options) ? q.options : [],
             };
           }
           if (q.type === 'summarydrag') {
@@ -697,6 +735,7 @@ const Admin = () => {
             }
             if (
               q.type === 'matchingdrag' ||
+              q.type === 'headingmatch' ||
               q.type === 'summarydrag' ||
               q.type === 'flowchart' ||
               q.type === 'sentencefill' ||
@@ -1388,6 +1427,110 @@ const InfoStyleSection = ({ control, register, watch, setValue, partIndex, qInde
   );
 };
 
+const HeadingMatchEditor = ({ control, register, namePrefix, errors, watch, setValue, blankCount }) => {
+  const {
+    fields: optionFields,
+    append: appendOption,
+    remove: removeOption,
+  } = useFieldArray({ control, name: `${namePrefix}.options` });
+  const {
+    fields: answerFields,
+  } = useFieldArray({ control, name: `${namePrefix}.answers` });
+
+  const optionsError = getNestedError(errors, `${namePrefix}.options`);
+  const answersError = getNestedError(errors, `${namePrefix}.answers`);
+  const currentOptions = watch(`${namePrefix}.options`) || [];
+
+  // Sync answers array with passage blank count
+  React.useEffect(() => {
+    if (blankCount > 0 && answerFields.length !== blankCount) {
+      const newAnswers = Array(blankCount).fill('');
+      answerFields.forEach((_, idx) => {
+        if (idx < newAnswers.length) {
+          const existingValue = watch(`${namePrefix}.answers.${idx}`) || '';
+          newAnswers[idx] = existingValue;
+        }
+      });
+      setValue(`${namePrefix}.answers`, newAnswers, { shouldDirty: true, shouldValidate: true });
+    }
+  }, [blankCount, answerFields.length, namePrefix, setValue, watch]);
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ marginBottom: 8, color: '#555' }}>
+        Put three or more underscores <strong>___</strong> in the <strong>Passage</strong> above to mark each heading drop zone.
+        Then add heading options below and select the correct heading for each blank.
+      </div>
+      {blankCount > 0 && (
+        <div style={{ marginBottom: 8, padding: '6px 10px', background: '#eef2ff', borderRadius: 6, color: '#3730a3', fontWeight: 600, fontSize: 13 }}>
+          Detected {blankCount} blank{blankCount !== 1 ? 's' : ''} in the passage
+        </div>
+      )}
+      <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+        <div>
+          <label style={{ display: 'block', fontWeight: 600 }}>Heading Options (draggable bank)</label>
+          {typeof optionsError === 'string' && (
+            <div style={{ color: 'crimson', marginBottom: 8 }}>{optionsError}</div>
+          )}
+          <div style={{ display: 'grid', gap: 8 }}>
+            {optionFields.map((opt, idx) => (
+              <div key={opt.id} style={{ display: 'flex', gap: 8 }}>
+                <input
+                  placeholder={`Heading ${idx + 1}`}
+                  {...register(`${namePrefix}.options.${idx}`)}
+                  style={{ flex: 1, padding: 8 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeOption(idx)}
+                  style={{ background: '#fff2f2', border: '1px solid #ffdcdc', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => appendOption('')}
+            style={{ marginTop: 8, background: '#eefaff', border: '1px solid #d7f0ff', padding: '6px 10px', borderRadius: 6, cursor: 'pointer' }}
+          >
+            + Add Heading
+          </button>
+        </div>
+        {blankCount > 0 && (
+          <div>
+            <label style={{ display: 'block', fontWeight: 600 }}>
+              Correct Answer for each blank (in passage order)
+            </label>
+            {typeof answersError === 'string' && (
+              <div style={{ color: 'crimson', marginBottom: 8 }}>{answersError}</div>
+            )}
+            <div style={{ display: 'grid', gap: 8 }}>
+              {Array.from({ length: blankCount }, (_, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ fontWeight: 600, minWidth: 70 }}>Blank {idx + 1}:</span>
+                  <select
+                    {...register(`${namePrefix}.answers.${idx}`)}
+                    style={{ flex: 1, padding: 8 }}
+                  >
+                    <option value="">-- Select correct heading --</option>
+                    {currentOptions.filter(Boolean).map((opt, optIdx) => (
+                      <option key={optIdx} value={String(opt).trim()}>
+                        {String(opt).trim()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const AnswerSection = ({ control, register, watch, setValue, partIndex, qIndex, errors }) => {
   const namePrefix = `parts.${partIndex}.questions.${qIndex}`;
   const fieldError = getNestedError(errors, `${namePrefix}.answer`);
@@ -1417,6 +1560,23 @@ const AnswerSection = ({ control, register, watch, setValue, partIndex, qIndex, 
         errors={errors}
         watch={watch}
         setValue={setValue}
+      />
+    );
+  }
+  if (questionType === 'headingmatch') {
+    // Custom editor: blanks are in the PASSAGE, not in question text
+    const passageText = watch(`parts.${partIndex}.passage`) || '';
+    const blankCount = (String(passageText).match(/_{3,}/g) || []).length;
+
+    return (
+      <HeadingMatchEditor
+        control={control}
+        register={register}
+        namePrefix={namePrefix}
+        errors={errors}
+        watch={watch}
+        setValue={setValue}
+        blankCount={blankCount}
       />
     );
   }
