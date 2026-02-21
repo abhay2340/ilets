@@ -1,14 +1,4 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import test1 from '../data/test1.jsx';
-import test2 from '../data/test2.jsx';
-import test3 from '../data/test3.jsx';
-import test4 from '../data/test4.jsx';
-import test5 from '../data/test5.jsx';
-import test6 from '../data/test6.jsx';
-import test7 from '../data/test7.jsx';
-import test8 from '../data/test8.jsx';
-import test9 from '../data/test9.jsx';
-import answerKey from '../data/answerkey';
 import QuestionBox from '../components/QuestionBox';
 import QuestionNavigator from '../components/QuestionNavigator';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -21,10 +11,8 @@ import { db, auth } from '../firebaseConfig.jsx';
 // Payment and access control
 import { useAuth } from '../AuthContext';
 import { usePurchases } from '../hooks/usePurchases';
-import { isTestFree } from '../config/pricing';
+import { isTestFree, TEST_PRICING } from '../config/pricing';
 import { FaBan } from 'react-icons/fa';
-
-const TEST_MAP = { test1, test2, test3, test4, test5, test6, test7, test8, test9 };
 
 const TestPage = () => {
   const location = useLocation();
@@ -34,11 +22,10 @@ const TestPage = () => {
 
   const params = new URLSearchParams(location.search);
   const dbId = params.get('dbId');
-  const currentTestId = params.get('testId') || 'test1';
-  const isDbMode = !!dbId;
+  const currentTestId = dbId || params.get('testId') || '';
   const [dbTest, setDbTest] = useState(null);
   const [dbAnswers, setDbAnswers] = useState(null);
-  const testData = isDbMode ? (dbTest || { parts: [] }) : (TEST_MAP[currentTestId] ?? TEST_MAP['test1']);
+  const testData = dbTest || { parts: [] };
 
   const [accessChecked, setAccessChecked] = useState(false);
   const [hasTestAccess, setHasTestAccess] = useState(false);
@@ -132,45 +119,45 @@ const TestPage = () => {
   };
 
   useEffect(() => {
-    if (!isDbMode) return;
+    if (!currentTestId) return;
     let active = true;
     (async () => {
       try {
-        console.log('🔵 TestPage: Loading test and answers from Firestore...', { dbId, isDbMode });
-        const snap = await getDoc(doc(db, 'tests', dbId));
+        console.log('🔵 TestPage: Loading test and answers from Firestore...', { currentTestId });
+        const snap = await getDoc(doc(db, 'tests', currentTestId));
         if (active && snap.exists()) {
           const testData = snap.data();
           console.log('✅ TestPage: Test loaded from Firestore', {
-            testId: dbId,
+            testId: currentTestId,
             testTitle: testData?.title,
             partsCount: testData?.parts?.length || 0,
             totalQuestions: testData?.parts?.reduce((sum, p) => sum + (p.questions?.length || 0), 0) || 0
           });
           setDbTest(testData);
         } else {
-          console.warn('⚠️ TestPage: Test not found in Firestore', { dbId });
+          console.warn('⚠️ TestPage: Test not found in Firestore', { currentTestId });
         }
-        const ans = await getDoc(doc(db, 'answers', dbId));
+        const ans = await getDoc(doc(db, 'answers', currentTestId));
         if (active && ans.exists()) {
           const answerData = ans.data();
           const answersMap = answerData?.answers || {};
           console.log('✅ TestPage: Correct answers loaded from Firestore', {
-            testId: dbId,
+            testId: currentTestId,
             answersCount: Object.keys(answersMap).length,
             answerKeys: Object.keys(answersMap).map(Number).sort((a, b) => a - b),
             answers: answersMap
           });
           setDbAnswers(answersMap);
         } else {
-          console.warn('⚠️ TestPage: Answers not found in Firestore', { dbId });
+          console.warn('⚠️ TestPage: Answers not found in Firestore', { currentTestId });
           setDbAnswers({});
         }
       } catch (error) {
-        console.error('❌ TestPage: Error loading from Firestore', { dbId, error });
+        console.error('❌ TestPage: Error loading from Firestore', { currentTestId, error });
       }
     })();
     return () => { active = false };
-  }, [isDbMode, dbId]);
+  }, [currentTestId]);
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -290,7 +277,8 @@ const TestPage = () => {
         return;
       }
 
-      if (isDbMode) {
+      // Firestore-managed tests (not in local pricing config) are always accessible
+      if (!TEST_PRICING[currentTestId]) {
         setHasTestAccess(true);
         setAccessChecked(true);
         return;
@@ -333,7 +321,7 @@ const TestPage = () => {
     const timeTaken = TOTAL_DURATION - timeLeftRef.current;
 
     const allQuestions = parts.flatMap(p => p.questions);
-    const correctAnswers = isDbMode ? (dbAnswers || {}) : (answerKey[currentTestId] || {});
+    const correctAnswers = dbAnswers || {};
     const userAnswers = {};
 
     // Build userAnswers from all answers (not just those in correctAnswers)
@@ -524,7 +512,7 @@ const TestPage = () => {
     if (auth?.currentUser) {
       const resultData = {
         user: auth.currentUser.uid,
-        test: isDbMode ? dbId : currentTestId.toUpperCase(),
+        test: currentTestId,
         correct,
         wrong,
         unanswered,
@@ -534,7 +522,7 @@ const TestPage = () => {
         timeTaken,
         submittedAt: new Date()
       };
-      const resultId = `${auth.currentUser.uid}_${isDbMode ? dbId : currentTestId}_${Date.now()}`;
+      const resultId = `${auth.currentUser.uid}_${currentTestId}_${Date.now()}`;
       console.log('💾 TestPage: Saving result to Firestore', {
         resultId,
         resultData
@@ -560,7 +548,7 @@ const TestPage = () => {
     // 👉 Navigate to result page
     const navigationState = {
       userAnswers,
-      testId: isDbMode ? dbId : currentTestId,
+      testId: currentTestId,
       timeTaken
     };
     console.log('🚀 TestPage: Navigating to results page', {

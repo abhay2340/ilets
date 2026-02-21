@@ -1,28 +1,15 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import answerKey from '../data/answerkey';
 import { useAuth } from '../AuthContext';
 import { FaCheckCircle, FaTimesCircle, FaStepForward, FaChartPie, FaStopwatch } from 'react-icons/fa';
-import test1 from '../data/test1.jsx';
-import test2 from '../data/test2.jsx';
-import test3 from '../data/test3.jsx';
-import test4 from '../data/test4.jsx';
-import test5 from '../data/test5.jsx';
-import test6 from '../data/test6.jsx';
-import test7 from '../data/test7.jsx';
-import test8 from '../data/test8.jsx';
-import test9 from '../data/test9.jsx';
 import { db } from '../firebaseConfig.jsx';
 import { doc, getDoc } from 'firebase/firestore';
 import LoaderOverlay from '../components/LoaderOverlay.jsx';
 
-const TEST_MAP = { test1, test2, test3, test4, test5, test6, test7, test8, test9 };
-
-console.log(TEST_MAP);
 const ResultPage = () => {
 
   const { state } = useLocation();
-  const { userAnswers = {}, testId = 'test1', timeTaken = 0 } = state || {};
+  const { userAnswers = {}, testId = '', timeTaken = 0 } = state || {};
 
   console.log('🔵 ResultPage: Page loaded', {
     hasState: !!state,
@@ -39,12 +26,11 @@ const ResultPage = () => {
     window.location.replace('/dashboard');
     return null;
   }
-  const isDbMode = !TEST_MAP[testId];
   const [dbTest, setDbTest] = React.useState(null);
   const [dbAnswers, setDbAnswers] = React.useState(null);
-  const [loadingDb, setLoadingDb] = React.useState(isDbMode);
+  const [loadingDb, setLoadingDb] = React.useState(true);
   // get actual test definition for this result
-  const testData = isDbMode ? (dbTest || { parts: [] }) : (TEST_MAP[testId] || TEST_MAP.test1);
+  const testData = dbTest || { parts: [] };
   const { user } = useAuth();
 
   // Local compare helper: ignore case, collapse spaces; for comma lists compare unordered
@@ -283,14 +269,11 @@ const ResultPage = () => {
 
   // If db mode, fetch test + answers
   React.useEffect(() => {
-    if (!isDbMode) {
-      console.log('🔵 ResultPage: Not in DB mode, using local answer key', { testId });
-      return;
-    }
+    if (!testId) return;
     let active = true;
     (async () => {
       try {
-        console.log('🔵 ResultPage: Loading test and answers from Firestore...', { testId, isDbMode });
+        console.log('🔵 ResultPage: Loading test and answers from Firestore...', { testId });
         const snap = await getDoc(doc(db, 'tests', testId));
         if (active && snap.exists()) {
           const testData = snap.data();
@@ -327,15 +310,14 @@ const ResultPage = () => {
       if (active) setLoadingDb(false);
     })();
     return () => { active = false };
-  }, [isDbMode, testId]);
+  }, [testId]);
 
-  const correctAnswers = isDbMode ? (dbAnswers || {}) : (answerKey[testId] || {});
+  const correctAnswers = dbAnswers || {};
 
   // Debug logging
   React.useEffect(() => {
     console.log('🔍 ResultPage: Debug summary', {
       testId,
-      isDbMode,
       dbAnswersCount: Object.keys(dbAnswers || {}).length,
       dbAnswers: dbAnswers,
       correctAnswersCount: Object.keys(correctAnswers).length,
@@ -345,7 +327,7 @@ const ResultPage = () => {
       testDataParts: testData?.parts?.length || 0,
       testData: testData
     });
-  }, [isDbMode, testId, dbAnswers, correctAnswers, userAnswers, testData]);
+  }, [testId, dbAnswers, correctAnswers, userAnswers, testData]);
 
   // Get question IDs from multiple sources to ensure we don't miss any
   const correctAnswerIds = Object.keys(correctAnswers || {}).map(Number);
