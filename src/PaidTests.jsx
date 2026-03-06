@@ -1,15 +1,6 @@
 import React from 'react';
 import './TestLandingPage.css';
 import { BUNDLE_ID, BUNDLE_PRICING } from './config/pricing';
-import test2 from './data/test2.jsx';
-import test3 from './data/test3.jsx';
-import test4 from './data/test4.jsx';
-import test5 from './data/test5.jsx';
-import test6 from './data/test6.jsx';
-import test7 from './data/test7.jsx';
-import test8 from './data/test8.jsx';
-import test9 from './data/test9.jsx';
-import { FaHeadphones, FaPenNib } from 'react-icons/fa';
 import { useAuth } from './AuthContext';
 import ConfirmationModal from './components/ConfirmationModal';
 
@@ -21,16 +12,8 @@ function PaidTests({ purchasedTests = [], loading = false, navigate, hasAccess }
         .slice()
         .sort((a, b) => (parseInt(a.replace('test', '')) || 0) - (parseInt(b.replace('test', '')) || 0));
 
-    const TEST_META = { test2, test3, test4, test5, test6, test7, test8, test9 };
-    const getSectionLabel = (testId) => {
-        const data = TEST_META[testId];
-        const hasAudio = !!data?.parts?.some?.(p => !!p.audioSrc);
-        return hasAudio ? 'Listening' : 'Writing';
-    };
-
     const renderPaidCard = (testId) => {
         const num = parseInt(testId.replace('test', '')) || testId;
-        const label = getSectionLabel(testId);
         const isUnlocked = purchasedTests?.some?.(t => t.testId === testId);
         const handleStart = async () => {
             if (!user) {
@@ -43,12 +26,6 @@ function PaidTests({ purchasedTests = [], loading = false, navigate, hasAccess }
         };
         return (
             <div key={`paid-card-${testId}`} className="test-box">
-                <div className="card-meta">
-                    <span className="meta-badge" style={{ marginRight: '8px' }}>
-                        {label === 'Listening' ? <FaHeadphones className="section-icon" /> : <FaPenNib className="section-icon" />}
-                    </span>
-                    <span>{label}</span>
-                </div>
                 <h3>Test {num}</h3>
                 <p>Premium test. Included in bundle.</p>
                 <div style={{ margin: '6px 0', fontWeight: 700 }}>

@@ -3,7 +3,7 @@ import React from 'react';
 // Helper: strip HTML tags so we can do plain-text operations (blank detection, splitting)
 const stripHtml = (html) => String(html || '').replace(/<[^>]*>/g, '');
 
-const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId }) => {
+const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId, allAnswers }) => {
   // Info blocks: bold or normal (no bullet point)
   if (question.type === 'info') {
     const kind = question.infoKind || 'normal';
@@ -24,7 +24,8 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
   const hideHeader =
     (question.type === 'written' && hasInlineBlanks) ||
     question.type === 'summarydrag' ||
-    question.type === 'sentencefill';
+    question.type === 'sentencefill' ||
+    question.type === 'headingmatch';
 
   return (
     <div id={`q-${question.id}`} style={{ marginBottom: '25px' }}>
@@ -1372,6 +1373,68 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId })
                 </option>
               ))}
             </select>
+          );
+        })()}
+
+      {/* Heading Match - only show heading bank here; drop zones are in the passage */}
+      {question.type === 'headingmatch' &&
+        (() => {
+          const bank = Array.isArray(question.options)
+            ? question.options.map((t) => String(t ?? '').trim()).filter(Boolean)
+            : [];
+          const subIds = Array.isArray(question.subIds) ? question.subIds : [];
+          // Find which headings are already placed by reading allAnswers for each subId
+          const placedSet = new Set();
+          subIds.forEach((sid) => {
+            const val = allAnswers?.[sid] || '';
+            if (val) placedSet.add(val);
+          });
+          const bankRemaining = bank.filter((w) => !placedSet.has(w));
+
+          return (
+            <div style={{ marginTop: 10 }}>
+              {question.question && (
+                <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: 12, color: '#222' }}>
+                  {question.question}
+                </div>
+              )}
+              <div style={{ fontWeight: 700, marginBottom: 8, fontSize: '14px', color: '#333' }}>
+                List of Headings
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {bankRemaining.map((text, idx) => (
+                  <div
+                    key={`${text}-${idx}`}
+                    draggable
+                    data-dnd="chip"
+                    onDragStart={(e) => {
+                      e.stopPropagation();
+                      e.dataTransfer.setData('text/plain', text);
+                    }}
+                    style={{
+                      padding: '10px 14px',
+                      border: '1px solid #c4cdd5',
+                      borderRadius: 8,
+                      background: '#f8fafc',
+                      cursor: 'grab',
+                      fontSize: '14px',
+                      lineHeight: 1.4,
+                      fontWeight: 600,
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                      transition: 'box-shadow 0.15s ease',
+                    }}
+                    title={text}
+                  >
+                    {text}
+                  </div>
+                ))}
+                {bankRemaining.length === 0 && (
+                  <span style={{ color: '#999', fontStyle: 'italic', fontSize: '13px' }}>
+                    All headings placed
+                  </span>
+                )}
+              </div>
+            </div>
           );
         })()}
     </div>

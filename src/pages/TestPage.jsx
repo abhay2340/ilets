@@ -1,14 +1,4 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import test1 from '../data/test1.jsx';
-import test2 from '../data/test2.jsx';
-import test3 from '../data/test3.jsx';
-import test4 from '../data/test4.jsx';
-import test5 from '../data/test5.jsx';
-import test6 from '../data/test6.jsx';
-import test7 from '../data/test7.jsx';
-import test8 from '../data/test8.jsx';
-import test9 from '../data/test9.jsx';
-import answerKey from '../data/answerkey';
 import QuestionBox from '../components/QuestionBox';
 import QuestionNavigator from '../components/QuestionNavigator';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -20,10 +10,8 @@ import { db, auth } from '../firebaseConfig.jsx';
 // Payment and access control
 import { useAuth } from '../AuthContext';
 import { usePurchases } from '../hooks/usePurchases';
-import { isTestFree } from '../config/pricing';
+import { isTestFree, TEST_PRICING } from '../config/pricing';
 import { FaBan } from 'react-icons/fa';
-
-const TEST_MAP = { test1, test2, test3, test4, test5, test6, test7, test8, test9 };
 
 const TestPage = () => {
   const location = useLocation();
@@ -33,13 +21,10 @@ const TestPage = () => {
 
   const params = new URLSearchParams(location.search);
   const dbId = params.get('dbId');
-  const currentTestId = params.get('testId') || 'test1';
-  const isDbMode = !!dbId;
+  const currentTestId = dbId || params.get('testId') || '';
   const [dbTest, setDbTest] = useState(null);
   const [dbAnswers, setDbAnswers] = useState(null);
-  const testData = isDbMode
-    ? dbTest || { parts: [] }
-    : (TEST_MAP[currentTestId] ?? TEST_MAP['test1']);
+  const testData = dbTest || { parts: [] };
 
   const [accessChecked, setAccessChecked] = useState(false);
   const [hasTestAccess, setHasTestAccess] = useState(false);
@@ -142,16 +127,16 @@ const TestPage = () => {
   };
 
   useEffect(() => {
-    if (!isDbMode) return;
+    if (!currentTestId) return;
     let active = true;
     (async () => {
       try {
-        console.log('🔵 TestPage: Loading test and answers from Firestore...', { dbId, isDbMode });
-        const snap = await getDoc(doc(db, 'tests', dbId));
+        console.log('🔵 TestPage: Loading test and answers from Firestore...', { currentTestId });
+        const snap = await getDoc(doc(db, 'tests', currentTestId));
         if (active && snap.exists()) {
           const testData = snap.data();
           console.log('✅ TestPage: Test loaded from Firestore', {
-            testId: dbId,
+            testId: currentTestId,
             testTitle: testData?.title,
             partsCount: testData?.parts?.length || 0,
             totalQuestions:
@@ -159,14 +144,14 @@ const TestPage = () => {
           });
           setDbTest(testData);
         } else {
-          console.warn('⚠️ TestPage: Test not found in Firestore', { dbId });
+          console.warn('⚠️ TestPage: Test not found in Firestore', { currentTestId });
         }
-        const ans = await getDoc(doc(db, 'answers', dbId));
+        const ans = await getDoc(doc(db, 'answers', currentTestId));
         if (active && ans.exists()) {
           const answerData = ans.data();
           const answersMap = answerData?.answers || {};
           console.log('✅ TestPage: Correct answers loaded from Firestore', {
-            testId: dbId,
+            testId: currentTestId,
             answersCount: Object.keys(answersMap).length,
             answerKeys: Object.keys(answersMap)
               .map(Number)
@@ -175,17 +160,17 @@ const TestPage = () => {
           });
           setDbAnswers(answersMap);
         } else {
-          console.warn('⚠️ TestPage: Answers not found in Firestore', { dbId });
+          console.warn('⚠️ TestPage: Answers not found in Firestore', { currentTestId });
           setDbAnswers({});
         }
       } catch (error) {
-        console.error('❌ TestPage: Error loading from Firestore', { dbId, error });
+        console.error('❌ TestPage: Error loading from Firestore', { currentTestId, error });
       }
     })();
     return () => {
       active = false;
     };
-  }, [isDbMode, dbId]);
+  }, [currentTestId]);
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -307,7 +292,8 @@ const TestPage = () => {
         return;
       }
 
-      if (isDbMode) {
+      // Firestore-managed tests (not in local pricing config) are always accessible
+      if (!TEST_PRICING[currentTestId]) {
         setHasTestAccess(true);
         setAccessChecked(true);
         return;
@@ -354,7 +340,7 @@ const TestPage = () => {
     const timeTaken = TOTAL_DURATION - timeLeftRef.current;
 
     const allQuestions = parts.flatMap((p) => p.questions);
-    const correctAnswers = isDbMode ? dbAnswers || {} : answerKey[currentTestId] || {};
+    const correctAnswers = dbAnswers || {};
     const userAnswers = {};
 
     // Build userAnswers from all answers (not just those in correctAnswers)
@@ -555,7 +541,7 @@ const TestPage = () => {
     if (auth?.currentUser) {
       const resultData = {
         user: auth.currentUser.uid,
-        test: isDbMode ? dbId : currentTestId.toUpperCase(),
+        test: currentTestId,
         correct,
         wrong,
         unanswered,
@@ -565,7 +551,7 @@ const TestPage = () => {
         timeTaken,
         submittedAt: new Date(),
       };
-      const resultId = `${auth.currentUser.uid}_${isDbMode ? dbId : currentTestId}_${Date.now()}`;
+      const resultId = `${auth.currentUser.uid}_${currentTestId}_${Date.now()}`;
       console.log('💾 TestPage: Saving result to Firestore', {
         resultId,
         resultData,
@@ -591,7 +577,7 @@ const TestPage = () => {
     // 👉 Navigate to result page
     const navigationState = {
       userAnswers,
-      testId: isDbMode ? dbId : currentTestId,
+      testId: currentTestId,
       timeTaken,
     };
     console.log('🚀 TestPage: Navigating to results page', {
@@ -1134,10 +1120,105 @@ const TestPage = () => {
             }}
           >
             <h3>{currentPart.title}</h3>
-            <div
-              className="rich-passage-content"
-              dangerouslySetInnerHTML={{ __html: passageToHtml(currentPart.passage) }}
-            />
+            {(() => {
+              const hmQ = currentPart.questions.find((q) => q.type === 'headingmatch');
+              if (hmQ && /_{3,}/.test(currentPart.passage || '')) {
+                const parts = String(currentPart.passage || '').split(/_{3,}/);
+                const subIds = Array.isArray(hmQ.subIds) ? hmQ.subIds : [];
+                return (
+                  <div style={{ whiteSpace: 'normal', lineHeight: 1.5 }}>
+                    {parts.map((chunk, i) => {
+                      if (i === parts.length - 1)
+                        return (
+                          <span
+                            key={`pc-${i}`}
+                            className="rich-passage-content"
+                            dangerouslySetInnerHTML={{ __html: passageToHtml(chunk) }}
+                          />
+                        );
+                      const subId = subIds[i] ?? i + 1;
+                      const placed = answers[subId] || '';
+                      return (
+                        <React.Fragment key={`pc-${i}`}>
+                          <span
+                            className="rich-passage-content"
+                            dangerouslySetInnerHTML={{ __html: passageToHtml(chunk) }}
+                          />
+                          <span
+                            data-dnd="dropzone"
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const w = e.dataTransfer.getData('text/plain');
+                              const opts = Array.isArray(hmQ.options)
+                                ? hmQ.options.map((o) => String(o ?? '').trim())
+                                : [];
+                              if (!opts.includes(w)) return;
+                              // Clear if this heading was placed elsewhere
+                              subIds.forEach((sid) => {
+                                if (sid !== subId && answers[sid] === w) handleSetAnswer(sid, '');
+                              });
+                              handleSetAnswer(subId, w);
+                              markVisited(subId);
+                            }}
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              padding: placed ? '6px 16px' : '6px',
+                              border: placed ? '2px solid #1a8fca' : '2px dashed #1a8fca',
+                              borderRadius: 8,
+                              margin: '4px 0',
+                              background: placed ? '#f0f7ff' : '#fff',
+                              textAlign: 'center',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              boxSizing: 'border-box',
+                            }}
+                          >
+                            {placed ? (
+                              <span
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                              >
+                                <strong style={{ color: '#1e3a5f', fontSize: '14px' }}>
+                                  {placed}
+                                </strong>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSetAnswer(subId, '');
+                                  }}
+                                  style={{
+                                    background: '#ffecec',
+                                    border: '1px solid #ffd4d4',
+                                    padding: '2px 6px',
+                                    borderRadius: 4,
+                                    cursor: 'pointer',
+                                    fontSize: '11px',
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ) : (
+                              <span style={{ color: '#333', fontWeight: 700, fontSize: '18px' }}>
+                                {subId}
+                              </span>
+                            )}
+                          </span>
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                );
+              }
+              return (
+                <div
+                  className="rich-passage-content"
+                  dangerouslySetInnerHTML={{ __html: passageToHtml(currentPart.passage) }}
+                />
+              );
+            })()}
           </div>
 
           {hasQuestions && (
@@ -1239,6 +1320,7 @@ const TestPage = () => {
                     setAnswer={(val) => handleSetAnswer(q.id, val)}
                     setAnswerForId={(qid, val) => handleSetAnswer(qid, val)}
                     onVisited={(id) => markVisited(id)}
+                    allAnswers={answers}
                   />
                 </div>
               ))}
@@ -1271,10 +1353,104 @@ const TestPage = () => {
             }}
           >
             <h3>{currentPart.title}</h3>
-            <div
-              className="rich-passage-content"
-              dangerouslySetInnerHTML={{ __html: passageToHtml(currentPart.passage) }}
-            />
+            {(() => {
+              const hmQ = currentPart.questions.find((q) => q.type === 'headingmatch');
+              if (hmQ && /_{3,}/.test(currentPart.passage || '')) {
+                const parts = String(currentPart.passage || '').split(/_{3,}/);
+                const subIds = Array.isArray(hmQ.subIds) ? hmQ.subIds : [];
+                return (
+                  <div style={{ whiteSpace: 'normal', lineHeight: 1.5 }}>
+                    {parts.map((chunk, i) => {
+                      if (i === parts.length - 1)
+                        return (
+                          <span
+                            key={`pc-${i}`}
+                            className="rich-passage-content"
+                            dangerouslySetInnerHTML={{ __html: passageToHtml(chunk) }}
+                          />
+                        );
+                      const subId = subIds[i] ?? i + 1;
+                      const placed = answers[subId] || '';
+                      return (
+                        <React.Fragment key={`pc-${i}`}>
+                          <span
+                            className="rich-passage-content"
+                            dangerouslySetInnerHTML={{ __html: passageToHtml(chunk) }}
+                          />
+                          <span
+                            data-dnd="dropzone"
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              const w = e.dataTransfer.getData('text/plain');
+                              const opts = Array.isArray(hmQ.options)
+                                ? hmQ.options.map((o) => String(o ?? '').trim())
+                                : [];
+                              if (!opts.includes(w)) return;
+                              subIds.forEach((sid) => {
+                                if (sid !== subId && answers[sid] === w) handleSetAnswer(sid, '');
+                              });
+                              handleSetAnswer(subId, w);
+                              markVisited(subId);
+                            }}
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              padding: placed ? '6px 16px' : '6px',
+                              border: placed ? '2px solid #1a8fca' : '2px dashed #1a8fca',
+                              borderRadius: 8,
+                              margin: '4px 0',
+                              background: placed ? '#f0f7ff' : '#fff',
+                              textAlign: 'center',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              boxSizing: 'border-box',
+                            }}
+                          >
+                            {placed ? (
+                              <span
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                              >
+                                <strong style={{ color: '#1e3a5f', fontSize: '14px' }}>
+                                  {placed}
+                                </strong>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSetAnswer(subId, '');
+                                  }}
+                                  style={{
+                                    background: '#ffecec',
+                                    border: '1px solid #ffd4d4',
+                                    padding: '2px 6px',
+                                    borderRadius: 4,
+                                    cursor: 'pointer',
+                                    fontSize: '11px',
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ) : (
+                              <span style={{ color: '#333', fontWeight: 700, fontSize: '18px' }}>
+                                {subId}
+                              </span>
+                            )}
+                          </span>
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                );
+              }
+              return (
+                <div
+                  className="rich-passage-content"
+                  dangerouslySetInnerHTML={{ __html: passageToHtml(currentPart.passage) }}
+                />
+              );
+            })()}
           </div>
 
           {/* Vertical splitter */}
@@ -1441,6 +1617,7 @@ const TestPage = () => {
                     setAnswer={(val) => handleSetAnswer(q.id, val)}
                     setAnswerForId={(qid, val) => handleSetAnswer(qid, val)}
                     onVisited={(id) => markVisited(id)}
+                    allAnswers={answers}
                   />
                 </div>
               ))}
