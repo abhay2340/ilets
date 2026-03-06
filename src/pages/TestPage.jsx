@@ -17,7 +17,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../firebaseConfig.jsx';
 
-
 // Payment and access control
 import { useAuth } from '../AuthContext';
 import { usePurchases } from '../hooks/usePurchases';
@@ -38,17 +37,28 @@ const TestPage = () => {
   const isDbMode = !!dbId;
   const [dbTest, setDbTest] = useState(null);
   const [dbAnswers, setDbAnswers] = useState(null);
-  const testData = isDbMode ? (dbTest || { parts: [] }) : (TEST_MAP[currentTestId] ?? TEST_MAP['test1']);
+  const testData = isDbMode
+    ? dbTest || { parts: [] }
+    : (TEST_MAP[currentTestId] ?? TEST_MAP['test1']);
 
   const [accessChecked, setAccessChecked] = useState(false);
   const [hasTestAccess, setHasTestAccess] = useState(false);
 
-  console.log(testData);
+  // Helper: if passage is old plain text (no HTML tags), convert newlines to <br>
+  const passageToHtml = (text) => {
+    if (!text) return '';
+    // If text contains any HTML tags, it's from the Quill editor — use as-is
+    if (/<[a-z][\s\S]*>/i.test(text)) return text;
+    // Otherwise it's old plain text — escape HTML entities and convert newlines
+    const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return escaped.replace(/\n{2,}/g, '<br>').replace(/\n/g, ' ');
+  };
+
   // Ensure we always work with a safe parts array
   const parts = testData?.parts ?? [];
   // pick the first available audio from any part
   const persistentAudioSrc = useMemo(() => {
-    const withAudio = parts.find(p => p.audioSrc);
+    const withAudio = parts.find((p) => p.audioSrc);
     return withAudio ? withAudio.audioSrc : null;
   }, [parts]);
   const isListening = !!persistentAudioSrc;
@@ -91,10 +101,10 @@ const TestPage = () => {
     if (!questions || questions.length === 0) return '';
 
     const numbers = [];
-    questions.forEach(q => {
+    questions.forEach((q) => {
       // If question has subIds, use those
       if (Array.isArray(q.subIds) && q.subIds.length > 0) {
-        q.subIds.forEach(id => {
+        q.subIds.forEach((id) => {
           if (typeof id === 'number') numbers.push(id);
         });
       } else {
@@ -144,7 +154,8 @@ const TestPage = () => {
             testId: dbId,
             testTitle: testData?.title,
             partsCount: testData?.parts?.length || 0,
-            totalQuestions: testData?.parts?.reduce((sum, p) => sum + (p.questions?.length || 0), 0) || 0
+            totalQuestions:
+              testData?.parts?.reduce((sum, p) => sum + (p.questions?.length || 0), 0) || 0,
           });
           setDbTest(testData);
         } else {
@@ -157,8 +168,10 @@ const TestPage = () => {
           console.log('✅ TestPage: Correct answers loaded from Firestore', {
             testId: dbId,
             answersCount: Object.keys(answersMap).length,
-            answerKeys: Object.keys(answersMap).map(Number).sort((a, b) => a - b),
-            answers: answersMap
+            answerKeys: Object.keys(answersMap)
+              .map(Number)
+              .sort((a, b) => a - b),
+            answers: answersMap,
           });
           setDbAnswers(answersMap);
         } else {
@@ -169,7 +182,9 @@ const TestPage = () => {
         console.error('❌ TestPage: Error loading from Firestore', { dbId, error });
       }
     })();
-    return () => { active = false };
+    return () => {
+      active = false;
+    };
   }, [isDbMode, dbId]);
 
   useEffect(() => {
@@ -205,7 +220,7 @@ const TestPage = () => {
     if (!audioRef.current) return;
     try {
       audioRef.current.currentTime = 0;
-      await audioRef.current.play();   // must be called from a user click
+      await audioRef.current.play(); // must be called from a user click
       setListeningStarted(true);
     } catch (e) {
       console.error('Audio play blocked:', e);
@@ -222,12 +237,12 @@ const TestPage = () => {
     try {
       el.setAttribute('controlsList', 'nodownload noplaybackrate noremoteplayback');
       el.disablePictureInPicture = true;
-    } catch { }
+    } catch {}
 
     const onPause = () => {
       // If user pauses before it finishes, instantly resume
       if (!el.ended && listeningStarted) {
-        setTimeout(() => el.play().catch(() => { }), 0);
+        setTimeout(() => el.play().catch(() => {}), 0);
       }
     };
 
@@ -248,9 +263,12 @@ const TestPage = () => {
     // Also override OS/media‑key actions (Chrome/Edge/Android/iOS Safari)
     if ('mediaSession' in navigator) {
       try {
-        navigator.mediaSession.setActionHandler('pause', () => el.play().catch(() => { }));
-        navigator.mediaSession.setActionHandler('stop', () => el.play().catch(() => { }));
-        navigator.mediaSession.setActionHandler('seekforward', () => (el.currentTime = lastTimeRef.current));
+        navigator.mediaSession.setActionHandler('pause', () => el.play().catch(() => {}));
+        navigator.mediaSession.setActionHandler('stop', () => el.play().catch(() => {}));
+        navigator.mediaSession.setActionHandler(
+          'seekforward',
+          () => (el.currentTime = lastTimeRef.current)
+        );
         navigator.mediaSession.setActionHandler('seekto', (e) => {
           if (e.seekTime > lastTimeRef.current) el.currentTime = lastTimeRef.current;
         });
@@ -258,9 +276,9 @@ const TestPage = () => {
           // optional: disallow going back too (comment out if you want to allow back)
           el.currentTime = Math.max(0, lastTimeRef.current);
         });
-        navigator.mediaSession.setActionHandler('previoustrack', () => { });
-        navigator.mediaSession.setActionHandler('nexttrack', () => { });
-      } catch { }
+        navigator.mediaSession.setActionHandler('previoustrack', () => {});
+        navigator.mediaSession.setActionHandler('nexttrack', () => {});
+      } catch {}
     }
 
     // block context menu on the audio (no tricks)
@@ -276,7 +294,6 @@ const TestPage = () => {
   }, [listeningStarted, persistentAudioSrc]);
 
   // --- Listening lock: once started, user can't pause/seek ---
-
 
   const currentPart = parts[partIndex] ?? parts[0] ?? { title: '', passage: '', questions: [] };
   const hasQuestions = Array.isArray(currentPart.questions) && currentPart.questions.length > 0;
@@ -325,15 +342,19 @@ const TestPage = () => {
     setSubmitted(true);
     clearInterval(timerRef.current);
     // clear persisted session so it doesn't resume after submission
-    try { if (sessionKeyRef.current) localStorage.removeItem(sessionKeyRef.current); } catch (_) { }
+    try {
+      if (sessionKeyRef.current) localStorage.removeItem(sessionKeyRef.current);
+    } catch (_) {}
     // stop/pause audio when the test ends (optional)
-    try { audioRef.current?.pause(); } catch (_) { }
+    try {
+      audioRef.current?.pause();
+    } catch (_) {}
 
     // compute time taken from the latest ref value
     const timeTaken = TOTAL_DURATION - timeLeftRef.current;
 
-    const allQuestions = parts.flatMap(p => p.questions);
-    const correctAnswers = isDbMode ? (dbAnswers || {}) : (answerKey[currentTestId] || {});
+    const allQuestions = parts.flatMap((p) => p.questions);
+    const correctAnswers = isDbMode ? dbAnswers || {} : answerKey[currentTestId] || {};
     const userAnswers = {};
 
     // Build userAnswers from all answers (not just those in correctAnswers)
@@ -356,7 +377,9 @@ const TestPage = () => {
     console.log('📝 TestPage: User answers collected', {
       userAnswersCount: Object.keys(userAnswers).length,
       userAnswers: userAnswers,
-      userAnswerIds: Object.keys(userAnswers).map(Number).sort((a, b) => a - b)
+      userAnswerIds: Object.keys(userAnswers)
+        .map(Number)
+        .sort((a, b) => a - b),
     });
 
     // Build quick lookup for question types (needed for multiselect partial scoring)
@@ -385,14 +408,17 @@ const TestPage = () => {
 
     console.log('📊 TestPage: Starting scoring (marks‑based)...', {
       questionIds: qIds,
-      correctAnswersKeys: Object.keys(correctAnswers).map(Number).sort((a, b) => a - b)
+      correctAnswersKeys: Object.keys(correctAnswers)
+        .map(Number)
+        .sort((a, b) => a - b),
     });
 
     const scoringDetails = [];
-    qIds.forEach(id => {
+    qIds.forEach((id) => {
       const userAnsRaw = userAnswers[id] ?? '';
       const keyAnsRaw = correctAnswers[id] ?? '';
-      const userAns = typeof userAnsRaw === 'string' ? userAnsRaw.trim() : String(userAnsRaw).trim();
+      const userAns =
+        typeof userAnsRaw === 'string' ? userAnsRaw.trim() : String(userAnsRaw).trim();
       const keyAns = typeof keyAnsRaw === 'string' ? keyAnsRaw.trim() : String(keyAnsRaw).trim();
 
       const meta = questionMetaById[id] || {};
@@ -401,7 +427,10 @@ const TestPage = () => {
       // --- Multi‑select (checkboxes, multiple correct) → partial marks per correct option ---
       if (qType === 'multiselect') {
         const correctOptions = keyAns
-          ? keyAns.split(',').map(s => s.trim()).filter(Boolean)
+          ? keyAns
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
           : [];
         const maxMarks = correctOptions.length || 0;
         totalMarks += maxMarks;
@@ -416,28 +445,28 @@ const TestPage = () => {
             marksAwarded: 0,
             maxMarks,
             userAnswer: userAns,
-            correctAnswer: keyAns
+            correctAnswer: keyAns,
           });
           return;
         }
 
         const userOptions = userAns
-          ? userAns.split(',').map(s => s.trim()).filter(Boolean)
+          ? userAns
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
           : [];
 
         const correctSet = new Set(correctOptions);
         let awarded = 0;
-        userOptions.forEach(opt => {
+        userOptions.forEach((opt) => {
           if (correctSet.has(opt)) awarded += 1;
         });
 
         if (awarded > maxMarks) awarded = maxMarks;
         gainedMarks += awarded;
 
-        const status =
-          awarded === 0
-            ? 'wrong'
-            : (awarded === maxMarks ? 'correct' : 'partial');
+        const status = awarded === 0 ? 'wrong' : awarded === maxMarks ? 'correct' : 'partial';
 
         scoringDetails.push({
           id,
@@ -449,8 +478,8 @@ const TestPage = () => {
           correctAnswer: keyAns,
           details: {
             correctOptions,
-            userOptions
-          }
+            userOptions,
+          },
         });
         return;
       }
@@ -468,12 +497,13 @@ const TestPage = () => {
           marksAwarded: 0,
           maxMarks: questionMarks,
           userAnswer: userAns,
-          correctAnswer: keyAns
+          correctAnswer: keyAns,
         });
         return;
       }
 
-      const norm = s => s.toUpperCase().replace(/\s+/g, '').split(',').filter(Boolean).sort().join(',');
+      const norm = (s) =>
+        s.toUpperCase().replace(/\s+/g, '').split(',').filter(Boolean).sort().join(',');
       const normalizedUser = norm(userAns);
       const normalizedKey = norm(keyAns);
       const isMatch = normalizedUser === normalizedKey;
@@ -488,7 +518,7 @@ const TestPage = () => {
           maxMarks: questionMarks,
           userAnswer: userAns,
           correctAnswer: keyAns,
-          normalized: { user: normalizedUser, key: normalizedKey }
+          normalized: { user: normalizedUser, key: normalizedKey },
         });
       } else {
         scoringDetails.push({
@@ -499,13 +529,14 @@ const TestPage = () => {
           maxMarks: questionMarks,
           userAnswer: userAns,
           correctAnswer: keyAns,
-          normalized: { user: normalizedUser, key: normalizedKey }
+          normalized: { user: normalizedUser, key: normalizedKey },
         });
       }
     });
 
     const correct = gainedMarks;
-    const total = totalMarks || (qIds.length || allQuestions.filter(q => typeof q.id === 'number').length);
+    const total =
+      totalMarks || qIds.length || allQuestions.filter((q) => typeof q.id === 'number').length;
     const unanswered = unansweredMarks;
     const wrong = Math.max(total - correct - unanswered, 0);
     const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
@@ -517,7 +548,7 @@ const TestPage = () => {
       totalMarks: total,
       accuracy,
       timeTaken,
-      scoringDetails
+      scoringDetails,
     });
 
     // 🔥 Save to Firestore
@@ -532,12 +563,12 @@ const TestPage = () => {
         score: correct,
         accuracy,
         timeTaken,
-        submittedAt: new Date()
+        submittedAt: new Date(),
       };
       const resultId = `${auth.currentUser.uid}_${isDbMode ? dbId : currentTestId}_${Date.now()}`;
       console.log('💾 TestPage: Saving result to Firestore', {
         resultId,
-        resultData
+        resultData,
       });
       try {
         await setDoc(doc(db, 'results', resultId), resultData);
@@ -555,24 +586,23 @@ const TestPage = () => {
       if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
         document.webkitExitFullscreen();
       }
-    } catch (_) { }
+    } catch (_) {}
 
     // 👉 Navigate to result page
     const navigationState = {
       userAnswers,
       testId: isDbMode ? dbId : currentTestId,
-      timeTaken
+      timeTaken,
     };
     console.log('🚀 TestPage: Navigating to results page', {
       navigationState,
       userAnswersCount: Object.keys(userAnswers).length,
-      userAnswers: userAnswers
+      userAnswers: userAnswers,
     });
     navigate('/results', {
       state: navigationState,
-      replace: true
+      replace: true,
     });
-
   };
 
   // Initialize or resume timer session (disable refresh reset)
@@ -584,13 +614,19 @@ const TestPage = () => {
     sessionKeyRef.current = key;
 
     let saved = null;
-    try { saved = JSON.parse(localStorage.getItem(key) || 'null'); } catch (_) { saved = null; }
+    try {
+      saved = JSON.parse(localStorage.getItem(key) || 'null');
+    } catch (_) {
+      saved = null;
+    }
 
     let deadline = saved?.deadline;
     if (!deadline) {
       // create a new deadline (seconds -> ms)
       deadline = Date.now() + TOTAL_DURATION * 1000;
-      try { localStorage.setItem(key, JSON.stringify({ deadline })); } catch (_) { }
+      try {
+        localStorage.setItem(key, JSON.stringify({ deadline }));
+      } catch (_) {}
     }
 
     deadlineRef.current = deadline;
@@ -618,7 +654,7 @@ const TestPage = () => {
       try {
         const prev = JSON.parse(localStorage.getItem(key) || '{}');
         localStorage.setItem(key, JSON.stringify({ ...prev, deadline: newDeadline }));
-      } catch (_) { }
+      } catch (_) {}
     }
   }, [currentTestId, hasTestAccess]);
 
@@ -647,13 +683,16 @@ const TestPage = () => {
     if (!key) return;
     try {
       const prev = JSON.parse(localStorage.getItem(key) || '{}');
-      localStorage.setItem(key, JSON.stringify({
-        ...prev,
-        deadline: deadlineRef.current,
-        answers,
-        partIndex,
-      }));
-    } catch (_) { }
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          ...prev,
+          deadline: deadlineRef.current,
+          answers,
+          partIndex,
+        })
+      );
+    } catch (_) {}
   }, [answers, partIndex]);
 
   // Detect tab/window switches and transiently warn the user (on return)
@@ -714,7 +753,13 @@ const TestPage = () => {
   // Fullscreen enforcement
   useEffect(() => {
     if (!hasTestAccess) return;
-    const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+    const isFs = () =>
+      !!(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
     const checkFs = () => {
       if (fullscreenRequiredRef.current) setNeedsFullscreen(!isFs());
     };
@@ -748,15 +793,18 @@ const TestPage = () => {
     const interval = setInterval(() => {
       try {
         const prev = JSON.parse(localStorage.getItem(key) || '{}');
-        localStorage.setItem(key, JSON.stringify({
-          ...prev,
-          deadline: deadlineRef.current,
-          answers,
-          partIndex,
-          timeLeft: timeLeftRef.current,
-          savedAt: Date.now(),
-        }));
-      } catch (_) { }
+        localStorage.setItem(
+          key,
+          JSON.stringify({
+            ...prev,
+            deadline: deadlineRef.current,
+            answers,
+            partIndex,
+            timeLeft: timeLeftRef.current,
+            savedAt: Date.now(),
+          })
+        );
+      } catch (_) {}
     }, 5000);
     return () => clearInterval(interval);
   }, [answers, partIndex, hasTestAccess]);
@@ -764,22 +812,26 @@ const TestPage = () => {
   // Show loading while checking access
   if (!accessChecked) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        flexDirection: 'column',
-        gap: '20px'
-      }}>
-        <div style={{
-          width: '50px',
-          height: '50px',
-          border: '4px solid #f3f3f3',
-          borderTop: '4px solid #b30000',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }}></div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          flexDirection: 'column',
+          gap: '20px',
+        }}
+      >
+        <div
+          style={{
+            width: '50px',
+            height: '50px',
+            border: '4px solid #f3f3f3',
+            borderTop: '4px solid #b30000',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+          }}
+        ></div>
         <p>Verifying access...</p>
         <style>{`
           @keyframes spin {
@@ -794,16 +846,18 @@ const TestPage = () => {
   // Show access denied if user doesn't have access
   if (!hasTestAccess) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        flexDirection: 'column',
-        gap: '20px',
-        textAlign: 'center',
-        padding: '20px'
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+          flexDirection: 'column',
+          gap: '20px',
+          textAlign: 'center',
+          padding: '20px',
+        }}
+      >
         <h2>Access Required</h2>
         <p>You need to purchase this test to access it.</p>
         <button
@@ -815,7 +869,7 @@ const TestPage = () => {
             padding: '12px 24px',
             borderRadius: '8px',
             cursor: 'pointer',
-            fontSize: '16px'
+            fontSize: '16px',
           }}
         >
           Purchase Test
@@ -825,17 +879,27 @@ const TestPage = () => {
   }
 
   const handleSetAnswer = (id, val) => {
-    setAnswers(prev => ({ ...prev, [id]: val }));
-    setVisited(prev => ({ ...prev, [id]: true }));
+    setAnswers((prev) => ({ ...prev, [id]: val }));
+    setVisited((prev) => ({ ...prev, [id]: true }));
   };
 
   const markVisited = (id) => {
     if (typeof id !== 'number') return;
-    setVisited(prev => (prev[id] ? prev : { ...prev, [id]: true }));
+    setVisited((prev) => (prev[id] ? prev : { ...prev, [id]: true }));
   };
 
   return (
-    <div style={{ padding: '30px', marginTop: '-20px', maxHeight: '100vh', paddingBottom: '0px' }}>
+    <div
+      style={{
+        padding: '30px',
+        marginTop: '-20px',
+        height: '100vh',
+        paddingBottom: '0px',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
       {/* Fullscreen required overlay */}
       {needsFullscreen && (
         <div
@@ -849,13 +913,15 @@ const TestPage = () => {
             justifyContent: 'center',
             zIndex: 10001,
             textAlign: 'center',
-            padding: 24
+            padding: 24,
           }}
           onContextMenu={(e) => e.preventDefault()}
         >
           <div style={{ maxWidth: 560 }}>
             <h2 style={{ marginBottom: 10 }}>Enter Fullscreen to Continue</h2>
-            <p style={{ marginBottom: 18 }}>This test requires fullscreen mode to prevent distractions.</p>
+            <p style={{ marginBottom: 18 }}>
+              This test requires fullscreen mode to prevent distractions.
+            </p>
             <button
               onClick={requestFullscreen}
               style={{
@@ -865,7 +931,7 @@ const TestPage = () => {
                 padding: '12px 24px',
                 borderRadius: 8,
                 fontWeight: 800,
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
               Enter Fullscreen
@@ -877,8 +943,17 @@ const TestPage = () => {
       {/* Tabs + Timer */}
       {/* Tabs + Timer */}
       {/* Timer only (tabs moved to bottom strip) */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '15px' }}>
-        <div style={{ fontWeight: 'bold', fontSize: '18px', color: timeLeft <= 300 ? 'red' : 'black' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          marginBottom: '15px',
+        }}
+      >
+        <div
+          style={{ fontWeight: 'bold', fontSize: '18px', color: timeLeft <= 300 ? 'red' : 'black' }}
+        >
           Time Remaining: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
         </div>
       </div>
@@ -894,7 +969,7 @@ const TestPage = () => {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 10000,
-            padding: 20
+            padding: 20,
           }}
         >
           <div
@@ -906,15 +981,19 @@ const TestPage = () => {
               boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
               fontWeight: 800,
               textAlign: 'center',
-              maxWidth: 520
+              maxWidth: 520,
             }}
           >
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
               <FaBan size={36} color="#b30000" />
               <div style={{ fontSize: 18 }}>Tab/Window Switch Detected</div>
             </div>
-            <div style={{ fontSize: 14, marginTop: 6, fontWeight: 600 }}>Switching tabs or windows is not allowed during the test.</div>
-            <div style={{ fontSize: 13, marginTop: 2 }}>Please return and stay on this page to continue.</div>
+            <div style={{ fontSize: 14, marginTop: 6, fontWeight: 600 }}>
+              Switching tabs or windows is not allowed during the test.
+            </div>
+            <div style={{ fontSize: 13, marginTop: 2 }}>
+              Please return and stay on this page to continue.
+            </div>
           </div>
         </div>
       )}
@@ -934,7 +1013,7 @@ const TestPage = () => {
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
-            userSelect: 'none'
+            userSelect: 'none',
           }}
           onContextMenu={(e) => e.preventDefault()}
         >
@@ -955,7 +1034,7 @@ const TestPage = () => {
                 zIndex: 9999,
                 flexDirection: 'column',
                 textAlign: 'center',
-                padding: '20px'
+                padding: '20px',
               }}
             >
               <h1 style={{ fontSize: '28px', marginBottom: '20px' }}>Listening Test</h1>
@@ -981,7 +1060,7 @@ const TestPage = () => {
                   border: 'none',
                   borderRadius: '6px',
                   fontWeight: 'bold',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
                 }}
               >
                 Start Listening
@@ -989,20 +1068,22 @@ const TestPage = () => {
             </div>
           )}
 
-
           {/* Hidden, locked audio (NO controls) */}
           <audio
             ref={audioRef}
             src={persistentAudioSrc || undefined}
             preload="auto"
             onLoadedData={() => setAudioError(null)}
-            onError={() => setAudioError(`Audio failed to load. Please verify the file exists at "${persistentAudioSrc}" and the path is correct (avoid typos and ensure it is inside public/audio).`)}
-          // no controls -> no play/pause UI
-          // we also block pause/seek via events + MediaSession
+            onError={() =>
+              setAudioError(
+                `Audio failed to load. Please verify the file exists at "${persistentAudioSrc}" and the path is correct (avoid typos and ensure it is inside public/audio).`
+              )
+            }
+            // no controls -> no play/pause UI
+            // we also block pause/seek via events + MediaSession
           />
         </div>
       )}
-
 
       {/* Persistent audio player for the entire test (if any) */}
       {/* {persistentAudioSrc && (
@@ -1026,10 +1107,19 @@ const TestPage = () => {
   </div>
 )} */}
 
-
       {/* Content layout: Listening -> single column; Writing -> split */}
       {isListening ? (
-        <div className="test-content-container" style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '80vh' }} onContextMenu={(e) => e.preventDefault()}>
+        <div
+          className="test-content-container"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            width: '100%',
+            flex: '1 1 0',
+            minHeight: 0,
+          }}
+          onContextMenu={(e) => e.preventDefault()}
+        >
           {/* Single column: Passage followed by Questions */}
           <div
             style={{
@@ -1040,11 +1130,14 @@ const TestPage = () => {
               marginBottom: '12px',
               maxHeight: '35vh',
               overflowY: 'auto',
-              flex: '0 0 auto'
+              flex: '0 0 auto',
             }}
           >
             <h3>{currentPart.title}</h3>
-            <p style={{ whiteSpace: 'pre-wrap' }}>{currentPart.passage}</p>
+            <div
+              className="rich-passage-content"
+              dangerouslySetInnerHTML={{ __html: passageToHtml(currentPart.passage) }}
+            />
           </div>
 
           {hasQuestions && (
@@ -1056,32 +1149,65 @@ const TestPage = () => {
                 border: '1px solid #ddd',
                 overflowY: 'auto',
                 flex: '1 1 0',
-                minHeight: 0
+                minHeight: 0,
               }}
               onCopy={(e) => e.preventDefault()}
               onCut={(e) => e.preventDefault()}
               onPaste={(e) => e.preventDefault()}
             >
               {/* Legend at top of questions */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                  marginBottom: 8,
+                }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#e8f5e9', border: '1px solid #2e7d32', display: 'inline-block' }}></span>
+                  <span
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      backgroundColor: '#e8f5e9',
+                      border: '1px solid #2e7d32',
+                      display: 'inline-block',
+                    }}
+                  ></span>
                   <span style={{ fontSize: 12, color: '#555' }}>Attempted</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#e0f2fe', border: '1px solid #0284c7', display: 'inline-block' }}></span>
+                  <span
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      backgroundColor: '#e0f2fe',
+                      border: '1px solid #0284c7',
+                      display: 'inline-block',
+                    }}
+                  ></span>
                   <span style={{ fontSize: 12, color: '#555' }}>Visited</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#eee', border: '1px solid #999', display: 'inline-block' }}></span>
+                  <span
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      backgroundColor: '#eee',
+                      border: '1px solid #999',
+                      display: 'inline-block',
+                    }}
+                  ></span>
                   <span style={{ fontSize: 12, color: '#555' }}>Unvisited</span>
                 </div>
               </div>
 
               <p>
-                <strong>
-                  Questions {getQuestionRange(currentPart.questions)}
-                </strong>
+                <strong>Questions {getQuestionRange(currentPart.questions)}</strong>
               </p>
               {currentPart.questions.map((q) => (
                 <div
@@ -1089,7 +1215,13 @@ const TestPage = () => {
                   style={{ userSelect: 'none' }}
                   onMouseDown={(e) => {
                     const tag = (e.target?.tagName || '').toLowerCase();
-                    if (tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'option') return;
+                    if (
+                      tag === 'input' ||
+                      tag === 'textarea' ||
+                      tag === 'select' ||
+                      tag === 'option'
+                    )
+                      return;
                     // Allow DnD elements to start drags
                     if (e.target?.closest && e.target.closest('[data-dnd]')) return;
                     e.preventDefault();
@@ -1114,20 +1246,35 @@ const TestPage = () => {
           )}
         </div>
       ) : (
-        <div className="test-content-container" style={{ display: 'flex', width: '100%', height: '80vh', userSelect: isResizingRef.current ? 'none' : 'auto' }} onContextMenu={(e) => e.preventDefault()}>
+        <div
+          className="test-content-container"
+          style={{
+            display: 'flex',
+            width: '100%',
+            flex: '1 1 0',
+            minHeight: 0,
+            userSelect: isResizingRef.current ? 'none' : 'auto',
+          }}
+          onContextMenu={(e) => e.preventDefault()}
+        >
           {/* Passage panel */}
           <div
             style={{
-              flexBasis: `${passageWidth}%`,
+              flex: `0 0 ${passageWidth}%`,
+              maxWidth: `${passageWidth}%`,
               background: '#f9f9f9',
               padding: '15px',
               borderRadius: '8px',
-              overflowY: 'scroll',
-              border: '1px solid #ddd'
+              overflowY: 'auto',
+              border: '1px solid #ddd',
+              minHeight: 0,
             }}
           >
             <h3>{currentPart.title}</h3>
-            <p style={{ whiteSpace: 'pre-wrap' }}>{currentPart.passage}</p>
+            <div
+              className="rich-passage-content"
+              dangerouslySetInnerHTML={{ __html: passageToHtml(currentPart.passage) }}
+            />
           </div>
 
           {/* Vertical splitter */}
@@ -1144,7 +1291,7 @@ const TestPage = () => {
               alignItems: 'center',
               justifyContent: 'center',
               transition: 'background-color 0.2s',
-              minHeight: '60px'
+              minHeight: '60px',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = '#bbb';
@@ -1170,7 +1317,7 @@ const TestPage = () => {
                 borderRadius: '50%',
                 background: '#fff',
                 border: '2px solid #999',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
               }}
             >
               <div
@@ -1179,7 +1326,7 @@ const TestPage = () => {
                   height: 0,
                   borderTop: '4px solid transparent',
                   borderBottom: '4px solid transparent',
-                  borderRight: '4px solid #555'
+                  borderRight: '4px solid #555',
                 }}
               />
               <div
@@ -1188,7 +1335,7 @@ const TestPage = () => {
                   height: 0,
                   borderTop: '4px solid transparent',
                   borderBottom: '4px solid transparent',
-                  borderLeft: '4px solid #555'
+                  borderLeft: '4px solid #555',
                 }}
               />
             </div>
@@ -1198,37 +1345,72 @@ const TestPage = () => {
           {hasQuestions && (
             <div
               style={{
-                flexGrow: 1,
+                flex: '1 1 0',
+                minWidth: 0,
+                minHeight: 0,
                 background: '#ffffff',
                 padding: '15px',
                 borderRadius: '8px',
-                overflowY: 'scroll',
-                border: '1px solid #ddd'
+                overflowY: 'auto',
+                border: '1px solid #ddd',
               }}
               onCopy={(e) => e.preventDefault()}
               onCut={(e) => e.preventDefault()}
               onPaste={(e) => e.preventDefault()}
             >
               {/* Legend at top of questions */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                  marginBottom: 8,
+                }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#e8f5e9', border: '1px solid #2e7d32', display: 'inline-block' }}></span>
+                  <span
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      backgroundColor: '#e8f5e9',
+                      border: '1px solid #2e7d32',
+                      display: 'inline-block',
+                    }}
+                  ></span>
                   <span style={{ fontSize: 12, color: '#555' }}>Attempted</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#e0f2fe', border: '1px solid #0284c7', display: 'inline-block' }}></span>
+                  <span
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      backgroundColor: '#e0f2fe',
+                      border: '1px solid #0284c7',
+                      display: 'inline-block',
+                    }}
+                  ></span>
                   <span style={{ fontSize: 12, color: '#555' }}>Visited</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: '#eee', border: '1px solid #999', display: 'inline-block' }}></span>
+                  <span
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      backgroundColor: '#eee',
+                      border: '1px solid #999',
+                      display: 'inline-block',
+                    }}
+                  ></span>
                   <span style={{ fontSize: 12, color: '#555' }}>Unvisited</span>
                 </div>
               </div>
 
               <p>
-                <strong>
-                  Questions {getQuestionRange(currentPart.questions)}
-                </strong>
+                <strong>Questions {getQuestionRange(currentPart.questions)}</strong>
               </p>
               {currentPart.questions.map((q) => (
                 <div
@@ -1236,7 +1418,13 @@ const TestPage = () => {
                   style={{ userSelect: 'none' }}
                   onMouseDown={(e) => {
                     const tag = (e.target?.tagName || '').toLowerCase();
-                    if (tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'option') return; // allow editing/selection inside inputs and selects
+                    if (
+                      tag === 'input' ||
+                      tag === 'textarea' ||
+                      tag === 'select' ||
+                      tag === 'option'
+                    )
+                      return; // allow editing/selection inside inputs and selects
                     // Allow DnD elements to start drags
                     if (e.target?.closest && e.target.closest('[data-dnd]')) return;
                     e.preventDefault();
@@ -1269,9 +1457,10 @@ const TestPage = () => {
           alignItems: 'center',
           gap: 12,
           flexWrap: 'wrap',
-          marginTop: 16,
+          flex: '0 0 auto',
           borderTop: '1px solid #eee',
-          paddingTop: 12
+          paddingTop: 12,
+          paddingBottom: 12,
         }}
       >
         {parts.map((p, i) => (
@@ -1292,7 +1481,7 @@ const TestPage = () => {
                 color: i === partIndex ? '#fff' : '#333',
                 fontWeight: 700,
                 cursor: 'pointer',
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
               }}
             >
               Part {i + 1}
@@ -1324,7 +1513,7 @@ const TestPage = () => {
               border: 'none',
               borderRadius: '6px',
               fontWeight: 'bold',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             Submit Test
@@ -1343,7 +1532,7 @@ const TestPage = () => {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 10002,
-            padding: 20
+            padding: 20,
           }}
           onContextMenu={(e) => e.preventDefault()}
         >
@@ -1354,11 +1543,13 @@ const TestPage = () => {
               borderRadius: 10,
               minWidth: 320,
               maxWidth: '90vw',
-              boxShadow: '0 12px 28px rgba(0,0,0,0.25)'
+              boxShadow: '0 12px 28px rgba(0,0,0,0.25)',
             }}
           >
             <h3 style={{ marginTop: 0, marginBottom: 10 }}>Submit Test?</h3>
-            <p style={{ marginTop: 0, marginBottom: 18 }}>You won’t be able to change answers after submitting.</p>
+            <p style={{ marginTop: 0, marginBottom: 18 }}>
+              You won’t be able to change answers after submitting.
+            </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setShowSubmitConfirm(false)}
@@ -1368,7 +1559,7 @@ const TestPage = () => {
                   border: '1px solid #bbb',
                   background: '#f2f2f2',
                   cursor: 'pointer',
-                  fontWeight: 700
+                  fontWeight: 700,
                 }}
               >
                 Cancel
@@ -1382,7 +1573,7 @@ const TestPage = () => {
                   background: '#b30000',
                   color: '#fff',
                   cursor: 'pointer',
-                  fontWeight: 800
+                  fontWeight: 800,
                 }}
               >
                 Yes, Submit
@@ -1391,7 +1582,6 @@ const TestPage = () => {
           </div>
         </div>
       )}
-
     </div>
   );
 };

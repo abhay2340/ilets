@@ -8,6 +8,8 @@ import { useParams } from 'react-router-dom';
 import * as yup from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
 import LoaderOverlay from './components/LoaderOverlay.jsx';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
 const QUESTION_TYPES = [
   { value: 'mcq', label: 'Multiple Choice (TRUE/FALSE/NOT GIVEN or options)' },
@@ -188,7 +190,9 @@ const buildValidationSchema = () =>
                         if (type === 'multiselect') {
                           // require at least one correct option
                           const options = this.parent.options || [];
-                          return Array.isArray(val) && val.length >= 1 && val.length <= options.length;
+                          return (
+                            Array.isArray(val) && val.length >= 1 && val.length <= options.length
+                          );
                         }
                         if (type === 'summarydrag') {
                           const qtext = this.parent.question || '';
@@ -308,316 +312,356 @@ const Admin = () => {
       title: testMeta.title,
       number: testMeta.number,
       type: testMeta.type,
-      parts: values.parts.map((part, partIdx) => ({
-        title: part.title,
-        passage: part.passage,
-        ...(Array.isArray(part.partInstructions) && part.partInstructions.length > 0
-          ? { partInstructions: part.partInstructions }
-          : {}),
-        ...(part.audioSrc ? { audioSrc: part.audioSrc } : {}),
-        questions: part.questions.map((q, qIdx) => {
-          if (q.type === 'matchinggroup') {
-            const rowCount = Array.isArray(q.rows) ? q.rows.length : 0;
-            const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i);
+      parts: values.parts.map((part, partIdx) => {
+        console.log(`📝 SAVING passage[${partIdx}]:`, JSON.stringify(part.passage).slice(0, 300));
+        return {
+          title: part.title,
+          passage: part.passage,
+          ...(Array.isArray(part.partInstructions) && part.partInstructions.length > 0
+            ? { partInstructions: part.partInstructions }
+            : {}),
+          ...(part.audioSrc ? { audioSrc: part.audioSrc } : {}),
+          questions: part.questions.map((q, qIdx) => {
+            if (q.type === 'matchinggroup') {
+              const rowCount = Array.isArray(q.rows) ? q.rows.length : 0;
+              const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i);
 
-            // Read answers directly from form values using getValues (q.answers might not be in values object)
-            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
-            const formAnswers = getValues(answersPath);
-            const answers = Array.isArray(formAnswers) ? formAnswers : (Array.isArray(q.answers) ? q.answers : []);
+              // Read answers directly from form values using getValues (q.answers might not be in values object)
+              const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+              const formAnswers = getValues(answersPath);
+              const answers = Array.isArray(formAnswers)
+                ? formAnswers
+                : Array.isArray(q.answers)
+                  ? q.answers
+                  : [];
 
-            // Save answers to answerMap
-            if (answers.length > 0) {
-              answers.forEach((ans, idx) => {
-                const subId = subIds[idx];
-                if (subId != null && ans != null && String(ans).trim() !== '') {
-                  answerMap[subId] = String(ans).trim();
-                  console.log(`  ✓ Saved matchinggroup answer for subId ${subId}:`, String(ans).trim());
-                }
-              });
-            } else {
-              console.warn('  ⚠️ No answers found for matchinggroup question:', q.question);
+              // Save answers to answerMap
+              if (answers.length > 0) {
+                answers.forEach((ans, idx) => {
+                  const subId = subIds[idx];
+                  if (subId != null && ans != null && String(ans).trim() !== '') {
+                    answerMap[subId] = String(ans).trim();
+                    console.log(
+                      `  ✓ Saved matchinggroup answer for subId ${subId}:`,
+                      String(ans).trim()
+                    );
+                  }
+                });
+              } else {
+                console.warn('  ⚠️ No answers found for matchinggroup question:', q.question);
+              }
+
+              nextId += rowCount;
+              const out = {
+                id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
+                type: 'matchinggroup',
+                subIds,
+                displayId: q.displayId || undefined,
+                question: q.question,
+                columns: q.columns || [],
+                rows: q.rows || [],
+              };
+              if (!out.displayId) delete out.displayId;
+              return out;
             }
+            if (q.type === 'maplabel') {
+              const rowCount = Array.isArray(q.rows) ? q.rows.length : 0;
+              const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i);
 
-            nextId += rowCount;
-            const out = {
-              id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
-              type: 'matchinggroup',
-              subIds,
-              displayId: q.displayId || undefined,
-              question: q.question,
-              columns: q.columns || [],
-              rows: q.rows || [],
-            };
-            if (!out.displayId) delete out.displayId;
-            return out;
-          }
-          if (q.type === 'maplabel') {
-            const rowCount = Array.isArray(q.rows) ? q.rows.length : 0;
-            const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i);
+              // Read answers directly from form values using getValues (q.answers might not be in values object)
+              const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+              const formAnswers = getValues(answersPath);
+              const answers = Array.isArray(formAnswers)
+                ? formAnswers
+                : Array.isArray(q.answers)
+                  ? q.answers
+                  : [];
 
-            // Read answers directly from form values using getValues (q.answers might not be in values object)
-            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
-            const formAnswers = getValues(answersPath);
-            const answers = Array.isArray(formAnswers) ? formAnswers : (Array.isArray(q.answers) ? q.answers : []);
+              // Save answers to answerMap
+              if (answers.length > 0) {
+                answers.forEach((ans, idx) => {
+                  const subId = subIds[idx];
+                  if (subId != null && ans != null && String(ans).trim() !== '') {
+                    answerMap[subId] = String(ans).trim();
+                  }
+                });
+              }
 
-            // Save answers to answerMap
-            if (answers.length > 0) {
-              answers.forEach((ans, idx) => {
-                const subId = subIds[idx];
-                if (subId != null && ans != null && String(ans).trim() !== '') {
-                  answerMap[subId] = String(ans).trim();
-                }
-              });
+              nextId += rowCount;
+              return {
+                id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
+                type: 'maplabel',
+                subIds,
+                question: q.question,
+                columns: Array.isArray(q.columns) ? q.columns : [],
+                rows: Array.isArray(q.rows) ? q.rows : [],
+                ...(q.imageSrc ? { imageSrc: q.imageSrc } : {}),
+              };
             }
+            if (q.type === 'multiselect') {
+              const opts = Array.isArray(q.options) ? q.options : [];
 
-            nextId += rowCount;
-            return {
-              id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
-              type: 'maplabel',
-              subIds,
-              question: q.question,
-              columns: Array.isArray(q.columns) ? q.columns : [],
-              rows: Array.isArray(q.rows) ? q.rows : [],
-              ...(q.imageSrc ? { imageSrc: q.imageSrc } : {}),
-            };
-          }
-          if (q.type === 'multiselect') {
-            const opts = Array.isArray(q.options) ? q.options : [];
+              // Fetch latest answers from form state
+              const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+              const formAnswers = getValues(answersPath);
+              const answers = Array.isArray(formAnswers)
+                ? formAnswers.filter(Boolean)
+                : Array.isArray(q.answers)
+                  ? q.answers.filter(Boolean)
+                  : [];
 
-            // Fetch latest answers from form state
-            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
-            const formAnswers = getValues(answersPath);
-            const answers = Array.isArray(formAnswers) ? formAnswers.filter(Boolean) : (Array.isArray(q.answers) ? q.answers.filter(Boolean) : []);
+              const sorted = [...answers].sort((a, b) => String(a).localeCompare(String(b)));
+              const ansString = sorted.join(',');
 
-            const sorted = [...answers].sort((a, b) => String(a).localeCompare(String(b)));
-            const ansString = sorted.join(',');
+              if (ansString) {
+                answerMap[nextId] = ansString;
+              }
 
-            if (ansString) {
-              answerMap[nextId] = ansString;
+              const base = {
+                id: nextId,
+                type: 'multiselect',
+                question: q.question,
+                options: opts,
+                answer: ansString,
+                answers: sorted, // Persist array as well for easier loading
+              };
+              nextId += 1;
+              return base;
             }
+            if (q.type === 'matchingdrag') {
+              const rowCount = Array.isArray(q.rows) ? q.rows.length : 0;
+              const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i);
 
-            const base = {
-              id: nextId,
-              type: 'multiselect',
-              question: q.question,
-              options: opts,
-              answer: ansString,
-              answers: sorted, // Persist array as well for easier loading
-            };
-            nextId += 1;
-            return base;
-          }
-          if (q.type === 'matchingdrag') {
-            const rowCount = Array.isArray(q.rows) ? q.rows.length : 0;
-            const subIds = Array.from({ length: rowCount }, (_, i) => nextId + i);
+              // Read answers directly from form values using getValues (q.answers might not be in values object)
+              const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+              const formAnswers = getValues(answersPath);
+              const answers = Array.isArray(formAnswers)
+                ? formAnswers
+                : Array.isArray(q.answers)
+                  ? q.answers
+                  : [];
 
-            // Read answers directly from form values using getValues (q.answers might not be in values object)
-            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
-            const formAnswers = getValues(answersPath);
-            const answers = Array.isArray(formAnswers) ? formAnswers : (Array.isArray(q.answers) ? q.answers : []);
+              // Save answers to answerMap
+              if (answers.length > 0) {
+                answers.forEach((ans, idx) => {
+                  const subId = subIds[idx];
+                  if (subId != null && ans != null && String(ans).trim() !== '') {
+                    answerMap[subId] = String(ans).trim();
+                    console.log(`  ✓ Saved answer for subId ${subId}:`, String(ans).trim());
+                  }
+                });
+              } else {
+                console.warn('  ⚠️ No answers found for matchingdrag question:', q.question);
+              }
 
-            // Save answers to answerMap
-            if (answers.length > 0) {
-              answers.forEach((ans, idx) => {
-                const subId = subIds[idx];
-                if (subId != null && ans != null && String(ans).trim() !== '') {
-                  answerMap[subId] = String(ans).trim();
-                  console.log(`  ✓ Saved answer for subId ${subId}:`, String(ans).trim());
-                }
-              });
-            } else {
-              console.warn('  ⚠️ No answers found for matchingdrag question:', q.question);
+              nextId += rowCount;
+              return {
+                id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
+                type: 'matchingdrag',
+                subIds,
+                question: q.question,
+                options: Array.isArray(q.options) ? q.options : [],
+                rows: Array.isArray(q.rows) ? q.rows : [],
+              };
             }
+            if (q.type === 'summarydrag') {
+              const blanks = (String(q.question || '').match(/_{3,}/g) || []).length;
+              const count = Math.max(0, blanks);
+              const subIds = Array.from({ length: count }, (_, i) => nextId + i);
 
-            nextId += rowCount;
-            return {
-              id: `${subIds[0]}-${subIds[subIds.length - 1]}`,
-              type: 'matchingdrag',
-              subIds,
-              question: q.question,
-              options: Array.isArray(q.options) ? q.options : [],
-              rows: Array.isArray(q.rows) ? q.rows : [],
-            };
-          }
-          if (q.type === 'summarydrag') {
-            const blanks = (String(q.question || '').match(/_{3,}/g) || []).length;
-            const count = Math.max(0, blanks);
-            const subIds = Array.from({ length: count }, (_, i) => nextId + i);
+              // Read answers directly from form values using getValues (q.answers might not be in values object)
+              const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+              const formAnswers = getValues(answersPath);
+              const answers = Array.isArray(formAnswers)
+                ? formAnswers
+                : Array.isArray(q.answers)
+                  ? q.answers
+                  : [];
 
-            // Read answers directly from form values using getValues (q.answers might not be in values object)
-            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
-            const formAnswers = getValues(answersPath);
-            const answers = Array.isArray(formAnswers) ? formAnswers : (Array.isArray(q.answers) ? q.answers : []);
+              // Save answers to answerMap
+              if (answers.length > 0) {
+                answers.forEach((ans, idx) => {
+                  const subId = subIds[idx];
+                  if (subId != null && ans != null && String(ans).trim() !== '') {
+                    answerMap[subId] = String(ans).trim();
+                    console.log(`  ✓ Saved answer for subId ${subId}:`, String(ans).trim());
+                  }
+                });
+              } else {
+                console.warn('  ⚠️ No answers found for summarydrag question:', q.question);
+              }
 
-
-
-            // Save answers to answerMap
-            if (answers.length > 0) {
-              answers.forEach((ans, idx) => {
-                const subId = subIds[idx];
-                if (subId != null && ans != null && String(ans).trim() !== '') {
-                  answerMap[subId] = String(ans).trim();
-                  console.log(`  ✓ Saved answer for subId ${subId}:`, String(ans).trim());
-                }
-              });
-            } else {
-              console.warn('  ⚠️ No answers found for summarydrag question:', q.question);
+              nextId += count;
+              return {
+                id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
+                type: 'summarydrag',
+                subIds,
+                question: q.question,
+                options: Array.isArray(q.options) ? q.options : [],
+              };
             }
-
-            nextId += count;
-            return {
-              id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
-              type: 'summarydrag',
-              subIds,
-              question: q.question,
-              options: Array.isArray(q.options) ? q.options : [],
-            };
-          }
-          if (q.type === 'flowchart') {
-            const rows = Array.isArray(q.rows) ? q.rows : [];
-            let count = 0;
-            for (const row of rows) {
-              const matches = String(row || '').match(/_{3,}/g) || [];
-              count += matches.length;
-            }
-            const subIds = Array.from({ length: count }, (_, i) => nextId + i);
-
-            // Read answers directly from form values
-            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
-            const formAnswers = getValues(answersPath);
-            const answers = Array.isArray(formAnswers)
-              ? formAnswers
-              : Array.isArray(q.answers)
-                ? q.answers
-                : [];
-
-            if (answers.length > 0) {
-              answers.forEach((ans, idx) => {
-                const subId = subIds[idx];
-                if (subId != null && ans != null && String(ans).trim() !== '') {
-                  answerMap[subId] = String(ans).trim();
-                }
-              });
-            }
-
-            nextId += count;
-            return {
-              id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
-              type: 'flowchart',
-              subIds,
-              question: q.question,
-              rows,
-              options: Array.isArray(q.options) ? q.options : [],
-            };
-          }
-          if (q.type === 'sentencefill') {
-            const blanks = (String(q.question || '').match(/_{3,}/g) || []).length;
-            const count = Math.max(0, blanks);
-            const subIds = Array.from({ length: count }, (_, i) => nextId + i);
-
-            // Read answers directly from form values using getValues (q.answers might not be in values object)
-            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
-            const formAnswers = getValues(answersPath);
-            const answers = Array.isArray(formAnswers) ? formAnswers : (Array.isArray(q.answers) ? q.answers : []);
-
-            if (answers.length > 0) {
-              answers.forEach((ans, idx) => {
-                const subId = subIds[idx];
-                if (subId != null && ans != null && String(ans).trim() !== '') {
-                  answerMap[subId] = String(ans).trim();
-                }
-              });
-            }
-            nextId += count;
-            return {
-              id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
-              type: 'sentencefill',
-              subIds,
-              question: q.question,
-            };
-          }
-          if (q.type === 'tablefill') {
-            const rows = q.table?.rows || [];
-            // Sanitize rows: ensure all cells are strings, filter out undefined/null
-            const sanitizedRows = rows.map((row) => {
-              if (!Array.isArray(row)) return [];
-              return row.map((cell) => String(cell ?? ''));
-            });
-            // Firestore doesn't support nested arrays, so serialize each row as JSON string
-            const serializedRows = sanitizedRows.map((row) => JSON.stringify(row));
-            let count = 0;
-            for (const rr of sanitizedRows) {
-              for (const cell of rr || []) {
-                const matches = String(cell || '').match(/_{3,}/g) || [];
+            if (q.type === 'flowchart') {
+              const rows = Array.isArray(q.rows) ? q.rows : [];
+              let count = 0;
+              for (const row of rows) {
+                const matches = String(row || '').match(/_{3,}/g) || [];
                 count += matches.length;
               }
+              const subIds = Array.from({ length: count }, (_, i) => nextId + i);
+
+              // Read answers directly from form values
+              const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+              const formAnswers = getValues(answersPath);
+              const answers = Array.isArray(formAnswers)
+                ? formAnswers
+                : Array.isArray(q.answers)
+                  ? q.answers
+                  : [];
+
+              if (answers.length > 0) {
+                answers.forEach((ans, idx) => {
+                  const subId = subIds[idx];
+                  if (subId != null && ans != null && String(ans).trim() !== '') {
+                    answerMap[subId] = String(ans).trim();
+                  }
+                });
+              }
+
+              nextId += count;
+              return {
+                id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
+                type: 'flowchart',
+                subIds,
+                question: q.question,
+                rows,
+                options: Array.isArray(q.options) ? q.options : [],
+              };
             }
-            const subIds = Array.from({ length: count }, (_, i) => nextId + i);
+            if (q.type === 'sentencefill') {
+              const blanks = (String(q.question || '').match(/_{3,}/g) || []).length;
+              const count = Math.max(0, blanks);
+              const subIds = Array.from({ length: count }, (_, i) => nextId + i);
 
-            // Read answers directly from form values using getValues (q.answers might not be in values object)
-            const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
-            const formAnswers = getValues(answersPath);
-            const answers = Array.isArray(formAnswers) ? formAnswers : (Array.isArray(q.answers) ? q.answers : []);
+              // Read answers directly from form values using getValues (q.answers might not be in values object)
+              const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+              const formAnswers = getValues(answersPath);
+              const answers = Array.isArray(formAnswers)
+                ? formAnswers
+                : Array.isArray(q.answers)
+                  ? q.answers
+                  : [];
 
-            console.log('Tablefill question:', q.question);
-            console.log('Answers path:', answersPath);
-            console.log('Answers from getValues:', formAnswers);
-            console.log('Answers from q.answers:', q.answers);
-            console.log('Final answers array:', answers);
-            console.log('Blank count:', count, 'SubIds:', subIds);
-
-            // Save answers to answerMap - only save non-empty answers
-            if (answers.length > 0) {
-              answers.forEach((ans, idx) => {
-                const subId = subIds[idx];
-                if (subId != null && ans != null && String(ans).trim() !== '') {
-                  answerMap[subId] = String(ans).trim();
-                  console.log(`Saved answer for subId ${subId}:`, String(ans).trim());
-                }
+              if (answers.length > 0) {
+                answers.forEach((ans, idx) => {
+                  const subId = subIds[idx];
+                  if (subId != null && ans != null && String(ans).trim() !== '') {
+                    answerMap[subId] = String(ans).trim();
+                  }
+                });
+              }
+              nextId += count;
+              return {
+                id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
+                type: 'sentencefill',
+                subIds,
+                question: q.question,
+              };
+            }
+            if (q.type === 'tablefill') {
+              const rows = q.table?.rows || [];
+              // Sanitize rows: ensure all cells are strings, filter out undefined/null
+              const sanitizedRows = rows.map((row) => {
+                if (!Array.isArray(row)) return [];
+                return row.map((cell) => String(cell ?? ''));
               });
-              console.log('Final answerMap for this question:', Object.fromEntries(Object.entries(answerMap).filter(([k]) => subIds.includes(Number(k)))));
-            } else {
-              console.warn('Tablefill question has no answers array or it is empty. Question:', q.question);
-              console.warn('Tried to read from path:', answersPath);
-              console.warn('Full question object keys:', Object.keys(q));
+              // Firestore doesn't support nested arrays, so serialize each row as JSON string
+              const serializedRows = sanitizedRows.map((row) => JSON.stringify(row));
+              let count = 0;
+              for (const rr of sanitizedRows) {
+                for (const cell of rr || []) {
+                  const matches = String(cell || '').match(/_{3,}/g) || [];
+                  count += matches.length;
+                }
+              }
+              const subIds = Array.from({ length: count }, (_, i) => nextId + i);
+
+              // Read answers directly from form values using getValues (q.answers might not be in values object)
+              const answersPath = `parts.${partIdx}.questions.${qIdx}.answers`;
+              const formAnswers = getValues(answersPath);
+              const answers = Array.isArray(formAnswers)
+                ? formAnswers
+                : Array.isArray(q.answers)
+                  ? q.answers
+                  : [];
+
+              console.log('Tablefill question:', q.question);
+              console.log('Answers path:', answersPath);
+              console.log('Answers from getValues:', formAnswers);
+              console.log('Answers from q.answers:', q.answers);
+              console.log('Final answers array:', answers);
+              console.log('Blank count:', count, 'SubIds:', subIds);
+
+              // Save answers to answerMap - only save non-empty answers
+              if (answers.length > 0) {
+                answers.forEach((ans, idx) => {
+                  const subId = subIds[idx];
+                  if (subId != null && ans != null && String(ans).trim() !== '') {
+                    answerMap[subId] = String(ans).trim();
+                    console.log(`Saved answer for subId ${subId}:`, String(ans).trim());
+                  }
+                });
+                console.log(
+                  'Final answerMap for this question:',
+                  Object.fromEntries(
+                    Object.entries(answerMap).filter(([k]) => subIds.includes(Number(k)))
+                  )
+                );
+              } else {
+                console.warn(
+                  'Tablefill question has no answers array or it is empty. Question:',
+                  q.question
+                );
+                console.warn('Tried to read from path:', answersPath);
+                console.warn('Full question object keys:', Object.keys(q));
+              }
+
+              nextId += count;
+              return {
+                id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
+                type: 'tablefill',
+                subIds,
+                question: q.question || '',
+                table: { rows: serializedRows }, // Store as array of JSON strings
+              };
             }
 
-            nextId += count;
-            return {
-              id: subIds.length > 0 ? `${subIds[0]}-${subIds[subIds.length - 1]}` : `${nextId}`,
-              type: 'tablefill',
-              subIds,
-              question: q.question || '',
-              table: { rows: serializedRows }, // Store as array of JSON strings
-            };
-          }
+            if (q.type === 'info') {
+              return {
+                id: `info-${partIdx}-${qIdx}`,
+                type: 'info',
+                question: q.question,
+                infoKind: q.infoKind || 'normal',
+              };
+            }
 
-          if (q.type === 'info') {
-            return {
-              id: `info-${partIdx}-${qIdx}`,
-              type: 'info',
+            const id = nextId;
+            nextId += 1;
+            const base = {
+              id,
+              type: q.type,
               question: q.question,
-              infoKind: q.infoKind || 'normal',
             };
-          }
+            if (q.type === 'mcq' || q.type === 'dropdown') {
+              if (Array.isArray(q.options)) base.options = q.options;
+            }
+            if (q.type === 'written' || q.type === 'mcq' || q.type === 'dropdown') {
+              if (q.answer != null && q.answer !== '') answerMap[id] = q.answer;
+            }
 
-          const id = nextId;
-          nextId += 1;
-          const base = {
-            id,
-            type: q.type,
-            question: q.question,
-          };
-          if (q.type === 'mcq' || q.type === 'dropdown') {
-            if (Array.isArray(q.options)) base.options = q.options;
-          }
-          if (q.type === 'written' || q.type === 'mcq' || q.type === 'dropdown') {
-            if (q.answer != null && q.answer !== '') answerMap[id] = q.answer;
-          }
-
-          return base;
-        }),
-      })),
+            return base;
+          }),
+        };
+      }),
     };
 
     try {
@@ -663,7 +707,7 @@ const Admin = () => {
             const a = ansSnap.data();
             answersMap = a?.answers || {};
           }
-        } catch { }
+        } catch {}
 
         const populatedParts = (testData.parts || []).map((part) => ({
           title: part.title || '',
@@ -673,7 +717,12 @@ const Admin = () => {
           questions: (part.questions || []).map((q) => {
             if (q.type === 'multiselect') {
               const ansStr = answersMap[q.id] || q.answer || '';
-              const answers = ansStr ? ansStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+              const answers = ansStr
+                ? ansStr
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                : [];
               return {
                 ...q,
                 options: Array.isArray(q.options) ? q.options : [],
@@ -713,7 +762,7 @@ const Admin = () => {
                   answersFromMap: subIds.map((sid) => ({ subId: sid, answer: answersMap[sid] })),
                   finalAnswers: answers,
                   rowsCount: q.rows?.length || 0,
-                  answersCount: answers.length
+                  answersCount: answers.length,
                 });
               }
 
@@ -725,7 +774,7 @@ const Admin = () => {
                   blankCount,
                   answersFromMap: subIds.map((sid) => ({ subId: sid, answer: answersMap[sid] })),
                   finalAnswers: answers,
-                  answersCount: answers.length
+                  answersCount: answers.length,
                 });
               }
 
@@ -891,12 +940,32 @@ const Admin = () => {
                 />
 
                 <div>
-                  <label style={{ display: 'block', fontWeight: 600 }}>Passage</label>
-                  <textarea
-                    placeholder="Paste or write the passage text here"
-                    rows={8}
-                    {...register(`parts.${partIndex}.passage`)}
-                    style={{ width: '100%', padding: 8 }}
+                  <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>
+                    Passage
+                  </label>
+                  <Controller
+                    control={control}
+                    name={`parts.${partIndex}.passage`}
+                    render={({ field }) => (
+                      <div className="passage-editor-wrapper">
+                        <ReactQuill
+                          theme="snow"
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          modules={{
+                            toolbar: [
+                              ['bold', 'italic', 'underline'],
+                              [{ list: 'ordered' }, { list: 'bullet' }],
+                              [{ indent: '-1' }, { indent: '+1' }],
+                              ['clean'],
+                            ],
+                          }}
+                          formats={['bold', 'italic', 'underline', 'list', 'indent']}
+                          placeholder="Paste or write the passage text here"
+                          style={{ background: '#fff', minHeight: 200 }}
+                        />
+                      </div>
+                    )}
                   />
                   {errors.parts?.[partIndex]?.passage && (
                     <span style={{ color: 'crimson' }}>
@@ -933,7 +1002,7 @@ const Admin = () => {
                           try {
                             const localUrl = URL.createObjectURL(file);
                             setAudioPreviews((prev) => ({ ...prev, [partIndex]: localUrl }));
-                          } catch { }
+                          } catch {}
                           // upload to Firebase Storage
                           try {
                             const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
@@ -946,12 +1015,12 @@ const Admin = () => {
                             setValue(`parts.${partIndex}.audioSrc`, downloadURL);
                             try {
                               toast.success('Audio uploaded');
-                            } catch { }
+                            } catch {}
                           } catch (err) {
                             console.error('Audio upload failed', err);
                             try {
                               toast.error('Audio upload failed');
-                            } catch { }
+                            } catch {}
                           }
                         }}
                       />
@@ -981,7 +1050,15 @@ const Admin = () => {
 
         <button
           type="button"
-          onClick={() => appendPart({ title: '', partInstructions: [], passage: '', audioSrc: '', questions: [] })}
+          onClick={() =>
+            appendPart({
+              title: '',
+              partInstructions: [],
+              passage: '',
+              audioSrc: '',
+              questions: [],
+            })
+          }
           style={{
             background: '#f0f7ff',
             border: '1px solid #cfe3ff',
@@ -1139,11 +1216,28 @@ const QuestionCard = ({
       </div>
 
       <div style={{ marginTop: 12 }}>
-        <label style={{ display: 'block', fontWeight: 600 }}>Question Text</label>
-        <input
-          placeholder="Enter question/instruction text"
-          {...register(`${fieldName}.question`)}
-          style={{ width: '100%', padding: 8 }}
+        <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>Question Text</label>
+        <Controller
+          control={control}
+          name={`${fieldName}.question`}
+          render={({ field }) => (
+            <ReactQuill
+              theme="snow"
+              value={field.value || ''}
+              onChange={field.onChange}
+              modules={{
+                toolbar: [
+                  ['bold', 'italic', 'underline'],
+                  [{ list: 'ordered' }, { list: 'bullet' }],
+                  [{ indent: '-1' }, { indent: '+1' }],
+                  ['clean'],
+                ],
+              }}
+              formats={['bold', 'italic', 'underline', 'list', 'indent']}
+              placeholder="Enter question/instruction text"
+              style={{ background: '#fff' }}
+            />
+          )}
         />
         {questionTextError && <span style={{ color: 'crimson' }}>{questionTextError}</span>}
       </div>
@@ -1279,7 +1373,14 @@ const PartInstructionsEditor = ({ control, register, watch, setValue, partIndex,
                 background: '#fafafa',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 8,
+                }}
+              >
                 <span style={{ fontWeight: 600, fontSize: 14 }}>Instruction {idx + 1}</span>
                 <button
                   type="button"
@@ -1310,7 +1411,9 @@ const PartInstructionsEditor = ({ control, register, watch, setValue, partIndex,
                     {...register(`${namePrefix}.${idx}.infoKind`)}
                     value="normal"
                     checked={infoKind === 'normal' || (!infoKind && infoKind !== 'bold')}
-                    onChange={() => setValue(`${namePrefix}.${idx}.infoKind`, 'normal', { shouldDirty: true })}
+                    onChange={() =>
+                      setValue(`${namePrefix}.${idx}.infoKind`, 'normal', { shouldDirty: true })
+                    }
                     style={{ cursor: 'pointer' }}
                   />
                   <span>Normal</span>
@@ -1321,7 +1424,9 @@ const PartInstructionsEditor = ({ control, register, watch, setValue, partIndex,
                     {...register(`${namePrefix}.${idx}.infoKind`)}
                     value="bold"
                     checked={infoKind === 'bold'}
-                    onChange={() => setValue(`${namePrefix}.${idx}.infoKind`, 'bold', { shouldDirty: true })}
+                    onChange={() =>
+                      setValue(`${namePrefix}.${idx}.infoKind`, 'bold', { shouldDirty: true })
+                    }
                     style={{ cursor: 'pointer' }}
                   />
                   <span style={{ fontWeight: 800 }}>Bold</span>
@@ -1861,10 +1966,10 @@ const MapLabelEditor = ({ control, register, namePrefix, errors, setValue, watch
     append: appendRow,
     remove: removeRow,
   } = useFieldArray({ control, name: `${namePrefix}.rows` });
-  const {
-    fields: answerFields,
-    replace: replaceAnswers,
-  } = useFieldArray({ control, name: `${namePrefix}.answers` });
+  const { fields: answerFields, replace: replaceAnswers } = useFieldArray({
+    control,
+    name: `${namePrefix}.answers`,
+  });
 
   const columnsError = getNestedError(errors, `${namePrefix}.columns`);
   const rowsError = getNestedError(errors, `${namePrefix}.rows`);
@@ -2021,7 +2126,15 @@ const MapLabelEditor = ({ control, register, namePrefix, errors, setValue, watch
             {rowFields.map((row, idx) => {
               const currentAnswer = watch(`${namePrefix}.answers.${idx}`) || '';
               return (
-                <div key={row.id} style={{ display: 'flex', gap: 32, alignItems: 'flex-start', justifyContent: 'flex-start' }}>
+                <div
+                  key={row.id}
+                  style={{
+                    display: 'flex',
+                    gap: 32,
+                    alignItems: 'flex-start',
+                    justifyContent: 'flex-start',
+                  }}
+                >
                   <input
                     placeholder={`Row ${idx + 1}`}
                     {...register(`${namePrefix}.rows.${idx}`)}
@@ -2075,7 +2188,7 @@ const MapLabelEditor = ({ control, register, namePrefix, errors, setValue, watch
           </button>
         </div>
       </div>
-    </div >
+    </div>
   );
 };
 
@@ -2149,7 +2262,15 @@ const DragMatchEditor = ({ control, register, namePrefix, errors, watch, setValu
             {rowFields.map((row, idx) => {
               const currentAnswer = watch(`${namePrefix}.answers.${idx}`) || '';
               return (
-                <div key={row.id} style={{ display: 'flex', gap: 8, justifyContent: 'flex-start', alignItems: 'flex-start' }}>
+                <div
+                  key={row.id}
+                  style={{
+                    display: 'flex',
+                    gap: 8,
+                    justifyContent: 'flex-start',
+                    alignItems: 'flex-start',
+                  }}
+                >
                   <input
                     placeholder={`Row ${idx + 1}`}
                     {...register(`${namePrefix}.rows.${idx}`)}
@@ -2275,13 +2396,23 @@ const MultiSelectEditor = ({ control, namePrefix, errors, setValue }) => {
       <label style={{ display: 'block', fontWeight: 600 }}>Multi Select (Checkboxes)</label>
 
       <div style={{ marginTop: 12 }}>
-        <label style={{ display: 'block', fontWeight: 600 }}>Correct Answers (select all that apply)</label>
-        {typeof answersError === 'string' && (
-          <div style={{ color: 'crimson' }}>{answersError}</div>
-        )}
-        <div style={{ display: 'flex', gap: 1, alignItems: 'flex-start', justifyContent: 'center', flexDirection: 'column' }}>
+        <label style={{ display: 'block', fontWeight: 600 }}>
+          Correct Answers (select all that apply)
+        </label>
+        {typeof answersError === 'string' && <div style={{ color: 'crimson' }}>{answersError}</div>}
+        <div
+          style={{
+            display: 'flex',
+            gap: 1,
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            flexDirection: 'column',
+          }}
+        >
           {options.length === 0 && (
-            <div style={{ color: '#888', fontStyle: 'italic' }}>Add options first in the Options section above.</div>
+            <div style={{ color: '#888', fontStyle: 'italic' }}>
+              Add options first in the Options section above.
+            </div>
           )}
           {options.map((opt, idx) => {
             const optVal = opt || '';
@@ -2357,7 +2488,10 @@ const SummaryDragEditor = ({ control, register, namePrefix, errors, watch, setVa
         });
         // Only update if we have values or if this is the first time
         if (hasAnswers || !answersInitializedRef.current) {
-          setValue(`${namePrefix}.answers`, newAnswers, { shouldDirty: true, shouldValidate: true });
+          setValue(`${namePrefix}.answers`, newAnswers, {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
           if (hasAnswers) {
             answersInitializedRef.current = true;
           }
@@ -2434,9 +2568,7 @@ const SummaryDragEditor = ({ control, register, namePrefix, errors, watch, setVa
                 const currentAnswer = watch(`${namePrefix}.answers.${idx}`) || '';
                 return (
                   <div key={ans.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <label style={{ minWidth: 120, fontWeight: 500 }}>
-                      Blank {idx + 1}:
-                    </label>
+                    <label style={{ minWidth: 120, fontWeight: 500 }}>Blank {idx + 1}:</label>
                     <select
                       {...register(`${namePrefix}.answers.${idx}`)}
                       style={{ flex: 1, padding: 8 }}
@@ -2474,10 +2606,10 @@ const FlowchartEditor = ({ control, register, namePrefix, errors, setValue, watc
     append: appendRow,
     remove: removeRow,
   } = useFieldArray({ control, name: `${namePrefix}.rows` });
-  const {
-    fields: answerFields,
-    replace: replaceAnswers,
-  } = useFieldArray({ control, name: `${namePrefix}.answers` });
+  const { fields: answerFields, replace: replaceAnswers } = useFieldArray({
+    control,
+    name: `${namePrefix}.answers`,
+  });
 
   const optionsError = getNestedError(errors, `${namePrefix}.options`);
   const rowsError = getNestedError(errors, `${namePrefix}.rows`);
@@ -2509,7 +2641,7 @@ const FlowchartEditor = ({ control, register, namePrefix, errors, setValue, watc
         shouldTouch: false,
         shouldValidate: false,
       });
-    } catch (_) { }
+    } catch (_) {}
   }, [blankCount, replaceAnswers, watchedAnswers, answerFields.length, namePrefix, setValue]);
 
   return (
@@ -2630,7 +2762,15 @@ const FlowchartEditor = ({ control, register, namePrefix, errors, setValue, watc
               {answerFields.map((ans, idx) => {
                 const currentAnswer = watch(`${namePrefix}.answers.${idx}`) || '';
                 return (
-                  <div key={ans.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-end', justifyContent: 'flex-start' }}>
+                  <div
+                    key={ans.id}
+                    style={{
+                      display: 'flex',
+                      gap: 8,
+                      alignItems: 'flex-end',
+                      justifyContent: 'flex-start',
+                    }}
+                  >
                     <label style={{ width: 110, color: '#666', fontWeight: 500 }}>
                       Blank {idx + 1}:
                     </label>
@@ -2791,7 +2931,7 @@ const TableFillEditor = ({ register, namePrefix, errors, setValue, control }) =>
         });
 
         // Only update if we have valid data and it's different from current
-        if (deserialized.length > 0 && deserialized.some(r => Array.isArray(r) && r.length > 0)) {
+        if (deserialized.length > 0 && deserialized.some((r) => Array.isArray(r) && r.length > 0)) {
           const currentStr = JSON.stringify(rowsRef.current);
           const newStr = JSON.stringify(deserialized);
           if (currentStr !== newStr) {
@@ -2813,7 +2953,7 @@ const TableFillEditor = ({ register, namePrefix, errors, setValue, control }) =>
           initializedRef.current = true;
         }
       }
-    } catch { }
+    } catch {}
   };
 
   const lastBlankCountRef = React.useRef(-1);
@@ -2832,7 +2972,7 @@ const TableFillEditor = ({ register, namePrefix, errors, setValue, control }) =>
         if (Array.isArray(currentAnswers)) {
           // Preserve existing answers, adjust length
           const newAnswers = Array.from({ length: count }, (_, i) =>
-            (i < currentAnswers.length && currentAnswers[i] != null) ? currentAnswers[i] : ''
+            i < currentAnswers.length && currentAnswers[i] != null ? currentAnswers[i] : ''
           );
           setValue(`${namePrefix}.answers`, newAnswers, { shouldValidate: false });
         }
@@ -2851,17 +2991,16 @@ const TableFillEditor = ({ register, namePrefix, errors, setValue, control }) =>
       const count = getBlankCount();
       if (count > 0) {
         // Check if answers have actual non-empty values
-        const hasValues = Array.isArray(watchedAnswers) &&
-          watchedAnswers.some(ans => ans != null && String(ans).trim() !== '');
+        const hasValues =
+          Array.isArray(watchedAnswers) &&
+          watchedAnswers.some((ans) => ans != null && String(ans).trim() !== '');
 
         if (hasValues) {
           hasSeenAnswersWithValuesRef.current = true;
           // Answers with values exist - only sync length if needed, preserve all values
           if (watchedAnswers.length !== count) {
             const newAnswers = Array.from({ length: count }, (_, i) =>
-              (i < watchedAnswers.length && watchedAnswers[i] != null)
-                ? watchedAnswers[i]
-                : ''
+              i < watchedAnswers.length && watchedAnswers[i] != null ? watchedAnswers[i] : ''
             );
             setValue(`${namePrefix}.answers`, newAnswers, { shouldValidate: false });
           }
@@ -2873,17 +3012,16 @@ const TableFillEditor = ({ register, namePrefix, errors, setValue, control }) =>
           // Wait a bit for form to load, then check again
           const timer = setTimeout(() => {
             const finalAnswers = watchedAnswers;
-            const finalHasValues = Array.isArray(finalAnswers) &&
-              finalAnswers.some(ans => ans != null && String(ans).trim() !== '');
+            const finalHasValues =
+              Array.isArray(finalAnswers) &&
+              finalAnswers.some((ans) => ans != null && String(ans).trim() !== '');
 
             if (finalHasValues) {
               // Answers loaded! Preserve them
               hasSeenAnswersWithValuesRef.current = true;
               if (finalAnswers.length !== count) {
                 const newAnswers = Array.from({ length: count }, (_, i) =>
-                  (i < finalAnswers.length && finalAnswers[i] != null)
-                    ? finalAnswers[i]
-                    : ''
+                  i < finalAnswers.length && finalAnswers[i] != null ? finalAnswers[i] : ''
                 );
                 setValue(`${namePrefix}.answers`, newAnswers, { shouldValidate: false });
               }
@@ -2980,7 +3118,7 @@ const TableFillEditor = ({ register, namePrefix, errors, setValue, control }) =>
     // Preserve existing answers when syncing
     const currentAnswers = watchedAnswers;
     const arr = Array.from({ length: count }, (_, i) =>
-      (Array.isArray(currentAnswers) && i < currentAnswers.length && currentAnswers[i] != null)
+      Array.isArray(currentAnswers) && i < currentAnswers.length && currentAnswers[i] != null
         ? currentAnswers[i]
         : ''
     );
@@ -3189,4 +3327,3 @@ function getNestedError(obj, path) {
 }
 
 export default Admin;
-
