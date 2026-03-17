@@ -332,41 +332,71 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId, a
               </table>
 
               {/* Legend: two columns letter + description */}
-              {parsedCols.some((pc) => pc.label) && (
-                <div style={{ marginTop: '14px' }}>
-                  <div style={{ fontWeight: 700, marginBottom: '6px' }}>Options</div>
-                  <table style={{ borderCollapse: 'collapse', minWidth: '280px' }}>
-                    <tbody>
-                      {parsedCols.map((c, i) => (
-                        <tr key={i}>
-                          <td
-                            style={{
-                              padding: '4px 6px',
-                              border: '1px solid #ddd',
-                              fontWeight: 700,
-                              width: 34,
-                            }}
-                          >
-                            {c.letter}
-                          </td>
-                          <td style={{ padding: '4px 6px', border: '1px solid #ddd' }}>
-                            {c.label || ''}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              {(() => {
+                const legendOptions = Array.isArray(question.options)
+                  ? question.options.filter(Boolean)
+                  : [];
+                const hasExplicitLegend = legendOptions.length > 0;
+                let finalLegendItems = [];
+                if (hasExplicitLegend) {
+                  finalLegendItems = legendOptions.map((opt, i) => ({
+                    letter: String.fromCharCode(65 + i),
+                    label: opt,
+                  }));
+                } else {
+                  finalLegendItems = parsedCols.filter((pc) => pc.label && pc.label !== pc.letter);
+                }
 
-              {/* Display heading if provided (displayId) */}
-              {question.displayId && (
-                <div
-                  style={{ marginTop: '14px', fontWeight: 700, fontSize: '15px', color: '#333' }}
-                >
-                  {String(question.displayId || '')}
-                </div>
-              )}
+                if (finalLegendItems.length === 0) return null;
+
+                return (
+                  <div style={{ marginTop: '14px' }}>
+                    {!question.displayId && (
+                      <div style={{ fontWeight: 700, marginBottom: '6px' }}>Options</div>
+                    )}
+                    <table style={{ borderCollapse: 'collapse', minWidth: '280px' }}>
+                      {question.displayId && (
+                        <thead>
+                          <tr>
+                            <th
+                              colSpan={2}
+                              style={{
+                                padding: '8px 6px',
+                                border: '1px solid #ddd',
+                                backgroundColor: '#f9f9f9',
+                                fontWeight: 700,
+                                textAlign: 'left',
+                                fontSize: '15px',
+                              }}
+                            >
+                              {String(question.displayId)}
+                            </th>
+                          </tr>
+                        </thead>
+                      )}
+                      <tbody>
+                        {finalLegendItems.map((c, i) => (
+                          <tr key={i}>
+                            <td
+                              style={{
+                                padding: '4px 6px',
+                                border: '1px solid #ddd',
+                                fontWeight: 700,
+                                width: 34,
+                              }}
+                            >
+                              {c.letter}
+                            </td>
+                            <td style={{ padding: '4px 6px', border: '1px solid #ddd' }}>
+                              {c.label || ''}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
 
               <div style={{ marginTop: '8px', color: '#666', fontSize: '12px' }}>
                 Your selections:{' '}
@@ -967,8 +997,15 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId, a
           };
 
           return (
-            <div style={{ marginTop: 10 }}>
-              <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: '24px', alignItems: 'flex-start' }}>
+              <div
+                style={{
+                  flex: '1 1 auto',
+                  minWidth: '300px',
+                  display: 'grid',
+                  gap: 12,
+                }}
+              >
                 {partsPerRow.map((rowMeta, rowIdx) => {
                   let runningBlank = 0;
                   return (
@@ -1108,9 +1145,16 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId, a
                 })}
               </div>
 
-              <div style={{ marginTop: 14 }}>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>Answer bank</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ flex: '0 1 auto', minWidth: '200px', marginTop: 14 }}>
+                <div style={{ fontWeight: 700, marginBottom: 10 }}>Answer bank</div>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                    alignItems: 'flex-start',
+                  }}
+                >
                   {bankRemaining.map((w, idx) => (
                     <div
                       key={`${w}-${idx}`}

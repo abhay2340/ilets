@@ -101,11 +101,15 @@ const buildValidationSchema = () =>
                     t === 'matchingdrag' ||
                     t === 'headingmatch' ||
                     t === 'summarydrag' ||
-                    t === 'flowchart',
+                    t === 'flowchart' ||
+                    t === 'matchinggroup',
                   then: (schema) =>
                     schema
-                      .min(2, 'Provide at least 2 options')
-                      .of(yup.string().trim().required('Option cannot be empty')),
+                      .of(yup.string().trim().required('Option cannot be empty'))
+                      .test('min-options', 'Provide at least 2 options', function (value) {
+                        if (this.parent.type === 'matchinggroup') return true;
+                        return Array.isArray(value) && value.length >= 2;
+                      }),
                   otherwise: (schema) => schema.strip(),
                 }),
                 answer: yup
@@ -369,6 +373,7 @@ const Admin = () => {
                 question: q.question,
                 columns: q.columns || [],
                 rows: q.rows || [],
+                options: q.options || [],
               };
               if (!out.displayId) delete out.displayId;
               return out;
@@ -784,7 +789,7 @@ const Admin = () => {
             if (q.type === 'matchinggroup') {
               const subIds = Array.isArray(q.subIds) ? q.subIds : [];
               const answers = subIds.map((sid) => answersMap[sid] || '');
-              return { ...q, answers };
+              return { ...q, options: Array.isArray(q.options) ? q.options : [], answers };
             }
             if (
               q.type === 'matchingdrag' ||
@@ -1839,6 +1844,11 @@ const MatchingGroupEditor = ({ control, register, watch, namePrefix, errors }) =
     append: appendAnswer,
     remove: removeAnswer,
   } = useFieldArray({ control, name: `${namePrefix}.answers` });
+  const {
+    fields: optionFields,
+    append: appendOption,
+    remove: removeOption,
+  } = useFieldArray({ control, name: `${namePrefix}.options` });
 
   const columnsError = getNestedError(errors, `${namePrefix}.columns`);
   const rowsError = getNestedError(errors, `${namePrefix}.rows`);
@@ -1962,6 +1972,65 @@ const MatchingGroupEditor = ({ control, register, watch, namePrefix, errors }) =
               }}
             >
               + Add Column
+            </button>
+          </div>
+
+          {/* Legend Options */}
+          <div style={{ marginBottom: 8, marginTop: 16 }}>
+            <label style={{ display: 'block', fontWeight: 500, marginBottom: 8, fontSize: 14 }}>
+              Legend Descriptions (Optional)
+            </label>
+            <div style={{ fontSize: 11, color: '#999', marginBottom: 8 }}>
+              If you want a table below showing &quot;A: the Chinese&quot;, &quot;B: the Indians&quot;, add the descriptions here.
+            </div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {optionFields.map((opt, idx) => (
+                <div key={opt.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span
+                    style={{
+                      minWidth: 40,
+                      fontWeight: 600,
+                      fontSize: 14,
+                      color: '#666',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {columnLabels[idx] || String.fromCharCode(65 + idx)} =
+                  </span>
+                  <input
+                    placeholder={`Description for ${columnLabels[idx] || String.fromCharCode(65 + idx)}`}
+                    {...register(`${namePrefix}.options.${idx}`)}
+                    style={{ flex: 1, padding: 8 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeOption(idx)}
+                    style={{
+                      background: '#fff2f2',
+                      border: '1px solid #ffdcdc',
+                      padding: '6px 10px',
+                      borderRadius: 6,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => appendOption('')}
+              style={{
+                marginTop: 8,
+                background: '#eefaff',
+                border: '1px solid #d7f0ff',
+                padding: '6px 10px',
+                borderRadius: 6,
+                cursor: 'pointer',
+              }}
+            >
+              + Add Legend Item
             </button>
           </div>
         </div>
