@@ -26,17 +26,38 @@ function Navbar({ transparent = false }) {
       <div className="navbar-container">
         <div className="navbar-content">
           <div className="navbar-left">
-            <img src={logo} alt="Gurjant IELTS" className="logo-img" onClick={() => navigate('/')} />
+            <img
+              src={logo}
+              alt="Gurjant IELTS"
+              className="logo-img"
+              onClick={() => navigate('/')}
+            />
             <ul className="nav-links">
-              <li><Link to="/">Home</Link></li>
-              <li><Link to="/blogs">Recent Exams</Link></li>
-              <li><Link to="/bundle">Full Mock Test</Link></li>
-              <li><Link to="/free-test">Free Test</Link></li>
-              <li><Link to="/general-training">General Training</Link></li>
-              <li><Link to="/ielts-prediction">IELTS Prediction</Link></li>
-              <li><Link to="/contact">Contact</Link></li>
+              <li>
+                <Link to="/">Home</Link>
+              </li>
+              <li>
+                <Link to="/blogs">Recent Exams</Link>
+              </li>
+              <li>
+                <Link to="/bundle">Full Mock Test</Link>
+              </li>
+              <li>
+                <Link to="/free-test">Free Test</Link>
+              </li>
+              <li>
+                <Link to="/general-training">General Training</Link>
+              </li>
+              <li>
+                <Link to="/ielts-prediction">IELTS Preperation</Link>
+              </li>
+              <li>
+                <Link to="/contact">Contact</Link>
+              </li>
               {role === 'ADMIN' && (
-                <li><Link to="/admin-panel">Admin Panel</Link></li>
+                <li>
+                  <Link to="/admin-panel">Admin Panel</Link>
+                </li>
               )}
             </ul>
           </div>
@@ -56,17 +77,26 @@ function Navbar({ transparent = false }) {
                       height: '36px',
                       borderRadius: '50%',
                       objectFit: 'cover',
-                      border: '2px solid #fff'
+                      border: '2px solid #fff',
                     }}
                   />
                 ) : (
-                  <FaUserCircle size={36} className="nav-icon" title={user.email} onClick={() => navigate('/account')}
-                    style={{ cursor: 'pointer' }} />
+                  <FaUserCircle
+                    size={36}
+                    className="nav-icon"
+                    title={user.email}
+                    onClick={() => navigate('/account')}
+                    style={{ cursor: 'pointer' }}
+                  />
                 )}
-                <button className="login-btn" onClick={() => setShowLogoutConfirm(true)}>Logout</button>
+                <button className="login-btn" onClick={() => setShowLogoutConfirm(true)}>
+                  Logout
+                </button>
               </>
             ) : (
-              <button className="login-btn" onClick={() => navigate('/login')}>LOGIN</button>
+              <button className="login-btn" onClick={() => navigate('/login')}>
+                LOGIN
+              </button>
             )}
           </div>
         </div>
@@ -81,7 +111,7 @@ function Navbar({ transparent = false }) {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 10000,
-            padding: 20
+            padding: 20,
           }}
           onContextMenu={(e) => e.preventDefault()}
         >
@@ -93,7 +123,7 @@ function Navbar({ transparent = false }) {
               minWidth: 320,
               maxWidth: '90vw',
               boxShadow: '0 12px 28px rgba(0,0,0,0.25)',
-              textAlign: 'center'
+              textAlign: 'center',
             }}
           >
             <h3 style={{ marginTop: 0, marginBottom: 8 }}>Confirm Logout</h3>
@@ -107,7 +137,7 @@ function Navbar({ transparent = false }) {
                   border: '1px solid #bbb',
                   background: '#f2f2f2',
                   cursor: 'pointer',
-                  fontWeight: 700
+                  fontWeight: 700,
                 }}
               >
                 Cancel
@@ -121,7 +151,7 @@ function Navbar({ transparent = false }) {
                   background: '#b30000',
                   color: '#fff',
                   cursor: 'pointer',
-                  fontWeight: 800
+                  fontWeight: 800,
                 }}
               >
                 Yes, Logout

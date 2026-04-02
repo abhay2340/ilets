@@ -5,6 +5,7 @@ This document explains how to set up and use the Razorpay payment integration fo
 ## Overview
 
 The payment system allows you to:
+
 - Make 7 tests (test3-test9) paid at ₹499 each
 - Keep 2 tests (test1-test2) free
 - Provide 30 days access for each purchased test
@@ -33,6 +34,7 @@ VITE_RAZORPAY_KEY_SECRET=your_key_secret_here
 ```
 
 Important:
+
 - Use test keys for development; use live keys for production
 - Never commit real keys to version control
 - After changing env vars, restart the dev server
@@ -42,7 +44,9 @@ Important:
 The system uses two Firestore collections:
 
 #### `users` Collection
+
 Stores user purchase information with expiration:
+
 ```javascript
 {
   userId: "user123",
@@ -60,7 +64,9 @@ Stores user purchase information with expiration:
 ```
 
 #### `purchases` Collection
+
 Stores detailed purchase records with expiration:
+
 ```javascript
 {
   userId: "user123",
@@ -86,7 +92,7 @@ export const TEST_PRICING = {
   // Free tests
   test1: { price: 0, currency: 'INR', isFree: true },
   test2: { price: 0, currency: 'INR', isFree: true },
-  
+
   // Paid tests - ₹499 each with 30 days access
   test3: { price: 499, currency: 'INR', isFree: false },
   test4: { price: 499, currency: 'INR', isFree: false },
@@ -132,22 +138,26 @@ export const ACCESS_DURATION = {
 ## Key Components
 
 ### 1. Payment Service (`src/services/paymentService.js`)
+
 - Handles Razorpay integration
 - Manages payment orders
 - Records purchases in Firestore
 - Verifies payment success
 
 ### 2. Purchase Hook (`src/hooks/usePurchases.js`)
+
 - Manages user purchase state
 - Provides access checking functions
 - Handles purchase operations
 
 ### 3. Payment Page (`src/pages/PaymentPage.jsx`)
+
 - Displays test information and pricing
 - Handles payment initiation
 - Shows payment methods and security info
 
 ### 4. Test Landing Page (`src/TestLandingPage.jsx`)
+
 - Shows free/paid status for each test
 - Provides purchase buttons
 - Handles quick purchase functionality
@@ -155,11 +165,13 @@ export const ACCESS_DURATION = {
 ## Testing
 
 ### Test Mode
+
 1. Use Razorpay test keys
 2. Use test card numbers from Razorpay documentation
 3. Test payments won't charge real money
 
 ### Production Mode
+
 1. Use Razorpay live keys
 2. Ensure proper error handling
 3. Test with small amounts first
@@ -175,6 +187,7 @@ export const ACCESS_DURATION = {
 ## Backend Integration (Recommended)
 
 For production use, implement a backend to:
+
 1. Create payment orders securely
 2. Verify payment signatures
 3. Handle webhooks for payment status updates
@@ -203,6 +216,7 @@ For production use, implement a backend to:
 ### Debug Mode
 
 Enable debug logging by adding to your browser console:
+
 ```javascript
 localStorage.setItem('debug', 'payment:*');
 ```
@@ -210,6 +224,7 @@ localStorage.setItem('debug', 'payment:*');
 ## Support
 
 For issues related to:
+
 - **Razorpay**: Check [Razorpay Documentation](https://razorpay.com/docs/)
 - **Firebase**: Check [Firebase Documentation](https://firebase.google.com/docs)
 - **This Implementation**: Check the code comments and error messages
@@ -217,7 +232,8 @@ For issues related to:
 ## Future Enhancements
 
 Consider implementing:
-1. Bundle pricing for multiple tests
+
+1. Package pricing for multiple tests
 2. Subscription-based access
 3. Discount codes and coupons
 4. Payment analytics and reporting

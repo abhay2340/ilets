@@ -5,23 +5,20 @@ import backgroundImg from './assets/student-hero.jpg';
 import { FaBookReader, FaClock, FaHeadphones } from 'react-icons/fa';
 import { useAuth } from './AuthContext';
 import { usePurchases } from './hooks/usePurchases';
-import { TEST_PRICING, formatPrice } from './config/pricing';
 import { signOut } from 'firebase/auth';
 import { auth, db } from './firebaseConfig';
 import { collection, getDocs } from 'firebase/firestore';
 import LoaderOverlay from './components/LoaderOverlay.jsx';
 import ContactSection from './ContactSection';
-import FreeTests from './FreeTests';
-import PaidTests from './PaidTests';
 
 function TestLandingPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const { purchasedTests, loading, hasAccess } = usePurchases();
-  const [bundles, setBundles] = React.useState([])
-  const [bundlesLoading, setBundlesLoading] = React.useState(true)
-  const [bundlesError, setBundlesError] = React.useState('')
+  const [bundles, setBundles] = React.useState([]);
+  const [bundlesLoading, setBundlesLoading] = React.useState(true);
+  const [bundlesError, setBundlesError] = React.useState('');
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -46,17 +43,17 @@ function TestLandingPage() {
   React.useEffect(() => {
     const loadBundles = async () => {
       try {
-        const snap = await getDocs(collection(db, 'bundles'))
-        const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-        setBundles(items)
+        const snap = await getDocs(collection(db, 'bundles'));
+        const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setBundles(items);
       } catch (e) {
-        setBundlesError('Failed to load bundles')
+        setBundlesError('Failed to load bundles');
       } finally {
-        setBundlesLoading(false)
+        setBundlesLoading(false);
       }
-    }
-    loadBundles()
-  }, [])
+    };
+    loadBundles();
+  }, []);
 
   return (
     <div className="test-landing-container">
@@ -109,76 +106,121 @@ function TestLandingPage() {
 
             {!bundlesLoading && !bundlesError && (
               <>
-                {/* Free Bundles Section */}
-                {bundles.filter(b => Number(b.price || 0) === 0).length > 0 && (
+                {/* Free Package Section */}
+                {bundles.filter((b) => Number(b.price || 0) === 0).length > 0 && (
                   <div className="tests-section">
-                    <h2 className="choose-heading" style={{ textAlign: 'center' }}>Free Bundles</h2>
+                    <h2 className="choose-heading" style={{ textAlign: 'center' }}>
+                      Free Package
+                    </h2>
                     <div className="bundle-grid">
-                      {bundles.filter(b => Number(b.price || 0) === 0).map(b => (
-                        <div key={b.id} style={{ border: '1px solid #eaeaea', borderRadius: 10, padding: 20, background: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                          <h3 style={{ margin: 0, fontSize: 20 }}>{b.name || 'Bundle'}</h3>
-                          <div style={{ marginTop: 8, fontWeight: 700, color: '#28a745', fontSize: 16 }}>Free Bundle</div>
-                          <div style={{ marginTop: 8, fontSize: 14, color: '#555' }}>
-                            {Array.isArray(b.testIds) ? `${b.testIds.length} tests` : '0 tests'}
-                          </div>
-                          <div style={{ marginTop: 16, width: '100%' }}>
-                            <button
-                              onClick={() => navigate(`/bundle/${b.id}`)}
+                      {bundles
+                        .filter((b) => Number(b.price || 0) === 0)
+                        .map((b) => (
+                          <div
+                            key={b.id}
+                            style={{
+                              border: '1px solid #eaeaea',
+                              borderRadius: 10,
+                              padding: 20,
+                              background: '#fff',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              textAlign: 'center',
+                            }}
+                          >
+                            <h3 style={{ margin: 0, fontSize: 20 }}>{b.name || 'Package'}</h3>
+                            <div
                               style={{
-                                display: 'block',
-                                width: '100%',
-                                background: 'linear-gradient(135deg, #b30000, #ff0002)',
-                                color: '#fff',
-                                border: 'none',
-                                padding: '10px 16px',
-                                borderRadius: 8,
-                                fontSize: 14,
+                                marginTop: 8,
                                 fontWeight: 700,
-                                cursor: 'pointer'
+                                color: '#28a745',
+                                fontSize: 16,
                               }}
                             >
-                              View bundle
-                            </button>
+                              Free Package
+                            </div>
+                            <div style={{ marginTop: 8, fontSize: 14, color: '#555' }}>
+                              {Array.isArray(b.testIds) ? `${b.testIds.length} tests` : '0 tests'}
+                            </div>
+                            <div style={{ marginTop: 16, width: '100%' }}>
+                              <button
+                                onClick={() => navigate(`/bundle/${b.id}`)}
+                                style={{
+                                  display: 'block',
+                                  width: '100%',
+                                  background: 'linear-gradient(135deg, #b30000, #ff0002)',
+                                  color: '#fff',
+                                  border: 'none',
+                                  padding: '10px 16px',
+                                  borderRadius: 8,
+                                  fontSize: 14,
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                View bundle
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   </div>
                 )}
 
-                {/* Premium Bundles Section */}
-                {bundles.filter(b => Number(b.price || 0) > 0).length > 0 && (
+                {/* Premium Package Section */}
+                {bundles.filter((b) => Number(b.price || 0) > 0).length > 0 && (
                   <div className="tests-section">
-                    <h2 className="choose-heading" style={{ textAlign: 'center' }}>Premium Bundles</h2>
+                    <h2 className="choose-heading" style={{ textAlign: 'center' }}>
+                      Premium Package
+                    </h2>
                     <div className="bundle-grid">
-                      {bundles.filter(b => Number(b.price || 0) > 0).map(b => (
-                        <div key={b.id} style={{ border: '1px solid #eaeaea', borderRadius: 10, padding: 20, background: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                          <h3 style={{ margin: 0, fontSize: 20 }}>{b.name || 'Bundle'}</h3>
-                          <div style={{ marginTop: 8, fontWeight: 700, fontSize: 16 }}>₹{Number(b.price || 0).toLocaleString()}</div>
-                          <div style={{ marginTop: 8, fontSize: 14, color: '#555' }}>
-                            {Array.isArray(b.testIds) ? `${b.testIds.length} tests` : '0 tests'}
+                      {bundles
+                        .filter((b) => Number(b.price || 0) > 0)
+                        .map((b) => (
+                          <div
+                            key={b.id}
+                            style={{
+                              border: '1px solid #eaeaea',
+                              borderRadius: 10,
+                              padding: 20,
+                              background: '#fff',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              textAlign: 'center',
+                            }}
+                          >
+                            <h3 style={{ margin: 0, fontSize: 20 }}>{b.name || 'Package'}</h3>
+                            <div style={{ marginTop: 8, fontWeight: 700, fontSize: 16 }}>
+                              ₹{Number(b.price || 0).toLocaleString()}
+                            </div>
+                            <div style={{ marginTop: 8, fontSize: 14, color: '#555' }}>
+                              {Array.isArray(b.testIds) ? `${b.testIds.length} tests` : '0 tests'}
+                            </div>
+                            <div style={{ marginTop: 16, width: '100%' }}>
+                              <button
+                                onClick={() => navigate(`/bundle/${b.id}`)}
+                                style={{
+                                  display: 'block',
+                                  width: '100%',
+                                  background: 'linear-gradient(135deg, #b30000, #ff0002)',
+                                  color: '#fff',
+                                  border: 'none',
+                                  padding: '10px 16px',
+                                  borderRadius: 8,
+                                  fontSize: 14,
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                View bundle
+                              </button>
+                            </div>
                           </div>
-                          <div style={{ marginTop: 16, width: '100%' }}>
-                            <button
-                              onClick={() => navigate(`/bundle/${b.id}`)}
-                              style={{
-                                display: 'block',
-                                width: '100%',
-                                background: 'linear-gradient(135deg, #b30000, #ff0002)',
-                                color: '#fff',
-                                border: 'none',
-                                padding: '10px 16px',
-                                borderRadius: 8,
-                                fontSize: 14,
-                                fontWeight: 700,
-                                cursor: 'pointer'
-                              }}
-                            >
-                              View bundle
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   </div>
                 )}
@@ -188,9 +230,9 @@ function TestLandingPage() {
             )}
           </div>
         </div>
-      </section >
+      </section>
       <ContactSection />
-    </div >
+    </div>
   );
 }
 

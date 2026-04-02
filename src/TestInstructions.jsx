@@ -15,20 +15,28 @@ const TestInstructions = () => {
 
   return (
     <div style={{ padding: '40px', display: 'flex', justifyContent: 'center' }}>
-      <div style={{
-        maxWidth: '800px',
-        backgroundColor: '#fff',
-        padding: '30px',
-        borderRadius: '15px',
-        boxShadow: '0 0 10px rgba(0,0,0,0.1)'
-      }}>
+      <div
+        style={{
+          maxWidth: '800px',
+          backgroundColor: '#fff',
+          padding: '30px',
+          borderRadius: '15px',
+          boxShadow: '0 0 10px rgba(0,0,0,0.1)',
+        }}
+      >
         <h2 style={{ textAlign: 'center' }}>NOTES BEFORE TAKING THE TEST</h2>
 
         <h4>📌 General information:</h4>
         <ul>
           <li>The online test is designed to closely mimic the official IELTS test format.</li>
-          <li>In <strong>Full Test mode</strong>, the Listening section plays automatically and moves to the next question. Candidates cannot go back or skip questions in this section.</li>
-          <li>After completing the test, click the “Submit” button in the upper right corner of the screen to see detailed results.</li>
+          <li>
+            In <strong>Full Test mode</strong>, the Listening section plays automatically and moves
+            to the next question. Candidates cannot go back or skip questions in this section.
+          </li>
+          <li>
+            After completing the test, click the “Submit” button in the upper right corner of the
+            screen to see detailed results.
+          </li>
         </ul>
 
         <h4>🖥️ Device and browser requirements:</h4>
@@ -40,11 +48,17 @@ const TestInstructions = () => {
         <hr style={{ margin: '30px 0' }} />
 
         <h3 style={{ color: '#cc0000' }}>COPYRIGHT NOTICE AND COMMITMENT TO USE OF TEST CONTENT</h3>
-        <p>All test content (including questions, images, audio and related data) is our intellectual property.</p>
+        <p>
+          All test content (including questions, images, audio and related data) is our intellectual
+          property.
+        </p>
 
         <h4>❌ Strictly Prohibited:</h4>
         <ul>
-          <li>Copy, store, share or extract the content in any form other than for personal study purposes.</li>
+          <li>
+            Copy, store, share or extract the content in any form other than for personal study
+            purposes.
+          </li>
           <li>Sharing accounts or transmitting test data to third parties.</li>
         </ul>
 
@@ -67,7 +81,7 @@ const TestInstructions = () => {
               color: 'white',
               border: 'none',
               fontWeight: 'bold',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             Begin

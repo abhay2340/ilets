@@ -1,375 +1,1207 @@
-import React, { useEffect, useState } from 'react'
-import { db } from './firebaseConfig'
-import { collection, getDocs, setDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore'
-import { toast } from 'react-toastify'
-import LoaderOverlay from './components/LoaderOverlay.jsx'
+import React, { useEffect, useState } from 'react';
+import { db } from './firebaseConfig';
+import { collection, getDocs, setDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { toast } from 'react-toastify';
+import LoaderOverlay from './components/LoaderOverlay.jsx';
 
-const Bundle = () => {
-    const [bundles, setBundles] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState('')
-    const [isOpen, setIsOpen] = useState(false)
+const Package = () => {
+  const [bundles, setBundles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
 
-    const [name, setName] = useState('')
-    const [price, setPrice] = useState('')
-    const [externalId, setExternalId] = useState('')
-    // removed metadata field per request
-    const [saving, setSaving] = useState(false)
+  const [name, setName] = useState('');
+  const [price, setPrice] = useState('');
+  const [externalId, setExternalId] = useState('');
+  const [bundleCategory, setBundleCategory] = useState('academic');
+  const [saving, setSaving] = useState(false);
 
-    // Manage tests modal state
-    const [isTestsOpen, setIsTestsOpen] = useState(false)
-    const [testsLoading, setTestsLoading] = useState(false)
-    const [testsError, setTestsError] = useState('')
-    const [allTests, setAllTests] = useState([])
-    const [selectedTestIds, setSelectedTestIds] = useState(new Set())
-    const [activeBundle, setActiveBundle] = useState(null)
+  // Manage tests modal state
+  const [isTestsOpen, setIsTestsOpen] = useState(false);
+  const [testsLoading, setTestsLoading] = useState(false);
+  const [testsError, setTestsError] = useState('');
+  const [allTests, setAllTests] = useState([]);
+  const [selectedTestIds, setSelectedTestIds] = useState(new Set());
+  const [activeBundle, setActiveBundle] = useState(null);
 
-    // Edit bundle modal state
-    const [isEditOpen, setIsEditOpen] = useState(false)
-    const [editName, setEditName] = useState('')
-    const [editPrice, setEditPrice] = useState('')
-    const [editExternalId, setEditExternalId] = useState('')
-    const [savingEdit, setSavingEdit] = useState(false)
+  // Edit bundle modal state
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPrice, setEditPrice] = useState('');
+  const [editExternalId, setEditExternalId] = useState('');
+  const [editBundleCategory, setEditBundleCategory] = useState('academic');
+  const [savingEdit, setSavingEdit] = useState(false);
 
-    useEffect(() => {
-        const load = async () => {
-            try {
-                const col = collection(db, 'bundles')
-                const snap = await getDocs(col)
-                const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-                setBundles(items)
-            } catch (e) {
-                setError('Failed to load bundles')
-            } finally {
-                setLoading(false)
-            }
-        }
-        load()
-    }, [])
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const col = collection(db, 'bundles');
+        const snap = await getDocs(col);
+        const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setBundles(items);
+      } catch {
+        setError('Failed to load bundles');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
-    const resetForm = () => {
-        setName('')
-        setPrice('')
-        setExternalId('')
-        // no metadata
+  const resetForm = () => {
+    setName('');
+    setPrice('');
+    setExternalId('');
+    setBundleCategory('academic');
+  };
+
+  const handleSave = async () => {
+    // basic validation
+    const n = name.trim();
+    if (!n) {
+      toast.error('Package name is required');
+      return;
     }
-
-    const handleSave = async () => {
-        // basic validation
-        const n = name.trim()
-        if (!n) {
-            toast.error('Bundle name is required')
-            return
-        }
-        const p = Number(price)
-        if (!Number.isFinite(p) || p < 0) {
-            toast.error('Price must be a non-negative number')
-            return
-        }
-        const generatedId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`
-
-        try {
-            setSaving(true)
-            const payload = {
-                id: generatedId,
-                name: n,
-                price: p,
-                externalId: externalId.trim() || null,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp()
-            }
-            await setDoc(doc(db, 'bundles', generatedId), payload)
-            toast.success('Bundle added')
-            setBundles(prev => [{ ...payload, createdAt: null, updatedAt: null }, ...prev])
-            setIsOpen(false)
-            resetForm()
-        } catch (e) {
-            toast.error('Failed to add bundle')
-        } finally {
-            setSaving(false)
-        }
+    const p = Number(price);
+    if (!Number.isFinite(p) || p < 0) {
+      toast.error('Price must be a non-negative number');
+      return;
     }
+    const generatedId =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-    const openManageTests = async (bundle) => {
-        setActiveBundle(bundle)
-        setIsTestsOpen(true)
-        setTestsLoading(true)
-        setTestsError('')
-        try {
-            const snap = await getDocs(collection(db, 'tests'))
-            const tests = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-            setAllTests(tests)
-            const preset = new Set(Array.isArray(bundle.testIds) ? bundle.testIds : [])
-            setSelectedTestIds(preset)
-        } catch (e) {
-            setTestsError('Failed to load tests')
-        } finally {
-            setTestsLoading(false)
-        }
+    try {
+      setSaving(true);
+      const payload = {
+        id: generatedId,
+        name: n,
+        price: p,
+        externalId: externalId.trim() || null,
+        bundleCategory: p > 0 ? bundleCategory : 'free',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      await setDoc(doc(db, 'bundles', generatedId), payload);
+      toast.success('Package added');
+      setBundles((prev) => [{ ...payload, createdAt: null, updatedAt: null }, ...prev]);
+      setIsOpen(false);
+      resetForm();
+    } catch {
+      toast.error('Failed to add bundle');
+    } finally {
+      setSaving(false);
     }
+  };
 
-    const toggleTestId = (id) => {
-        setSelectedTestIds(prev => {
-            const next = new Set(prev)
-            if (next.has(id)) next.delete(id)
-            else next.add(id)
-            return next
-        })
+  const openManageTests = async (bundle) => {
+    setActiveBundle(bundle);
+    setIsTestsOpen(true);
+    setTestsLoading(true);
+    setTestsError('');
+    try {
+      const snap = await getDocs(collection(db, 'tests'));
+      const tests = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setAllTests(tests);
+      const preset = new Set(Array.isArray(bundle.testIds) ? bundle.testIds : []);
+      setSelectedTestIds(preset);
+    } catch (e) {
+      setTestsError('Failed to load tests');
+    } finally {
+      setTestsLoading(false);
     }
+  };
 
-    const selectAll = () => {
-        setSelectedTestIds(new Set(allTests.map(t => t.id)))
+  const toggleTestId = (id) => {
+    setSelectedTestIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedTestIds(new Set(allTests.map((t) => t.id)));
+  };
+
+  const clearAll = () => {
+    setSelectedTestIds(new Set());
+  };
+
+  const saveBundleTests = async () => {
+    if (!activeBundle) return;
+    try {
+      await setDoc(
+        doc(db, 'bundles', activeBundle.id),
+        {
+          testIds: Array.from(selectedTestIds),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      // update local state
+      setBundles((prev) =>
+        prev.map((b) =>
+          b.id === activeBundle.id ? { ...b, testIds: Array.from(selectedTestIds) } : b
+        )
+      );
+      toast.success('Package tests updated');
+      setIsTestsOpen(false);
+      setActiveBundle(null);
+    } catch (e) {
+      toast.error('Failed to update bundle tests');
     }
+  };
 
-    const clearAll = () => {
-        setSelectedTestIds(new Set())
+  const deleteBundle = async (bundleId) => {
+    if (!window.confirm('Are you sure you want to delete this bundle? This cannot be undone.'))
+      return;
+    try {
+      await deleteDoc(doc(db, 'bundles', bundleId));
+      setBundles((prev) => prev.filter((b) => b.id !== bundleId));
+      toast.success('Package deleted');
+    } catch (e) {
+      toast.error('Failed to delete bundle');
     }
+  };
 
-    const saveBundleTests = async () => {
-        if (!activeBundle) return
-        try {
-            await setDoc(doc(db, 'bundles', activeBundle.id), {
-                testIds: Array.from(selectedTestIds),
-                updatedAt: serverTimestamp()
-            }, { merge: true })
-            // update local state
-            setBundles(prev => prev.map(b => b.id === activeBundle.id ? { ...b, testIds: Array.from(selectedTestIds) } : b))
-            toast.success('Bundle tests updated')
-            setIsTestsOpen(false)
-            setActiveBundle(null)
-        } catch (e) {
-            toast.error('Failed to update bundle tests')
-        }
-    }
+  return (
+    <>
+      <div style={{ padding: '16px', maxWidth: 1100, margin: '0 auto' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 16,
+          }}
+        >
+          <h2 style={{ margin: 0 }}>Package</h2>
+          <button
+            onClick={() => setIsOpen(true)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 6,
+              border: '1px solid #cfe3ff',
+              background: '#f0f7ff',
+              cursor: 'pointer',
+            }}
+          >
+            + Add Package
+          </button>
+        </div>
 
-    const deleteBundle = async (bundleId) => {
-        if (!window.confirm('Are you sure you want to delete this bundle? This cannot be undone.')) return
-        try {
-            await deleteDoc(doc(db, 'bundles', bundleId))
-            setBundles(prev => prev.filter(b => b.id !== bundleId))
-            toast.success('Bundle deleted')
-        } catch (e) {
-            toast.error('Failed to delete bundle')
-        }
-    }
+        {loading && <LoaderOverlay text="Loading bundles…" />}
+        {error && <div style={{ color: 'crimson' }}>{error}</div>}
+        {!loading && !error && bundles.length === 0 && <div>No bundles found.</div>}
 
-    return (
-        <>
-            <div style={{ padding: '16px', maxWidth: 1100, margin: '0 auto' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                    <h2 style={{ margin: 0 }}>Bundles</h2>
-                    <button onClick={() => setIsOpen(true)} style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #cfe3ff', background: '#f0f7ff', cursor: 'pointer' }}>+ Add Bundle</button>
-                </div>
-
-                {loading && <LoaderOverlay text="Loading bundles…" />}
-                {error && <div style={{ color: 'crimson' }}>{error}</div>}
-                {!loading && !error && bundles.length === 0 && <div>No bundles found.</div>}
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-                    {/* Free Bundles */}
-                    {bundles.some(b => Number(b.price || 0) === 0) && (
-                        <div>
-                            <h3 style={{ marginTop: 0, marginBottom: 12, fontSize: 18, color: '#28a745' }}>Free Bundles</h3>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
-                                {bundles.filter(b => Number(b.price || 0) === 0).map(b => (
-                                    <div key={b.id} style={{ border: '1px solid #e0e0e0', borderRadius: 8, padding: 12, position: 'relative' }}>
-                                        <button
-                                            onClick={() => deleteBundle(b.id)}
-                                            style={{
-                                                position: 'absolute',
-                                                top: 8,
-                                                right: 8,
-                                                border: 'none',
-                                                background: 'transparent',
-                                                cursor: 'pointer',
-                                                padding: 4,
-                                                color: '#dc3545'
-                                            }}
-                                            title="Delete Bundle"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
-                                                <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z" />
-                                            </svg>
-                                        </button>
-                                        <div style={{ fontWeight: 700, paddingRight: 24 }}>{b.name}</div>
-                                        <div style={{ marginTop: 6 }}>Price: ₹{Number(b.price).toLocaleString()}</div>
-                                        {b.externalId ? <div style={{ marginTop: 4, fontSize: 12, color: '#444' }}>Ext ID: {b.externalId}</div> : null}
-                                        <div style={{ marginTop: 6, fontSize: 12, color: '#555' }}>Tests: {Array.isArray(b.testIds) ? b.testIds.length : 0}</div>
-                                        <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-                                            <button onClick={() => openManageTests(b)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer', background: '#e3f2fd', color: '#0d47a1' }}>Manage Tests</button>
-                                            <button onClick={() => { setIsEditOpen(true); setActiveBundle(b); setEditName(b.name || ''); setEditPrice(String(b.price ?? '')); setEditExternalId(b.externalId || ''); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer', background: '#fff3e0', color: '#e65100' }}>Edit</button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+          {/* Free Package */}
+          {bundles.some((b) => Number(b.price || 0) === 0) && (
+            <div>
+              <h3 style={{ marginTop: 0, marginBottom: 12, fontSize: 18, color: '#28a745' }}>
+                Free Package
+              </h3>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                  gap: 12,
+                }}
+              >
+                {bundles
+                  .filter((b) => Number(b.price || 0) === 0)
+                  .map((b) => (
+                    <div
+                      key={b.id}
+                      style={{
+                        border: '1px solid #e0e0e0',
+                        borderRadius: 8,
+                        padding: 12,
+                        position: 'relative',
+                      }}
+                    >
+                      <button
+                        onClick={() => deleteBundle(b.id)}
+                        style={{
+                          position: 'absolute',
+                          top: 8,
+                          right: 8,
+                          border: 'none',
+                          background: 'transparent',
+                          cursor: 'pointer',
+                          padding: 4,
+                          color: '#dc3545',
+                        }}
+                        title="Delete Package"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          fill="currentColor"
+                          viewBox="0 0 16 16"
+                        >
+                          <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
+                          <path
+                            fillRule="evenodd"
+                            d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
+                          />
+                        </svg>
+                      </button>
+                      <div style={{ fontWeight: 700, paddingRight: 24 }}>{b.name}</div>
+                      <div style={{ marginTop: 6 }}>Price: ₹{Number(b.price).toLocaleString()}</div>
+                      {b.externalId ? (
+                        <div style={{ marginTop: 4, fontSize: 12, color: '#444' }}>
+                          Ext ID: {b.externalId}
                         </div>
-                    )}
-
-                    {/* Premium Bundles */}
-                    {bundles.some(b => Number(b.price || 0) > 0) && (
-                        <div>
-                            <h3 style={{ marginTop: 0, marginBottom: 12, fontSize: 18, color: '#b30000' }}>Premium Bundles</h3>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
-                                {bundles.filter(b => Number(b.price || 0) > 0).map(b => (
-                                    <div key={b.id} style={{ border: '1px solid #e0e0e0', borderRadius: 8, padding: 12, position: 'relative' }}>
-                                        <button
-                                            onClick={() => deleteBundle(b.id)}
-                                            style={{
-                                                position: 'absolute',
-                                                top: 8,
-                                                right: 8,
-                                                border: 'none',
-                                                background: 'transparent',
-                                                cursor: 'pointer',
-                                                padding: 4,
-                                                color: '#dc3545'
-                                            }}
-                                            title="Delete Bundle"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
-                                                <path fillRule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z" />
-                                            </svg>
-                                        </button>
-                                        <div style={{ fontWeight: 700, paddingRight: 24 }}>{b.name}</div>
-                                        <div style={{ marginTop: 6 }}>Price: ₹{Number(b.price).toLocaleString()}</div>
-                                        {b.externalId ? <div style={{ marginTop: 4, fontSize: 12, color: '#444' }}>Ext ID: {b.externalId}</div> : null}
-                                        <div style={{ marginTop: 6, fontSize: 12, color: '#555' }}>Tests: {Array.isArray(b.testIds) ? b.testIds.length : 0}</div>
-                                        <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-                                            <button onClick={() => openManageTests(b)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer', background: '#e3f2fd', color: '#0d47a1' }}>Manage Tests</button>
-                                            <button onClick={() => { setIsEditOpen(true); setActiveBundle(b); setEditName(b.name || ''); setEditPrice(String(b.price ?? '')); setEditExternalId(b.externalId || ''); }} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #dcdcdc', cursor: 'pointer', background: '#fff3e0', color: '#e65100' }}>Edit</button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {isOpen && (
-                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-                        <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 620, padding: 0, maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 12px 24px rgba(0,0,0,0.15)', border: '1px solid #eaeaea' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid #eee' }}>
-                                <h3 style={{ margin: 0, fontSize: 20 }}>Add Bundle</h3>
-                                <button onClick={() => { if (!saving) { setIsOpen(false); resetForm() } }} style={{ border: 'none', background: 'transparent', fontSize: 22, lineHeight: 1, cursor: 'pointer', color: '#555' }} aria-label="Close">×</button>
-                            </div>
-                            <div style={{ padding: 16, overflowY: 'auto' }}>
-                                <div style={{ maxWidth: 520, margin: '0 auto', display: 'grid', gap: 12 }}>
-                                    <div>
-                                        <label style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 6 }}>Bundle Name</label>
-                                        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Premium Bundle" style={{ width: '100%', padding: '10px 12px', maxWidth: '100%', border: '1px solid #ddd', borderRadius: 8 }} />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 6 }}>Price</label>
-                                        <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" step="0.01" min="0" placeholder="999" style={{ width: '100%', padding: '10px 12px', maxWidth: '100%', border: '1px solid #ddd', borderRadius: 8 }} />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 6 }}>Some ID (optional)</label>
-                                        <input value={externalId} onChange={(e) => setExternalId(e.target.value)} placeholder="SKU-123" style={{ width: '100%', padding: '10px 12px', maxWidth: '100%', border: '1px solid #ddd', borderRadius: 8 }} />
-                                    </div>
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '12px 16px', borderTop: '1px solid #eee' }}>
-                                <button onClick={() => { if (!saving) { setIsOpen(false); resetForm() } }} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', background: '#f7f7f7', cursor: 'pointer' }}>Cancel</button>
-                                <button onClick={handleSave} disabled={saving} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #8ddf8d', background: '#e6ffe6', cursor: 'pointer', fontWeight: 600 }}>{saving ? 'Saving…' : 'Save Bundle'}</button>
-                            </div>
-                        </div>
+                      ) : null}
+                      <div style={{ marginTop: 6, fontSize: 12, color: '#555' }}>
+                        Tests: {Array.isArray(b.testIds) ? b.testIds.length : 0}
+                      </div>
+                      <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => openManageTests(b)}
+                          style={{
+                            padding: '6px 10px',
+                            borderRadius: 6,
+                            border: '1px solid #dcdcdc',
+                            cursor: 'pointer',
+                            background: '#e3f2fd',
+                            color: '#0d47a1',
+                          }}
+                        >
+                          Manage Tests
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsEditOpen(true);
+                            setActiveBundle(b);
+                            setEditName(b.name || '');
+                            setEditPrice(String(b.price ?? ''));
+                            setEditExternalId(b.externalId || '');
+                          }}
+                          style={{
+                            padding: '6px 10px',
+                            borderRadius: 6,
+                            border: '1px solid #dcdcdc',
+                            cursor: 'pointer',
+                            background: '#fff3e0',
+                            color: '#e65100',
+                          }}
+                        >
+                          Edit
+                        </button>
+                      </div>
                     </div>
-                )}
-                {isEditOpen && (
-                    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-                        <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 620, padding: 0, maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 12px 24px rgba(0,0,0,0.15)', border: '1px solid #eaeaea' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid #eee' }}>
-                                <h3 style={{ margin: 0, fontSize: 20 }}>Edit Bundle</h3>
-                                <button onClick={() => { if (!savingEdit) { setIsEditOpen(false); setActiveBundle(null) } }} style={{ border: 'none', background: 'transparent', fontSize: 22, lineHeight: 1, cursor: 'pointer', color: '#555' }} aria-label="Close">×</button>
-                            </div>
-                            <div style={{ padding: 16, overflowY: 'auto' }}>
-                                <div style={{ maxWidth: 520, margin: '0 auto', display: 'grid', gap: 12 }}>
-                                    <div>
-                                        <label style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 6 }}>Bundle Name</label>
-                                        <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Premium Bundle" style={{ width: '100%', padding: '10px 12px', maxWidth: '100%', border: '1px solid #ddd', borderRadius: 8 }} />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 6 }}>Price</label>
-                                        <input value={editPrice} onChange={(e) => setEditPrice(e.target.value)} type="number" step="0.01" min="0" placeholder="999" style={{ width: '100%', padding: '10px 12px', maxWidth: '100%', border: '1px solid #ddd', borderRadius: 8 }} />
-                                    </div>
-                                    <div>
-                                        <label style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 6 }}>Some ID (optional)</label>
-                                        <input value={editExternalId} onChange={(e) => setEditExternalId(e.target.value)} placeholder="SKU-123" style={{ width: '100%', padding: '10px 12px', maxWidth: '100%', border: '1px solid #ddd', borderRadius: 8 }} />
-                                    </div>
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '12px 16px', borderTop: '1px solid #eee' }}>
-                                <button onClick={() => { if (!savingEdit) { setIsEditOpen(false); setActiveBundle(null) } }} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', background: '#f7f7f7', cursor: 'pointer' }}>Cancel</button>
-                                <button onClick={async () => {
-                                    if (!activeBundle) return
-                                    const n = editName.trim()
-                                    const p = Number(editPrice)
-                                    if (!n) { toast.error('Bundle name is required'); return }
-                                    if (!Number.isFinite(p) || p < 0) { toast.error('Price must be a non-negative number'); return }
-                                    try {
-                                        setSavingEdit(true)
-                                        await setDoc(doc(db, 'bundles', activeBundle.id), {
-                                            name: n,
-                                            price: p,
-                                            externalId: editExternalId.trim() || null,
-                                            updatedAt: serverTimestamp()
-                                        }, { merge: true })
-                                        setBundles(prev => prev.map(b => b.id === activeBundle.id ? { ...b, name: n, price: p, externalId: editExternalId.trim() || null } : b))
-                                        toast.success('Bundle updated')
-                                        setIsEditOpen(false)
-                                        setActiveBundle(null)
-                                    } catch (e) {
-                                        toast.error('Failed to update bundle')
-                                    } finally {
-                                        setSavingEdit(false)
-                                    }
-                                }} disabled={savingEdit} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #8ddf8d', background: '#e6ffe6', cursor: 'pointer', fontWeight: 600 }}>{savingEdit ? 'Saving…' : 'Save Changes'}</button>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                  ))}
+              </div>
             </div>
-            {isTestsOpen && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-                    <div style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 760, padding: 0, maxHeight: '90vh', overflow: 'hidden', boxShadow: '0 12px 24px rgba(0,0,0,0.15)', border: '1px solid #eaeaea' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid #eee' }}>
-                            <h3 style={{ margin: 0, fontSize: 20 }}>Manage Tests {activeBundle ? `— ${activeBundle.name}` : ''}</h3>
-                            <button onClick={() => { setIsTestsOpen(false); setActiveBundle(null) }} style={{ border: 'none', background: 'transparent', fontSize: 22, lineHeight: 1, cursor: 'pointer', color: '#555' }} aria-label="Close">×</button>
-                        </div>
-                        <div style={{ padding: 16, overflowY: 'auto' }}>
-                            {testsLoading && <div style={{ position: 'relative' }}><LoaderOverlay text="Loading tests…" fullscreen={false} /></div>}
-                            {testsError && <div style={{ color: 'crimson' }}>{testsError}</div>}
-                            {!testsLoading && !testsError && (
-                                <>
-                                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                                        <button onClick={selectAll} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#f7f7f7', cursor: 'pointer' }}>Select All</button>
-                                        <button onClick={clearAll} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', background: '#f7f7f7', cursor: 'pointer' }}>Clear</button>
-                                    </div>
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
-                                        {allTests.map(t => (
-                                            <label key={t.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, border: '1px solid #eee', padding: 10, borderRadius: 8 }}>
-                                                <input type="checkbox" checked={selectedTestIds.has(t.id)} onChange={() => toggleTestId(t.id)} />
-                                                <div>
-                                                    <div style={{ fontWeight: 600 }}>{t.title || 'Untitled'}</div>
-                                                    <div style={{ fontSize: 12, color: '#555' }}>#{t.number || '-'} • {t.type === 'audio' ? 'Audio' : 'Non-audio'}</div>
-                                                </div>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '12px 16px', borderTop: '1px solid #eee' }}>
-                            <button onClick={() => { setIsTestsOpen(false); setActiveBundle(null) }} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', background: '#f7f7f7', cursor: 'pointer' }}>Cancel</button>
-                            <button onClick={saveBundleTests} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #8ddf8d', background: '#e6ffe6', cursor: 'pointer', fontWeight: 600 }}>Add to Bundle</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </>
-    )
-}
+          )}
 
-export default Bundle
+          {/* Premium Academic Pack */}
+          {(() => {
+            const academicBundles = bundles.filter(
+              (b) =>
+                Number(b.price || 0) > 0 && (b.bundleCategory === 'academic' || !b.bundleCategory)
+            );
+            return (
+              <div>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 16,
+                  }}
+                >
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: 18,
+                      color: '#b30000',
+                      borderLeft: '4px solid #b30000',
+                      paddingLeft: 12,
+                    }}
+                  >
+                    Premium Academic Pack
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setBundleCategory('academic');
+                      setIsOpen(true);
+                    }}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      border: '1px solid #ffd0d0',
+                      background: '#fff',
+                      color: '#b30000',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
+                    + Add Academic Pack
+                  </button>
+                </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                    gap: 16,
+                  }}
+                >
+                  {academicBundles.length === 0 && (
+                    <div
+                      style={{
+                        fontSize: 14,
+                        color: '#999',
+                        fontStyle: 'italic',
+                        padding: '10px 0',
+                      }}
+                    >
+                      No academic packs found.
+                    </div>
+                  )}
+                  {academicBundles.map((b) => (
+                    <div
+                      key={b.id}
+                      style={{
+                        border: '1px solid #ffd0d0',
+                        borderRadius: 10,
+                        padding: 16,
+                        position: 'relative',
+                        background: '#fff9f9',
+                        boxShadow: '0 2px 4px rgba(179,0,0,0.05)',
+                      }}
+                    >
+                      <button
+                        onClick={() => deleteBundle(b.id)}
+                        style={{
+                          position: 'absolute',
+                          top: 12,
+                          right: 12,
+                          border: 'none',
+                          background: 'transparent',
+                          cursor: 'pointer',
+                          color: '#dc3545',
+                        }}
+                        title="Delete Package"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          fill="currentColor"
+                          viewBox="0 0 16 16"
+                        >
+                          <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
+                          <path
+                            fillRule="evenodd"
+                            d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
+                          />
+                        </svg>
+                      </button>
+                      <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{b.name}</div>
+                      <div style={{ marginBottom: 4, fontWeight: 600 }}>
+                        Price: ₹{Number(b.price).toLocaleString()}
+                      </div>
+                      <div style={{ fontSize: 13, color: '#555' }}>
+                        Tests assigned: {Array.isArray(b.testIds) ? b.testIds.length : 0}
+                      </div>
+                      <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => openManageTests(b)}
+                          style={{
+                            flex: 1,
+                            padding: '8px',
+                            borderRadius: 6,
+                            border: '1px solid #dcdcdc',
+                            cursor: 'pointer',
+                            background: '#e3f2fd',
+                            color: '#0d47a1',
+                            fontSize: 13,
+                            fontWeight: 600,
+                          }}
+                        >
+                          Manage Tests
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsEditOpen(true);
+                            setActiveBundle(b);
+                            setEditName(b.name || '');
+                            setEditPrice(String(b.price ?? ''));
+                            setEditExternalId(b.externalId || '');
+                            setEditBundleCategory(b.bundleCategory || 'academic');
+                          }}
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: 6,
+                            border: '1px solid #dcdcdc',
+                            cursor: 'pointer',
+                            background: '#fff3e0',
+                            color: '#e65100',
+                            fontSize: 13,
+                          }}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Premium General Training Pack */}
+          {(() => {
+            const gtBundles = bundles.filter(
+              (b) => Number(b.price || 0) > 0 && b.bundleCategory === 'general_training'
+            );
+            return (
+              <div>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginTop: 24,
+                    marginBottom: 16,
+                  }}
+                >
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: 18,
+                      color: '#0060b3',
+                      borderLeft: '4px solid #0060b3',
+                      paddingLeft: 12,
+                    }}
+                  >
+                    Premium General Training Pack
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setBundleCategory('general_training');
+                      setIsOpen(true);
+                    }}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      border: '1px solid #cfe3ff',
+                      background: '#fff',
+                      color: '#0060b3',
+                      cursor: 'pointer',
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
+                    + Add GT Pack
+                  </button>
+                </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                    gap: 16,
+                  }}
+                >
+                  {gtBundles.length === 0 && (
+                    <div
+                      style={{
+                        fontSize: 14,
+                        color: '#999',
+                        fontStyle: 'italic',
+                        padding: '10px 0',
+                      }}
+                    >
+                      No general training packs found.
+                    </div>
+                  )}
+                  {gtBundles.map((b) => (
+                    <div
+                      key={b.id}
+                      style={{
+                        border: '1px solid #cfe3ff',
+                        borderRadius: 10,
+                        padding: 16,
+                        position: 'relative',
+                        background: '#f5f9ff',
+                        boxShadow: '0 2px 4px rgba(0,96,179,0.05)',
+                      }}
+                    >
+                      <button
+                        onClick={() => deleteBundle(b.id)}
+                        style={{
+                          position: 'absolute',
+                          top: 12,
+                          right: 12,
+                          border: 'none',
+                          background: 'transparent',
+                          cursor: 'pointer',
+                          color: '#dc3545',
+                        }}
+                        title="Delete Package"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          fill="currentColor"
+                          viewBox="0 0 16 16"
+                        >
+                          <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
+                          <path
+                            fillRule="evenodd"
+                            d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"
+                          />
+                        </svg>
+                      </button>
+                      <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{b.name}</div>
+                      <div style={{ marginBottom: 4, fontWeight: 600 }}>
+                        Price: ₹{Number(b.price).toLocaleString()}
+                      </div>
+                      <div style={{ fontSize: 13, color: '#555' }}>
+                        Tests assigned: {Array.isArray(b.testIds) ? b.testIds.length : 0}
+                      </div>
+                      <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => openManageTests(b)}
+                          style={{
+                            flex: 1,
+                            padding: '8px',
+                            borderRadius: 6,
+                            border: '1px solid #dcdcdc',
+                            cursor: 'pointer',
+                            background: '#e3f2fd',
+                            color: '#0d47a1',
+                            fontSize: 13,
+                            fontWeight: 600,
+                          }}
+                        >
+                          Manage Tests
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsEditOpen(true);
+                            setActiveBundle(b);
+                            setEditName(b.name || '');
+                            setEditPrice(String(b.price ?? ''));
+                            setEditExternalId(b.externalId || '');
+                            setEditBundleCategory(b.bundleCategory || 'general_training');
+                          }}
+                          style={{
+                            padding: '8px 12px',
+                            borderRadius: 6,
+                            border: '1px solid #dcdcdc',
+                            cursor: 'pointer',
+                            background: '#fff3e0',
+                            color: '#e65100',
+                            fontSize: 13,
+                          }}
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+
+        {isOpen && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16,
+            }}
+          >
+            <div
+              style={{
+                background: '#fff',
+                borderRadius: 12,
+                width: '100%',
+                maxWidth: 620,
+                padding: 0,
+                maxHeight: '90vh',
+                overflow: 'hidden',
+                boxShadow: '0 12px 24px rgba(0,0,0,0.15)',
+                border: '1px solid #eaeaea',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '14px 18px',
+                  borderBottom: '1px solid #eee',
+                }}
+              >
+                <h3 style={{ margin: 0, fontSize: 20 }}>Add Package</h3>
+                <button
+                  onClick={() => {
+                    if (!saving) {
+                      setIsOpen(false);
+                      resetForm();
+                    }
+                  }}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    fontSize: 22,
+                    lineHeight: 1,
+                    cursor: 'pointer',
+                    color: '#555',
+                  }}
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+              <div style={{ padding: 16, overflowY: 'auto' }}>
+                <div style={{ maxWidth: 520, margin: '0 auto', display: 'grid', gap: 12 }}>
+                  <div>
+                    <label
+                      style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 6 }}
+                    >
+                      Package Name
+                    </label>
+                    <input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Premium Package"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        maxWidth: '100%',
+                        border: '1px solid #ddd',
+                        borderRadius: 8,
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 6 }}
+                    >
+                      Price
+                    </label>
+                    <input
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="999"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        maxWidth: '100%',
+                        border: '1px solid #ddd',
+                        borderRadius: 8,
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 6 }}
+                    >
+                      Some ID (optional)
+                    </label>
+                    <input
+                      value={externalId}
+                      onChange={(e) => setExternalId(e.target.value)}
+                      placeholder="SKU-123"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        maxWidth: '100%',
+                        border: '1px solid #ddd',
+                        borderRadius: 8,
+                      }}
+                    />
+                  </div>
+                  {Number(price) > 0 && (
+                    <div>
+                      <label
+                        style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 6 }}
+                      >
+                        Bundle Type
+                      </label>
+                      <select
+                        value={bundleCategory}
+                        onChange={(e) => setBundleCategory(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: 8,
+                        }}
+                      >
+                        <option value="academic">Premium Academic Pack</option>
+                        <option value="general_training">Premium General Training Pack</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: 10,
+                  padding: '12px 16px',
+                  borderTop: '1px solid #eee',
+                }}
+              >
+                <button
+                  onClick={() => {
+                    if (!saving) {
+                      setIsOpen(false);
+                      resetForm();
+                    }
+                  }}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid #ddd',
+                    background: '#f7f7f7',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    border: '1px solid #8ddf8d',
+                    background: '#e6ffe6',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  {saving ? 'Saving…' : 'Save Package'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {isEditOpen && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16,
+            }}
+          >
+            <div
+              style={{
+                background: '#fff',
+                borderRadius: 12,
+                width: '100%',
+                maxWidth: 620,
+                padding: 0,
+                maxHeight: '90vh',
+                overflow: 'hidden',
+                boxShadow: '0 12px 24px rgba(0,0,0,0.15)',
+                border: '1px solid #eaeaea',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '14px 18px',
+                  borderBottom: '1px solid #eee',
+                }}
+              >
+                <h3 style={{ margin: 0, fontSize: 20 }}>Edit Package</h3>
+                <button
+                  onClick={() => {
+                    if (!savingEdit) {
+                      setIsEditOpen(false);
+                      setActiveBundle(null);
+                    }
+                  }}
+                  style={{
+                    border: 'none',
+                    background: 'transparent',
+                    fontSize: 22,
+                    lineHeight: 1,
+                    cursor: 'pointer',
+                    color: '#555',
+                  }}
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
+              <div style={{ padding: 16, overflowY: 'auto' }}>
+                <div style={{ maxWidth: 520, margin: '0 auto', display: 'grid', gap: 12 }}>
+                  <div>
+                    <label
+                      style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 6 }}
+                    >
+                      Package Name
+                    </label>
+                    <input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="Premium Package"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        maxWidth: '100%',
+                        border: '1px solid #ddd',
+                        borderRadius: 8,
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 6 }}
+                    >
+                      Price
+                    </label>
+                    <input
+                      value={editPrice}
+                      onChange={(e) => setEditPrice(e.target.value)}
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="999"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        maxWidth: '100%',
+                        border: '1px solid #ddd',
+                        borderRadius: 8,
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label
+                      style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 6 }}
+                    >
+                      Some ID (optional)
+                    </label>
+                    <input
+                      value={editExternalId}
+                      onChange={(e) => setEditExternalId(e.target.value)}
+                      placeholder="SKU-123"
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        maxWidth: '100%',
+                        border: '1px solid #ddd',
+                        borderRadius: 8,
+                      }}
+                    />
+                  </div>
+                  {Number(editPrice) > 0 && (
+                    <div>
+                      <label
+                        style={{ display: 'block', fontWeight: 600, fontSize: 14, marginBottom: 6 }}
+                      >
+                        Bundle Type
+                      </label>
+                      <select
+                        value={editBundleCategory}
+                        onChange={(e) => setEditBundleCategory(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          border: '1px solid #ddd',
+                          borderRadius: 8,
+                        }}
+                      >
+                        <option value="academic">Premium Academic Pack</option>
+                        <option value="general_training">Premium General Training Pack</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: 10,
+                  padding: '12px 16px',
+                  borderTop: '1px solid #eee',
+                }}
+              >
+                <button
+                  onClick={() => {
+                    if (!savingEdit) {
+                      setIsEditOpen(false);
+                      setActiveBundle(null);
+                    }
+                  }}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid #ddd',
+                    background: '#f7f7f7',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!activeBundle) return;
+                    const n = editName.trim();
+                    const p = Number(editPrice);
+                    if (!n) {
+                      toast.error('Package name is required');
+                      return;
+                    }
+                    if (!Number.isFinite(p) || p < 0) {
+                      toast.error('Price must be a non-negative number');
+                      return;
+                    }
+                    try {
+                      setSavingEdit(true);
+                      await setDoc(
+                        doc(db, 'bundles', activeBundle.id),
+                        {
+                          name: n,
+                          price: p,
+                          externalId: editExternalId.trim() || null,
+                          bundleCategory: p > 0 ? editBundleCategory : 'free',
+                          updatedAt: serverTimestamp(),
+                        },
+                        { merge: true }
+                      );
+                      setBundles((prev) =>
+                        prev.map((b) =>
+                          b.id === activeBundle.id
+                            ? {
+                                ...b,
+                                name: n,
+                                price: p,
+                                externalId: editExternalId.trim() || null,
+                                bundleCategory: p > 0 ? editBundleCategory : 'free',
+                              }
+                            : b
+                        )
+                      );
+                      toast.success('Package updated');
+                      setIsEditOpen(false);
+                      setActiveBundle(null);
+                    } catch {
+                      toast.error('Failed to update bundle');
+                    } finally {
+                      setSavingEdit(false);
+                    }
+                  }}
+                  disabled={savingEdit}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    border: '1px solid #8ddf8d',
+                    background: '#e6ffe6',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  {savingEdit ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      {isTestsOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: 12,
+              width: '100%',
+              maxWidth: 760,
+              padding: 0,
+              maxHeight: '90vh',
+              overflow: 'hidden',
+              boxShadow: '0 12px 24px rgba(0,0,0,0.15)',
+              border: '1px solid #eaeaea',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '14px 18px',
+                borderBottom: '1px solid #eee',
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: 20 }}>
+                Manage Tests {activeBundle ? `— ${activeBundle.name}` : ''}
+              </h3>
+              <button
+                onClick={() => {
+                  setIsTestsOpen(false);
+                  setActiveBundle(null);
+                }}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  fontSize: 22,
+                  lineHeight: 1,
+                  cursor: 'pointer',
+                  color: '#555',
+                }}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ padding: 16, overflowY: 'auto' }}>
+              {testsLoading && (
+                <div style={{ position: 'relative' }}>
+                  <LoaderOverlay text="Loading tests…" fullscreen={false} />
+                </div>
+              )}
+              {testsError && <div style={{ color: 'crimson' }}>{testsError}</div>}
+              {!testsLoading && !testsError && (
+                <>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                    <button
+                      onClick={selectAll}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: 6,
+                        border: '1px solid #ddd',
+                        background: '#f7f7f7',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Select All
+                    </button>
+                    <button
+                      onClick={clearAll}
+                      style={{
+                        padding: '6px 10px',
+                        borderRadius: 6,
+                        border: '1px solid #ddd',
+                        background: '#f7f7f7',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                      gap: 10,
+                    }}
+                  >
+                    {allTests.map((t) => (
+                      <label
+                        key={t.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 10,
+                          border: '1px solid #eee',
+                          padding: 10,
+                          borderRadius: 8,
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedTestIds.has(t.id)}
+                          onChange={() => toggleTestId(t.id)}
+                        />
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{t.title || 'Untitled'}</div>
+                          <div style={{ fontSize: 12, color: '#555' }}>
+                            #{t.number || '-'} • {t.type === 'audio' ? 'Listening' : 'Reading'}
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: 10,
+                padding: '12px 16px',
+                borderTop: '1px solid #eee',
+              }}
+            >
+              <button
+                onClick={() => {
+                  setIsTestsOpen(false);
+                  setActiveBundle(null);
+                }}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  border: '1px solid #ddd',
+                  background: '#f7f7f7',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveBundleTests}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 8,
+                  border: '1px solid #8ddf8d',
+                  background: '#e6ffe6',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                Add to Package
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default Package;
