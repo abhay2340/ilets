@@ -27,6 +27,18 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId, a
     question.type === 'sentencefill' ||
     question.type === 'headingmatch';
 
+  const getPlaceholder = (q, idx) => {
+    if (Array.isArray(q.subIds) && q.subIds[idx] !== undefined) {
+      return String(q.subIds[idx]);
+    }
+    const baseId = String(q.displayId ?? q.id);
+    const match = baseId.match(/^(\d+)/);
+    if (match) {
+      return String(parseInt(match[1], 10) + idx);
+    }
+    return `${baseId}.${idx + 1}`;
+  };
+
   return (
     <div id={`q-${question.id}`} style={{ marginBottom: '25px' }}>
       {!hideHeader && (
@@ -180,7 +192,7 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId, a
                           margin: '0 6px',
                           verticalAlign: 'middle',
                         }}
-                        placeholder={`${question.displayId ?? question.id}.${i + 1}`}
+                        placeholder={getPlaceholder(question, i)}
                       />
                     </React.Fragment>
                   );
@@ -1238,7 +1250,7 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId, a
                         margin: '0 6px',
                         verticalAlign: 'middle',
                       }}
-                      placeholder={`${question.displayId ?? question.id}.${i + 1}`}
+                      placeholder={getPlaceholder(question, i)}
                     />
                   </React.Fragment>
                 );
@@ -1346,7 +1358,7 @@ const QuestionBox = ({ question, answer, setAnswer, onVisited, setAnswerForId, a
                                         margin: '0 6px',
                                         verticalAlign: 'middle',
                                       }}
-                                      placeholder={`${question.displayId ?? question.id}.${idx + 1}`}
+                                      placeholder={getPlaceholder(question, idx)}
                                     />
                                   </React.Fragment>
                                 );

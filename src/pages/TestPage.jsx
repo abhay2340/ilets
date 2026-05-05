@@ -1120,6 +1120,27 @@ const TestPage = () => {
             }}
           >
             <h3>{currentPart.title}</h3>
+            {Array.isArray(currentPart.partInstructions) && currentPart.partInstructions.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                {currentPart.partInstructions.map((inst, idx) => {
+                  if (!inst || !inst.text) return null;
+                  const isBold = inst.infoKind === 'bold' || inst.infoKind === 'heading';
+                  return (
+                    <div
+                      key={`inst-${idx}`}
+                      style={{
+                        fontWeight: isBold ? 800 : 400,
+                        fontSize: '16px',
+                        marginBottom: '4px',
+                        color: '#111'
+                      }}
+                    >
+                      {inst.text}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {(() => {
               const hmQ = currentPart.questions.find((q) => q.type === 'headingmatch');
               if (hmQ && /_{3,}/.test(currentPart.passage || '')) {
@@ -1353,6 +1374,27 @@ const TestPage = () => {
             }}
           >
             <h3>{currentPart.title}</h3>
+            {Array.isArray(currentPart.partInstructions) && currentPart.partInstructions.length > 0 && (
+              <div style={{ marginBottom: '16px' }}>
+                {currentPart.partInstructions.map((inst, idx) => {
+                  if (!inst || !inst.text) return null;
+                  const isBold = inst.infoKind === 'bold' || inst.infoKind === 'heading';
+                  return (
+                    <div
+                      key={`inst-${idx}`}
+                      style={{
+                        fontWeight: isBold ? 800 : 400,
+                        fontSize: '16px',
+                        marginBottom: '4px',
+                        color: '#111'
+                      }}
+                    >
+                      {inst.text}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {(() => {
               const hmQ = currentPart.questions.find((q) => q.type === 'headingmatch');
               if (hmQ && /_{3,}/.test(currentPart.passage || '')) {
