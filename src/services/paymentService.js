@@ -83,7 +83,7 @@ export const initializePayment = async (testId, userId, onSuccess, onError, item
       name = 'Gurjant IELTS';
       isBundle = !!itemDetails.isBundle;
       description = isBundle
-        ? `Payment for ${itemDetails.name || 'Bundle'}`
+        ? `Payment for ${itemDetails.name || 'Package'}`
         : `Payment for ${itemDetails.name || 'Test'}`;
     } else {
       // Fallback to static

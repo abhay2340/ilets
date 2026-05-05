@@ -6,7 +6,7 @@ export const TEST_PRICING = {
   test2: { price: 0, currency: 'INR', isFree: true },
 };
 
-// Bundle pricing for multiple tests
+// Package pricing for multiple tests
 export const BUNDLE_ID = 'bundleAll';
 export const BUNDLE_PRICING = {
   [BUNDLE_ID]: { price: 1, currency: 'INR', tests: ['test3', 'test4', 'test5', 'test6', 'test7', 'test8', 'test9'] },

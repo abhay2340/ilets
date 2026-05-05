@@ -18,7 +18,7 @@ import ContactSection from './ContactSection';
 import Navbar from './Navbar.jsx';
 import Admin from './Admin.jsx';
 import Tests from './Tests.jsx';
-import Bundle from './Bundle.jsx';
+import Package from './Package.jsx';
 import AdminPanel from './AdminPanel.jsx';
 import BundleDetail from './BundleDetail.jsx';
 import Blogs from './Blogs.jsx';
@@ -33,7 +33,12 @@ function App() {
 
   useEffect(() => {
     const checkFs = () => {
-      const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+      const isFs = !!(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
       setIsFullscreen(isFs);
     };
     document.addEventListener('fullscreenchange', checkFs);

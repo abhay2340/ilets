@@ -29,13 +29,13 @@ function PaidTests({ purchasedTests = [], loading = false, navigate, hasAccess }
                 <h3>Test {num}</h3>
                 <p>Premium test. Included in bundle.</p>
                 <div style={{ margin: '6px 0', fontWeight: 700 }}>
-                    <span style={{ color: '#b30000' }}>Included in Bundle</span>
+                    <span style={{ color: '#b30000' }}>Included in Package</span>
                 </div>
                 {isUnlocked && (
                     <div style={{ fontSize: 12, color: '#555', marginBottom: 8 }}>Unlocked</div>
                 )}
                 <button onClick={handleStart} disabled={loading}>
-                    {isUnlocked ? 'Start' : 'Unlock with Bundle'}
+                    {isUnlocked ? 'Start' : 'Unlock with Package'}
                 </button>
             </div>
         );

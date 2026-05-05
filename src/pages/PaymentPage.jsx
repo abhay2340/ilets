@@ -27,7 +27,7 @@ const PaymentPage = () => {
 
   useEffect(() => {
     const fetchItem = async () => {
-      // 1. Dynamic Bundle
+      // 1. Dynamic Package
       if (bundleId) {
         try {
           const docRef = doc(db, 'bundles', bundleId);
@@ -36,7 +36,7 @@ const PaymentPage = () => {
             const data = snap.data();
             setItemData({
               id: bundleId,
-              name: data.name || 'Bundle',
+              name: data.name || 'Package',
               price: Number(data.price || 0),
               isBundle: true,
               isFree: Number(data.price || 0) === 0,
@@ -44,7 +44,7 @@ const PaymentPage = () => {
               features: ['Includes multiple tests', 'Full access for 3 months', 'Instant activation']
             });
           } else {
-            setError('Bundle not found');
+            setError('Package not found');
           }
         } catch (err) {
           setError('Failed to load bundle details');
@@ -52,7 +52,7 @@ const PaymentPage = () => {
         return;
       }
 
-      // 2. Legacy/Static configs (Test or Static Bundle)
+      // 2. Legacy/Static configs (Test or Static Package)
       const targetId = testId || BUNDLE_ID;
       if (targetId === BUNDLE_ID) {
         // Static bundle
@@ -205,7 +205,7 @@ const PaymentPage = () => {
           <div className="payment-section">
             <div className="price-card">
               <div className="price-header">
-                <h3>{itemData.isBundle ? 'Bundle Access' : 'Test Access'}</h3>
+                <h3>{itemData.isBundle ? 'Package Access' : 'Test Access'}</h3>
                 <div className="price">
                   {itemData.isFree ? (
                     <span className="free-price">FREE</span>
