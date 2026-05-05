@@ -222,12 +222,12 @@ const TestPage = () => {
     try {
       el.setAttribute('controlsList', 'nodownload noplaybackrate noremoteplayback');
       el.disablePictureInPicture = true;
-    } catch {}
+    } catch { }
 
     const onPause = () => {
       // If user pauses before it finishes, instantly resume
       if (!el.ended && listeningStarted) {
-        setTimeout(() => el.play().catch(() => {}), 0);
+        setTimeout(() => el.play().catch(() => { }), 0);
       }
     };
 
@@ -248,8 +248,8 @@ const TestPage = () => {
     // Also override OS/media‑key actions (Chrome/Edge/Android/iOS Safari)
     if ('mediaSession' in navigator) {
       try {
-        navigator.mediaSession.setActionHandler('pause', () => el.play().catch(() => {}));
-        navigator.mediaSession.setActionHandler('stop', () => el.play().catch(() => {}));
+        navigator.mediaSession.setActionHandler('pause', () => el.play().catch(() => { }));
+        navigator.mediaSession.setActionHandler('stop', () => el.play().catch(() => { }));
         navigator.mediaSession.setActionHandler(
           'seekforward',
           () => (el.currentTime = lastTimeRef.current)
@@ -261,9 +261,9 @@ const TestPage = () => {
           // optional: disallow going back too (comment out if you want to allow back)
           el.currentTime = Math.max(0, lastTimeRef.current);
         });
-        navigator.mediaSession.setActionHandler('previoustrack', () => {});
-        navigator.mediaSession.setActionHandler('nexttrack', () => {});
-      } catch {}
+        navigator.mediaSession.setActionHandler('previoustrack', () => { });
+        navigator.mediaSession.setActionHandler('nexttrack', () => { });
+      } catch { }
     }
 
     // block context menu on the audio (no tricks)
@@ -330,11 +330,11 @@ const TestPage = () => {
     // clear persisted session so it doesn't resume after submission
     try {
       if (sessionKeyRef.current) localStorage.removeItem(sessionKeyRef.current);
-    } catch (_) {}
+    } catch (_) { }
     // stop/pause audio when the test ends (optional)
     try {
       audioRef.current?.pause();
-    } catch (_) {}
+    } catch (_) { }
 
     // compute time taken from the latest ref value
     const timeTaken = TOTAL_DURATION - timeLeftRef.current;
@@ -414,9 +414,9 @@ const TestPage = () => {
       if (qType === 'multiselect') {
         const correctOptions = keyAns
           ? keyAns
-              .split(',')
-              .map((s) => s.trim())
-              .filter(Boolean)
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
           : [];
         const maxMarks = correctOptions.length || 0;
         totalMarks += maxMarks;
@@ -438,9 +438,9 @@ const TestPage = () => {
 
         const userOptions = userAns
           ? userAns
-              .split(',')
-              .map((s) => s.trim())
-              .filter(Boolean)
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
           : [];
 
         const correctSet = new Set(correctOptions);
@@ -572,7 +572,7 @@ const TestPage = () => {
       if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
         document.webkitExitFullscreen();
       }
-    } catch (_) {}
+    } catch (_) { }
 
     // 👉 Navigate to result page
     const navigationState = {
@@ -612,7 +612,7 @@ const TestPage = () => {
       deadline = Date.now() + TOTAL_DURATION * 1000;
       try {
         localStorage.setItem(key, JSON.stringify({ deadline }));
-      } catch (_) {}
+      } catch (_) { }
     }
 
     deadlineRef.current = deadline;
@@ -640,7 +640,7 @@ const TestPage = () => {
       try {
         const prev = JSON.parse(localStorage.getItem(key) || '{}');
         localStorage.setItem(key, JSON.stringify({ ...prev, deadline: newDeadline }));
-      } catch (_) {}
+      } catch (_) { }
     }
   }, [currentTestId, hasTestAccess]);
 
@@ -678,7 +678,7 @@ const TestPage = () => {
           partIndex,
         })
       );
-    } catch (_) {}
+    } catch (_) { }
   }, [answers, partIndex]);
 
   // Detect tab/window switches and transiently warn the user (on return)
@@ -790,7 +790,7 @@ const TestPage = () => {
             savedAt: Date.now(),
           })
         );
-      } catch (_) {}
+      } catch (_) { }
     }, 5000);
     return () => clearInterval(interval);
   }, [answers, partIndex, hasTestAccess]);
@@ -925,23 +925,58 @@ const TestPage = () => {
           </div>
         </div>
       )}
-      {/* Tabs + Timer */}
-      {/* Tabs + Timer */}
-      {/* Tabs + Timer */}
-      {/* Timer only (tabs moved to bottom strip) */}
+      {/* IELTS™ Header Bar */}
       <div
         style={{
           display: 'flex',
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '15px',
+          background: '#fff',
+          borderBottom: '1px solid #ddd',
+          padding: '8px 20px',
+          marginBottom: 0,
         }}
       >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <span style={{ fontWeight: 900, fontSize: '30px', letterSpacing: '1px', fontFamily: 'Georgia, serif', color: '#f60505ff' }}>IELTS<sup style={{ fontSize: '12px', verticalAlign: 'super' }}>™</sup></span>
+        </div>
         <div
-          style={{ fontWeight: 'bold', fontSize: '18px', color: timeLeft <= 300 ? 'red' : 'black' }}
+          style={{ fontWeight: 'bold', fontSize: '16px', color: timeLeft <= 300 ? '#b30000' : '#333' }}
         >
           Time Remaining: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
         </div>
+      </div>
+
+      {/* Full-width Instruction Bar */}
+      <div
+        style={{
+          background: '#f5f5f5',
+          border: '1px solid #ddd',
+          borderTop: 'none',
+          padding: '10px 20px',
+          marginBottom: '12px',
+        }}
+      >
+        {Array.isArray(currentPart.partInstructions) && currentPart.partInstructions.length > 0 && (
+          <div>
+            {currentPart.partInstructions.map((inst, idx) => {
+              if (!inst || !inst.text) return null;
+              const isBold = inst.infoKind === 'bold' || inst.infoKind === 'heading';
+              return (
+                <div
+                  key={`top-inst-${idx}`}
+                  style={{
+                    fontWeight: isBold ? 800 : 400,
+                    fontSize: '14px',
+                    color: '#333',
+                  }}
+                >
+                  {inst.text}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Focus change warning at top-level so it shows even without audio */}
@@ -1065,8 +1100,8 @@ const TestPage = () => {
                 `Audio failed to load. Please verify the file exists at "${persistentAudioSrc}" and the path is correct (avoid typos and ensure it is inside public/audio).`
               )
             }
-            // no controls -> no play/pause UI
-            // we also block pause/seek via events + MediaSession
+          // no controls -> no play/pause UI
+          // we also block pause/seek via events + MediaSession
           />
         </div>
       )}
@@ -1120,27 +1155,6 @@ const TestPage = () => {
             }}
           >
             <h3>{currentPart.title}</h3>
-            {Array.isArray(currentPart.partInstructions) && currentPart.partInstructions.length > 0 && (
-              <div style={{ marginBottom: '16px' }}>
-                {currentPart.partInstructions.map((inst, idx) => {
-                  if (!inst || !inst.text) return null;
-                  const isBold = inst.infoKind === 'bold' || inst.infoKind === 'heading';
-                  return (
-                    <div
-                      key={`inst-${idx}`}
-                      style={{
-                        fontWeight: isBold ? 800 : 400,
-                        fontSize: '16px',
-                        marginBottom: '4px',
-                        color: '#111'
-                      }}
-                    >
-                      {inst.text}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
             {(() => {
               const hmQ = currentPart.questions.find((q) => q.type === 'headingmatch');
               if (hmQ && /_{3,}/.test(currentPart.passage || '')) {
@@ -1374,27 +1388,6 @@ const TestPage = () => {
             }}
           >
             <h3>{currentPart.title}</h3>
-            {Array.isArray(currentPart.partInstructions) && currentPart.partInstructions.length > 0 && (
-              <div style={{ marginBottom: '16px' }}>
-                {currentPart.partInstructions.map((inst, idx) => {
-                  if (!inst || !inst.text) return null;
-                  const isBold = inst.infoKind === 'bold' || inst.infoKind === 'heading';
-                  return (
-                    <div
-                      key={`inst-${idx}`}
-                      style={{
-                        fontWeight: isBold ? 800 : 400,
-                        fontSize: '16px',
-                        marginBottom: '4px',
-                        color: '#111'
-                      }}
-                    >
-                      {inst.text}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
             {(() => {
               const hmQ = currentPart.questions.find((q) => q.type === 'headingmatch');
               if (hmQ && /_{3,}/.test(currentPart.passage || '')) {
