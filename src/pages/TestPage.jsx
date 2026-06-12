@@ -87,6 +87,9 @@ const TestPage = () => {
 
     const numbers = [];
     questions.forEach((q) => {
+      // Skip info-type questions — they are instructional text, not actual numbered questions
+      if (q.type === 'info') return;
+
       // If question has subIds, use those
       if (Array.isArray(q.subIds) && q.subIds.length > 0) {
         q.subIds.forEach((id) => {
