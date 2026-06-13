@@ -10,7 +10,7 @@ import {
 import { TEST_PRICING } from '../config/pricing';
 
 export const usePurchases = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [purchasedTests, setPurchasedTests] = useState([]);
   const [purchaseHistory, setPurchaseHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,6 +48,11 @@ export const usePurchases = () => {
   // Check if user has access to a specific test
   const hasAccess = async (testId) => {
     if (!user) return false;
+
+    // Admin users have unrestricted access to all tests (free and paid)
+    if (isAdmin) {
+      return true;
+    }
 
     // Free tests are always accessible
     if (TEST_PRICING[testId]?.isFree) {
