@@ -16,7 +16,7 @@ import { FaBan } from 'react-icons/fa';
 const TestPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isAdmin } = useAuth();
   const { hasAccess } = usePurchases();
 
   const params = new URLSearchParams(location.search);
@@ -295,6 +295,13 @@ const TestPage = () => {
         return;
       }
 
+      // Admin users have unrestricted access to all tests (free and paid)
+      if (isAdmin) {
+        setHasTestAccess(true);
+        setAccessChecked(true);
+        return;
+      }
+
       // Firestore-managed tests (not in local pricing config) are always accessible
       if (!TEST_PRICING[currentTestId]) {
         setHasTestAccess(true);
@@ -323,7 +330,7 @@ const TestPage = () => {
     };
 
     checkAccess();
-  }, [authLoading, user, currentTestId, hasAccess, navigate]);
+  }, [authLoading, user, isAdmin, currentTestId, hasAccess, navigate]);
 
   // Submit handler defined before any conditional returns to keep hooks stable
   const handleSubmit = async () => {
